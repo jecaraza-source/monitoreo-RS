@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { computeDelta, formatDelta, trendTone } from "./metrics.ts";
+import { computeDelta, computePointDelta, formatDelta, formatPoints, trendTone } from "./metrics.ts";
 
 describe("computeDelta", () => {
   it("computes the relative change", () => {
@@ -34,5 +34,20 @@ describe("formatDelta", () => {
     assert.match(formatDelta({ ratio: 0.125, trend: "up" }), /^\+12\.5\s?%$/);
     assert.match(formatDelta({ ratio: -0.03, trend: "down" }), /^-3\s?%$/);
     assert.equal(formatDelta({ ratio: null, trend: "flat" }), "—");
+  });
+});
+
+describe("point deltas", () => {
+  it("reports the difference in points", () => {
+    assert.deepEqual(computePointDelta(12, 10), { ratio: null, points: 2, trend: "up" });
+    assert.equal(computePointDelta(-5, 3).trend, "down");
+    assert.equal(computePointDelta(10, 10.01).trend, "flat");
+    assert.equal(computePointDelta(10, null).points, null);
+    assert.equal(formatPoints(2.46), "+2.5 pts");
+    assert.equal(formatPoints(null), "—");
+  });
+
+  it("keeps neutral metrics gray", () => {
+    assert.equal(trendTone("up", null), "neutral");
   });
 });

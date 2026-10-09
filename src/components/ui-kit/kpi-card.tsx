@@ -1,14 +1,16 @@
 import { ArrowDownRight, ArrowRight, ArrowUpRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { computeDelta, formatDelta, trendTone, type Tone } from "@/lib/metrics";
+import { computeDelta, computePointDelta, formatDelta, formatPoints, trendTone, type Tone } from "@/lib/metrics";
 import { cn } from "@/lib/utils";
 import { AnimatedNumber } from "./animated-number";
 import { Reveal } from "./reveal";
 
+// The tone lives in the tint and the arrow; the figure stays in text ink so it
+// keeps AA contrast on every surface.
 const TONE_CLASS: Record<Tone, string> = {
-  positive: "bg-positive/12 text-positive",
-  negative: "bg-negative/12 text-negative",
-  neutral: "bg-muted text-muted-foreground",
+  positive: "bg-positive/12 text-foreground [&_svg]:text-positive",
+  negative: "bg-negative/12 text-foreground [&_svg]:text-negative",
+  neutral: "bg-muted text-foreground [&_svg]:text-muted-foreground",
 };
 
 const TREND_ICON = { up: ArrowUpRight, down: ArrowDownRight, flat: ArrowRight };
@@ -19,8 +21,13 @@ export type KpiCardProps = {
   /** Same metric in the previous period; omit to hide the comparison. */
   previousValue?: number | null;
   formatOptions?: Intl.NumberFormatOptions;
-  /** False for metrics where growth is bad (negative mentions, response time). */
-  higherIsBetter?: boolean;
+  /**
+   * False for metrics where growth is bad (negative mentions, response time);
+   * null when growth is neither good nor bad (volume), so the trend stays gray.
+   */
+  higherIsBetter?: boolean | null;
+  /** "points" for rates and scores (NSS, % negative): shows "+2 pts" instead of a relative %. */
+  deltaMode?: "relative" | "points";
   icon?: React.ReactNode;
   comparisonLabel?: string;
   /** Stagger index for the entry animation in a row of cards. */
@@ -34,13 +41,15 @@ export function KpiCard({
   previousValue,
   formatOptions,
   higherIsBetter = true,
+  deltaMode = "relative",
   icon,
   comparisonLabel = "vs. periodo anterior",
   index = 0,
   className,
 }: KpiCardProps) {
   const showDelta = previousValue !== undefined;
-  const delta = computeDelta(value, previousValue);
+  const pointDelta = deltaMode === "points" ? computePointDelta(value, previousValue) : null;
+  const delta = pointDelta ?? computeDelta(value, previousValue);
   const tone = trendTone(delta.trend, higherIsBetter);
   const TrendIcon = TREND_ICON[delta.trend];
 
@@ -68,7 +77,7 @@ export function KpiCard({
                 )}
               >
                 <TrendIcon aria-hidden className="size-3.5" />
-                {formatDelta(delta)}
+                {pointDelta ? formatPoints(pointDelta.points) : formatDelta(delta)}
               </span>
               {comparisonLabel}
             </p>

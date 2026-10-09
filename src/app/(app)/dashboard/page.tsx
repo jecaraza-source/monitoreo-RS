@@ -1,22 +1,31 @@
 import type { Metadata } from "next";
-import { LayoutDashboard } from "lucide-react";
-import { PageHeader } from "@/components/layout/page-header";
-import { EmptyState } from "@/components/ui-kit";
+import { Suspense } from "react";
+import { DashboardContent } from "@/components/dashboard/dashboard-content";
+import { DashboardFrame } from "@/components/dashboard/dashboard-frame";
+import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
+import { PeriodSelector } from "@/components/dashboard/period-selector";
 import { requireSection } from "@/lib/auth/session";
+import { getDashboard } from "@/lib/dashboard/data";
+import { parsePeriod } from "@/lib/dashboard/period";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
-export default async function DashboardPage() {
-  await requireSection("/dashboard");
+export default function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      <Dashboard searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function Dashboard({ searchParams }: { searchParams: PageProps<"/dashboard">["searchParams"] }) {
+  const member = await requireSection("/dashboard");
+  const period = parsePeriod(await searchParams);
+  const data = await getDashboard(member, period);
 
   return (
-    <>
-      <PageHeader title="Dashboard" description="Resumen ejecutivo de menciones, sentimiento y atención." />
-      <EmptyState
-        icon={<LayoutDashboard />}
-        title="Aquí verás los indicadores del proyecto activo"
-        description="Sentimiento, volumen de menciones, tiempos de atención y temas principales, comparados con el periodo anterior."
-      />
-    </>
+    <DashboardFrame toolbar={<PeriodSelector />}>
+      <DashboardContent data={data} period={period} />
+    </DashboardFrame>
   );
 }

@@ -196,3 +196,27 @@ Funciones:
 Turnar usa `route_mentions()` (crea los tickets y marca las menciones como turnadas en una transacción,
 con los permisos de quien llama). En Supabase hospedado, la publicación `supabase_realtime` ya existe; la
 migración le agrega las tablas.
+
+## Dashboard
+
+`/dashboard` es la vista ejecutiva (admin, comunicación y lectura):
+
+- Selector de periodo (24 h, 7 días, 30 días o fechas personalizadas, días de la Ciudad de México) y
+  comparación contra el periodo inmediato anterior de la misma duración.
+- KPIs: menciones, Net Sentiment Score ((positivas − negativas) / clasificadas × 100), % negativo
+  (variación en puntos), quejas abiertas (tickets del periodo aún abiertos) y tiempo medio de atención
+  (de turnado a resuelto).
+- "Lectura del día" con texto de ejemplo (se conectará a Claude).
+- Volumen por sentimiento con picos anotados, temas y dependencias ordenados por NSS, mapa de colonias
+  (MapLibre, intensidad por quejas) y rankings de mayor alcance y de medios/figuras públicas.
+- Cada gráfica abre la bandeja ya filtrada (periodo + tema, dependencia, colonia, día, mención o medio).
+- Cada gráfica tiene su tabla de datos ("Ver datos").
+- Modo **Sala de juntas**: pantalla completa con actualización cada 60 s.
+
+Datos: la vista materializada `mention_stats_hourly` (hora × sentimiento × dependencia × colonia × tema
+× queja) y la función `dashboard_stats()`, que devuelve todo el dashboard en una llamada. La ingesta y
+la clasificación la refrescan (`refresh_mention_stats()`, sólo service role) cuando escriben.
+
+Rendimiento: las gráficas (Recharts) y el mapa (MapLibre) se cargan sólo cuando están por entrar en
+pantalla; las animaciones de entrada son CSS. Con el seed, el dashboard carga en ~0.5 s y Lighthouse
+móvil da 86–90 de rendimiento y 100 de accesibilidad.

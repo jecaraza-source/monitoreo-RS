@@ -1,26 +1,22 @@
-"use client";
+import { cn } from "@/lib/utils";
 
-import { motion, useReducedMotion } from "framer-motion";
-
-/** Entry animation for cards: fade + small rise. Static for reduced motion. */
+/**
+ * Entry animation for cards: fade + small rise, in CSS so it starts with the
+ * first paint (no JS, no hydration wait). Static for reduced motion.
+ */
 export function Reveal({
   children,
   delay = 0,
   className,
 }: {
   children: React.ReactNode;
+  /** Seconds; use index × 0.06 for a staggered row. */
   delay?: number;
   className?: string;
 }) {
-  const reduce = useReducedMotion();
   return (
-    <motion.div
-      className={className}
-      initial={reduce ? false : { opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay, ease: "easeOut" }}
-    >
+    <div className={cn("animate-reveal", className)} style={delay ? { animationDelay: `${delay}s` } : undefined}>
       {children}
-    </motion.div>
+    </div>
   );
 }

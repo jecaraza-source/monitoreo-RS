@@ -99,6 +99,8 @@ export async function fetchInbox(
   if (filters.from) query = query.gte("published_at", dayStart(filters.from));
   if (filters.to) query = query.lt("published_at", dayEnd(filters.to));
   if (filters.source) query = query.eq("source_id", filters.source);
+  if (filters.mention) query = query.eq("id", filters.mention);
+  if (filters.author) query = query.eq("author_id", filters.author);
   if (filters.sentiment) query = query.eq("classifications.sentiment", filters.sentiment);
   if (filters.topic) query = query.eq("classifications.topic", filters.topic);
   if (filters.department) query = query.eq("classifications.department_id", filters.department);
