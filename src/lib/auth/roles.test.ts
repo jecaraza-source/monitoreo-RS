@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { ROLES, canAccessPath, homeForRole, sectionForPath, sectionsForRole } from "./roles.ts";
+import { ROLES, canAccessPath, homeForRole, sectionForPath, sectionsForRole, subsectionsForRole } from "./roles.ts";
 
 describe("sectionsForRole", () => {
   it("gives each role exactly its menu", () => {
@@ -8,7 +8,9 @@ describe("sectionsForRole", () => {
     assert.deepEqual(menu("admin"), [
       "Dashboard", "Bandeja", "Mapa", "Alertas", "Reportes", "Asistente", "Configuración",
     ]);
-    assert.deepEqual(menu("comunicacion"), ["Dashboard", "Bandeja", "Mapa", "Alertas", "Reportes", "Asistente"]);
+    assert.deepEqual(menu("comunicacion"), [
+      "Dashboard", "Bandeja", "Mapa", "Alertas", "Reportes", "Asistente", "Configuración",
+    ]);
     assert.deepEqual(menu("dependencia"), ["Bandeja", "Alertas"]);
     assert.deepEqual(menu("lectura"), ["Dashboard", "Mapa", "Alertas", "Reportes"]);
   });
@@ -18,7 +20,14 @@ describe("canAccessPath", () => {
   it("matches nested routes to their section", () => {
     assert.equal(sectionForPath("/configuracion/usuarios")?.key, "settings");
     assert.equal(canAccessPath("admin", "/configuracion/usuarios"), true);
+  });
+
+  it("lets comunicacion manage projects but not users or catalogs", () => {
+    assert.equal(canAccessPath("comunicacion", "/configuracion/proyectos/abc"), true);
     assert.equal(canAccessPath("comunicacion", "/configuracion/usuarios"), false);
+    assert.equal(canAccessPath("comunicacion", "/configuracion/catalogos"), false);
+    assert.deepEqual(subsectionsForRole("comunicacion").map((s) => s.label), ["Proyectos"]);
+    assert.deepEqual(subsectionsForRole("admin").map((s) => s.label), ["Proyectos", "Catálogos", "Usuarios"]);
   });
 
   it("does not confuse prefixes with sections", () => {

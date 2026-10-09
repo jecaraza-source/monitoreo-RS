@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { UserPlus } from "lucide-react";
 import { toast } from "sonner";
-import { inviteUser, type InviteState } from "@/app/(app)/configuracion/actions";
+import { inviteUser, type InviteState } from "@/app/(app)/configuracion/usuarios/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
