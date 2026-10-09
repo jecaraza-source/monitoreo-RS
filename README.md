@@ -220,3 +220,31 @@ la clasificación la refrescan (`refresh_mention_stats()`, sólo service role) c
 Rendimiento: las gráficas (Recharts) y el mapa (MapLibre) se cargan sólo cuando están por entrar en
 pantalla; las animaciones de entrada son CSS. Con el seed, el dashboard carga en ~0.5 s y Lighthouse
 móvil da 86–90 de rendimiento y 100 de accesibilidad.
+
+## Alertas
+
+`/alertas` lista las alertas de los últimos 30 días y las reglas (admin y comunicación las editan; las
+dependencias ven sólo las alertas de su área). Tipos de regla (`alert_rules.kind`, parámetros en
+`condition`, validados en `src/lib/alerts/rules.ts`):
+
+| Tipo | Dispara cuando | Huella (enfriamiento) |
+|---|---|---|
+| `spike` | menciones de la ventana > media + k·σ de las mismas ventanas en N días, y ≥ mínimo | una por regla |
+| `sentiment_drop` | el NSS de la ventana cae X puntos frente a los N días previos | una por regla |
+| `risk_term` | una mención recién clasificada contiene un término del catálogo (inicio de palabra, sin acentos) | una por término |
+| `media_negative` | un medio o figura pública publica una mención negativa | una por medio |
+| `daily_digest` | todos los días desde la hora indicada (Ciudad de México) | una por día |
+
+- Se evalúan al final de cada corrida de `/api/cron/classify` (cada 5 min) con `src/lib/alerts/evaluate.ts`.
+- `fire_alert()` aplica el enfriamiento por regla y huella con un candado, así que corridas simultáneas no
+  duplican alertas.
+- Notificación: en la app (campana con contador y aviso en tiempo real) y por correo con Resend
+  (`RESEND_API_KEY`, `ALERTS_FROM_EMAIL`). WhatsApp está detrás del adaptador `src/lib/notify` y se activa con
+  `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` y `WHATSAPP_TEMPLATE` (plantilla aprobada por Meta con dos
+  parámetros: título y enlace). El resultado de cada canal queda en `alert_events.notifications`.
+- Cada alerta tiene **Útil / Falsa alarma**; la lista de reglas muestra el conteo para afinar umbrales.
+
+**Sala de crisis** (`/alertas/crisis`, admin, comunicación y lectura): volumen por minuto por sentimiento,
+NSS en vivo, principales difusores (sólo medios y figuras públicas; los ciudadanos se cuentan en agregado),
+alertas de las últimas 24 h y bitácora de acciones (`crisis_log`). Se actualiza cada 15 s y al instante
+con Realtime.

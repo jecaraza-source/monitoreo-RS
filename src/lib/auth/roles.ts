@@ -48,6 +48,8 @@ export const SUBSECTIONS: readonly { href: string; label: string; roles: readonl
   { href: "/configuracion/fuentes", label: "Fuentes", roles: ["admin", "comunicacion"] },
   { href: "/configuracion/catalogos", label: "Catálogos", roles: ["admin"] },
   { href: "/configuracion/usuarios", label: "Usuarios", roles: ["admin"] },
+  // Crisis room: live org-wide picture, so not for a single department.
+  { href: "/alertas/crisis", label: "Sala de crisis", roles: ["admin", "comunicacion", "lectura"] },
 ];
 
 function isUnder(pathname: string, href: string): boolean {
@@ -75,8 +77,9 @@ export function canAccessPath(role: Role, pathname: string): boolean {
   return !subsection || subsection.roles.includes(role);
 }
 
-export function subsectionsForRole(role: Role) {
-  return SUBSECTIONS.filter((sub) => sub.roles.includes(role));
+/** Subsections under `parent` (e.g. "/configuracion") the role may open. */
+export function subsectionsForRole(role: Role, parent = "/configuracion") {
+  return SUBSECTIONS.filter((sub) => sub.roles.includes(role) && isUnder(sub.href, parent));
 }
 
 /** Landing page after login: the first section the role can open. */

@@ -308,26 +308,47 @@ where c.mention_id = m.id and m.triage = 'new' and c.sentiment = 'positive' and 
 -- Alerts and reports
 -- ---------------------------------------------------------------------------
 
-insert into public.alert_rules (id, org_id, name, condition, channels, department_id) values
-  ('00000000-0000-4000-e300-000000000001', '00000000-0000-4000-a000-000000000001',
-   'Pico de menciones negativas', '{"sentiment":"negative","min_mentions":15,"window_minutes":60}',
-   '{"email":["comunicacion@monitoreo.test"]}', null),
-  ('00000000-0000-4000-e300-000000000002', '00000000-0000-4000-a000-000000000001',
-   'Desabasto de agua por colonia', '{"topic":"agua potable","min_mentions":5,"window_minutes":180,"group_by":"neighborhood"}',
-   '{"email":["agua@monitoreo.test"]}', '00000000-0000-4000-b000-000000000002');
+insert into public.alert_rules (id, org_id, name, kind, condition, channels, department_id, cooldown_minutes) values
+  ('00000000-0000-4000-e300-000000000001', '00000000-0000-4000-a000-000000000001', 'Pico de volumen', 'spike',
+   '{"window_minutes":60,"baseline_days":14,"k":3,"min_mentions":10}', '{"email":["comunicacion@monitoreo.test"]}', null, 120),
+  ('00000000-0000-4000-e300-000000000002', '00000000-0000-4000-a000-000000000001', 'Agua: caída de sentimiento', 'sentiment_drop',
+   '{"window_minutes":180,"baseline_days":14,"drop_points":25,"min_mentions":5}', '{"email":["agua@monitoreo.test"]}',
+   '00000000-0000-4000-b000-000000000002', 360),
+  ('00000000-0000-4000-e300-000000000003', '00000000-0000-4000-a000-000000000001', 'Términos de riesgo', 'risk_term',
+   '{"window_minutes":60,"min_severity":"high"}', '{"email":["comunicacion@monitoreo.test"]}', null, 360),
+  ('00000000-0000-4000-e300-000000000004', '00000000-0000-4000-a000-000000000001', 'Medios en contra', 'media_negative',
+   '{"window_minutes":60}', '{"email":["comunicacion@monitoreo.test"]}', null, 720),
+  ('00000000-0000-4000-e300-000000000005', '00000000-0000-4000-a000-000000000001', 'Resumen diario', 'daily_digest',
+   '{"hour":8}', '{"email":["comunicacion@monitoreo.test"]}', null, 1380);
 
-insert into public.alert_events (org_id, rule_id, mention_id, department_id, payload)
+-- Past alerts: one for Agua (visible to that department) and one org-wide already rated.
+insert into public.alert_events (org_id, rule_id, mention_id, mention_ids, department_id, kind, severity, title, summary,
+                                 fingerprint, payload, notifications, created_at, acknowledged_at, feedback, feedback_at)
 select
-  m.org_id,
-  '00000000-0000-4000-e300-000000000002',
-  m.id,
-  '00000000-0000-4000-b000-000000000002',
-  jsonb_build_object('neighborhood_id', c.neighborhood_id, 'mentions_in_window', 6)
+  m.org_id, '00000000-0000-4000-e300-000000000002', m.id, array[m.id], '00000000-0000-4000-b000-000000000002',
+  'sentiment_drop', 'high', 'El sentimiento cayó 32 puntos',
+  'NSS de -71 en las últimas 3 horas (7 menciones) contra -39 en los 14 días previos.',
+  'sentiment', '{"drop":32}', '{"in_app":{"status":"sent"},"email":{"status":"not_configured"}}',
+  now() - interval '2 days', null, null, null
 from public.mentions m
 join public.classifications c on c.mention_id = m.id
 where c.topic = 'agua potable' and c.sentiment = 'negative'
 order by m.published_at desc
-limit 3;
+limit 1;
+
+insert into public.alert_events (org_id, rule_id, mention_id, mention_ids, kind, severity, title, summary,
+                                 fingerprint, payload, notifications, created_at, acknowledged_at, feedback, feedback_by, feedback_at)
+select
+  m.org_id, '00000000-0000-4000-e300-000000000004', m.id, array[m.id], 'media_negative', 'medium',
+  coalesce(a.display_name, a.handle) || ' (medio) publicó una mención negativa', left(m.text, 140),
+  'author:' || a.id, jsonb_build_object('author_id', a.id), '{"in_app":{"status":"sent"},"email":{"status":"not_configured"}}',
+  now() - interval '1 day', now() - interval '20 hours', 'useful', '00000000-0000-4000-d000-000000000002', now() - interval '20 hours'
+from public.mentions m
+join public.classifications c on c.mention_id = m.id
+join public.authors a on a.id = m.author_id
+where a.kind = 'media' and c.sentiment = 'negative'
+order by m.published_at desc
+limit 1;
 
 insert into public.reports (org_id, period, period_start, period_end, content) values
   ('00000000-0000-4000-a000-000000000001', 'weekly', current_date - 7, current_date - 1,

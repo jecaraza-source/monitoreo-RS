@@ -27,14 +27,14 @@ isOneToOne: false
                   ]
                 },"alert_events": {
                   Row: {
-                    "acknowledged_at": string | null,"created_at": string,"department_id": string | null,"id": string,"mention_id": string | null,"org_id": string,"payload": NonNullable<Json>,"rule_id": string
+                    "acknowledged_at": string | null,"created_at": string,"department_id": string | null,"feedback": string | null,"feedback_at": string | null,"feedback_by": string | null,"fingerprint": string | null,"id": string,"kind": string | null,"mention_id": string | null,"mention_ids": (string)[],"notifications": NonNullable<Json>,"org_id": string,"payload": NonNullable<Json>,"rule_id": string,"severity": Database["public"]['Enums']["priority"],"summary": string,"title": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "acknowledged_at"?: string | null,"created_at"?: string,"department_id"?: string | null,"id"?: string,"mention_id"?: string | null,"org_id": string,"payload"?: NonNullable<Json>,"rule_id": string
+                    "acknowledged_at"?: string | null,"created_at"?: string,"department_id"?: string | null,"feedback"?: string | null,"feedback_at"?: string | null,"feedback_by"?: string | null,"fingerprint"?: string | null,"id"?: string,"kind"?: string | null,"mention_id"?: string | null,"mention_ids"?: (string)[],"notifications"?: NonNullable<Json>,"org_id": string,"payload"?: NonNullable<Json>,"rule_id": string,"severity"?: Database["public"]['Enums']["priority"],"summary"?: string,"title"?: string
                   }
                   Update: {
-                    "acknowledged_at"?: string | null,"created_at"?: string,"department_id"?: string | null,"id"?: string,"mention_id"?: string | null,"org_id"?: string,"payload"?: NonNullable<Json>,"rule_id"?: string
+                    "acknowledged_at"?: string | null,"created_at"?: string,"department_id"?: string | null,"feedback"?: string | null,"feedback_at"?: string | null,"feedback_by"?: string | null,"fingerprint"?: string | null,"id"?: string,"kind"?: string | null,"mention_id"?: string | null,"mention_ids"?: (string)[],"notifications"?: NonNullable<Json>,"org_id"?: string,"payload"?: NonNullable<Json>,"rule_id"?: string,"severity"?: Database["public"]['Enums']["priority"],"summary"?: string,"title"?: string
                   }
                   Relationships: [
                     {
@@ -65,14 +65,14 @@ isOneToOne: false
                   ]
                 },"alert_rules": {
                   Row: {
-                    "channels": NonNullable<Json>,"condition": NonNullable<Json>,"created_at": string,"department_id": string | null,"id": string,"is_active": boolean,"name": string,"org_id": string
+                    "channels": NonNullable<Json>,"condition": NonNullable<Json>,"cooldown_minutes": number,"created_at": string,"department_id": string | null,"id": string,"is_active": boolean,"kind": string,"name": string,"org_id": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "channels"?: NonNullable<Json>,"condition": NonNullable<Json>,"created_at"?: string,"department_id"?: string | null,"id"?: string,"is_active"?: boolean,"name": string,"org_id": string
+                    "channels"?: NonNullable<Json>,"condition": NonNullable<Json>,"cooldown_minutes"?: number,"created_at"?: string,"department_id"?: string | null,"id"?: string,"is_active"?: boolean,"kind"?: string,"name": string,"org_id": string,"updated_at"?: string
                   }
                   Update: {
-                    "channels"?: NonNullable<Json>,"condition"?: NonNullable<Json>,"created_at"?: string,"department_id"?: string | null,"id"?: string,"is_active"?: boolean,"name"?: string,"org_id"?: string
+                    "channels"?: NonNullable<Json>,"condition"?: NonNullable<Json>,"cooldown_minutes"?: number,"created_at"?: string,"department_id"?: string | null,"id"?: string,"is_active"?: boolean,"kind"?: string,"name"?: string,"org_id"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -145,6 +145,32 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "neighborhoods"
       referencedColumns: ["org_id","id"]
+    }
+                  ]
+                },"crisis_log": {
+                  Row: {
+                    "alert_event_id": string | null,"author_id": string,"author_name": string,"body": string,"created_at": string,"id": string,"org_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "alert_event_id"?: string | null,"author_id"?: string,"author_name"?: string,"body": string,"created_at"?: string,"id"?: string,"org_id": string
+                  }
+                  Update: {
+                    "alert_event_id"?: string | null,"author_id"?: string,"author_name"?: string,"body"?: string,"created_at"?: string,"id"?: string,"org_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "crisis_log_alert_event_id_fkey"
+      columns: ["alert_event_id"]
+isOneToOne: false
+      referencedRelation: "alert_events"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "crisis_log_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
     }
                   ]
                 },"departments": {
@@ -475,11 +501,35 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "clear_source_secret":
+            "alert_candidates":
+{ Args: { "p_department_id"?: string,"p_org_id": string,"p_since": string }; Returns: {
+              "author_id": string,"author_kind": Database["public"]['Enums']["author_kind"],"author_name": string,"max_severity": Database["public"]['Enums']["priority"],"mention_id": string,"priority": Database["public"]['Enums']["priority"],"published_at": string,"sentiment": Database["public"]['Enums']["sentiment"],"terms": (string)[],"text": string
+            }[]
+                           },
+"alert_digest":
+{ Args: { "p_department_id"?: string,"p_from": string,"p_org_id": string,"p_to": string }; Returns: Json
+                           },
+"alert_sentiment_window":
+{ Args: { "p_baseline_days": number,"p_department_id"?: string,"p_org_id": string,"p_window_minutes": number }; Returns: {
+              "baseline_classified": number,"baseline_nss": number,"current_classified": number,"current_nss": number
+            }[]
+                           },
+"alert_volume_window":
+{ Args: { "p_baseline_days": number,"p_department_id"?: string,"p_org_id": string,"p_window_minutes": number }; Returns: {
+              "baseline_mean": number,"baseline_stddev": number,"baseline_windows": number,"current_count": number
+            }[]
+                           },
+"clear_source_secret":
 { Args: { "p_source_id": string }; Returns: undefined
+                           },
+"crisis_snapshot":
+{ Args: { "p_minutes"?: number,"p_org_id": string }; Returns: Json
                            },
 "dashboard_stats":
 { Args: { "p_bucket"?: string,"p_detail"?: boolean,"p_from": string,"p_org_id": string,"p_to": string }; Returns: Json
+                           },
+"fire_alert":
+{ Args: { "p_fingerprint": string,"p_kind": string,"p_mention_ids": (string)[],"p_payload": Json,"p_rule_id": string,"p_severity": Database["public"]['Enums']["priority"],"p_summary": string,"p_title": string }; Returns: string
                            },
 "get_source_secret":
 { Args: { "p_source_id": string }; Returns: string
