@@ -26,8 +26,8 @@ describe("canAccessPath", () => {
     assert.equal(canAccessPath("comunicacion", "/configuracion/proyectos/abc"), true);
     assert.equal(canAccessPath("comunicacion", "/configuracion/usuarios"), false);
     assert.equal(canAccessPath("comunicacion", "/configuracion/catalogos"), false);
-    assert.deepEqual(subsectionsForRole("comunicacion").map((s) => s.label), ["Proyectos"]);
-    assert.deepEqual(subsectionsForRole("admin").map((s) => s.label), ["Proyectos", "Catálogos", "Usuarios"]);
+    assert.deepEqual(subsectionsForRole("comunicacion").map((s) => s.label), ["Proyectos", "Fuentes"]);
+    assert.deepEqual(subsectionsForRole("admin").map((s) => s.label), ["Proyectos", "Fuentes", "Catálogos", "Usuarios"]);
   });
 
   it("does not confuse prefixes with sections", () => {

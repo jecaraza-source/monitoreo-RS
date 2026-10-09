@@ -2,7 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Reachable without a session. Everything else requires one.
-const PUBLIC_PATHS = ["/login", "/auth/", "/dev/"];
+// /api/cron/* authorizes itself with CRON_SECRET and must answer JSON, not redirect.
+const PUBLIC_PATHS = ["/login", "/auth/", "/dev/", "/api/cron/"];
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p));
