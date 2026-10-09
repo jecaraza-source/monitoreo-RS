@@ -167,3 +167,32 @@ npm run eval:classify -- --fast   # sólo el modelo rápido, sin escalar
 
 Reporta precisión por campo, precisión/exhaustividad por clase, tokens y costo, y guarda el detalle en
 `evals/classify/results/` (ignorado por git).
+
+## Bandeja
+
+`/bandeja` es la mesa de trabajo diaria:
+
+- **Comunicación y admin** ven todas las menciones. Estado de triage (`mentions.triage`): nueva, revisada,
+  turnada, descartada; por omisión se ocultan las descartadas.
+- **Dependencia** ve sólo las menciones con un ticket de su área (RLS) y un contador de tickets vencidos
+  (clic para filtrarlos). Puede cambiar el estado de sus tickets y agregar notas.
+
+Funciones:
+
+- Lista virtualizada (sólo se montan las tarjetas visibles) con paginación por cursor de 50 en 50.
+- Filtros por fecha (días de la Ciudad de México), fuente, sentimiento, tema, dependencia, colonia,
+  prioridad y estado, guardados en la URL. Búsqueda de texto completo en español sin acentos
+  (`websearch`: `fuga "sin agua" -simulacro`).
+- Panel de detalle: corrección de la clasificación (la base registra `corrected_by` y `corrected_at`),
+  turnar con fecha límite sugerida por prioridad (crítica 12 h, alta 24 h, media 72 h, baja 7 días),
+  estado del ticket y notas compartidas entre Comunicación y la dependencia.
+- Acciones masivas: turnar, marcar revisadas y descartar (con deshacer).
+- Atajos: `j`/`k` navegar, `Enter` abrir, `x` seleccionar, `t` turnar, `d` descartar, `r` revisada,
+  `/` buscar, `?` ayuda.
+- Tiempo real con Supabase Realtime (`mentions`, `classifications`, `tickets`, `mention_notes` en la
+  publicación `supabase_realtime`): cada cambio llega filtrado por RLS, la tarjeta entra animada y a la
+  dependencia le aparece el ticket recién turnado con un aviso.
+
+Turnar usa `route_mentions()` (crea los tickets y marca las menciones como turnadas en una transacción,
+con los permisos de quien llama). En Supabase hospedado, la publicación `supabase_realtime` ya existe; la
+migración le agrega las tablas.

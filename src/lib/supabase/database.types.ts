@@ -111,14 +111,14 @@ isOneToOne: false
                   ]
                 },"classifications": {
                   Row: {
-                    "confidence": number | null,"corrected_by": string | null,"created_at": string,"department_id": string | null,"emotion": string | null,"id": string,"intent": string | null,"mention_id": string,"model": string,"neighborhood_id": string | null,"org_id": string,"priority": Database["public"]['Enums']["priority"],"sentiment": Database["public"]['Enums']["sentiment"],"topic": string | null
+                    "confidence": number | null,"corrected_at": string | null,"corrected_by": string | null,"created_at": string,"department_id": string | null,"emotion": string | null,"id": string,"intent": string | null,"mention_id": string,"model": string,"neighborhood_id": string | null,"org_id": string,"priority": Database["public"]['Enums']["priority"],"sentiment": Database["public"]['Enums']["sentiment"],"topic": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "confidence"?: number | null,"corrected_by"?: string | null,"created_at"?: string,"department_id"?: string | null,"emotion"?: string | null,"id"?: string,"intent"?: string | null,"mention_id": string,"model": string,"neighborhood_id"?: string | null,"org_id": string,"priority"?: Database["public"]['Enums']["priority"],"sentiment": Database["public"]['Enums']["sentiment"],"topic"?: string | null
+                    "confidence"?: number | null,"corrected_at"?: string | null,"corrected_by"?: string | null,"created_at"?: string,"department_id"?: string | null,"emotion"?: string | null,"id"?: string,"intent"?: string | null,"mention_id": string,"model": string,"neighborhood_id"?: string | null,"org_id": string,"priority"?: Database["public"]['Enums']["priority"],"sentiment": Database["public"]['Enums']["sentiment"],"topic"?: string | null
                   }
                   Update: {
-                    "confidence"?: number | null,"corrected_by"?: string | null,"created_at"?: string,"department_id"?: string | null,"emotion"?: string | null,"id"?: string,"intent"?: string | null,"mention_id"?: string,"model"?: string,"neighborhood_id"?: string | null,"org_id"?: string,"priority"?: Database["public"]['Enums']["priority"],"sentiment"?: Database["public"]['Enums']["sentiment"],"topic"?: string | null
+                    "confidence"?: number | null,"corrected_at"?: string | null,"corrected_by"?: string | null,"created_at"?: string,"department_id"?: string | null,"emotion"?: string | null,"id"?: string,"intent"?: string | null,"mention_id"?: string,"model"?: string,"neighborhood_id"?: string | null,"org_id"?: string,"priority"?: Database["public"]['Enums']["priority"],"sentiment"?: Database["public"]['Enums']["sentiment"],"topic"?: string | null
                   }
                   Relationships: [
                     {
@@ -219,16 +219,42 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"mentions": {
+                },"mention_notes": {
                   Row: {
-                    "author_id": string | null,"created_at": string,"external_id": string,"id": string,"metrics": NonNullable<Json>,"org_id": string,"published_at": string,"query_id": string | null,"search": unknown,"source_id": string,"status": Database["public"]['Enums']["mention_status"],"text": string,"url": string | null
+                    "author_id": string,"author_name": string,"body": string,"created_at": string,"id": string,"mention_id": string,"org_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "author_id"?: string | null,"created_at"?: string,"external_id": string,"id"?: string,"metrics"?: NonNullable<Json>,"org_id": string,"published_at": string,"query_id"?: string | null,"search"?: never,"source_id": string,"status"?: Database["public"]['Enums']["mention_status"],"text": string,"url"?: string | null
+                    "author_id"?: string,"author_name"?: string,"body": string,"created_at"?: string,"id"?: string,"mention_id": string,"org_id": string
                   }
                   Update: {
-                    "author_id"?: string | null,"created_at"?: string,"external_id"?: string,"id"?: string,"metrics"?: NonNullable<Json>,"org_id"?: string,"published_at"?: string,"query_id"?: string | null,"search"?: never,"source_id"?: string,"status"?: Database["public"]['Enums']["mention_status"],"text"?: string,"url"?: string | null
+                    "author_id"?: string,"author_name"?: string,"body"?: string,"created_at"?: string,"id"?: string,"mention_id"?: string,"org_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "mention_notes_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "mention_notes_org_id_mention_id_fkey"
+      columns: ["org_id","mention_id"]
+isOneToOne: false
+      referencedRelation: "mentions"
+      referencedColumns: ["org_id","id"]
+    }
+                  ]
+                },"mentions": {
+                  Row: {
+                    "author_id": string | null,"created_at": string,"external_id": string,"id": string,"metrics": NonNullable<Json>,"org_id": string,"published_at": string,"query_id": string | null,"search": unknown,"source_id": string,"status": Database["public"]['Enums']["mention_status"],"text": string,"triage": Database["public"]['Enums']["triage_status"],"url": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "author_id"?: string | null,"created_at"?: string,"external_id": string,"id"?: string,"metrics"?: NonNullable<Json>,"org_id": string,"published_at": string,"query_id"?: string | null,"search"?: never,"source_id": string,"status"?: Database["public"]['Enums']["mention_status"],"text": string,"triage"?: Database["public"]['Enums']["triage_status"],"url"?: string | null
+                  }
+                  Update: {
+                    "author_id"?: string | null,"created_at"?: string,"external_id"?: string,"id"?: string,"metrics"?: NonNullable<Json>,"org_id"?: string,"published_at"?: string,"query_id"?: string | null,"search"?: never,"source_id"?: string,"status"?: Database["public"]['Enums']["mention_status"],"text"?: string,"triage"?: Database["public"]['Enums']["triage_status"],"url"?: string | null
                   }
                   Relationships: [
                     {
@@ -399,14 +425,14 @@ isOneToOne: false
                   ]
                 },"tickets": {
                   Row: {
-                    "assignee_id": string | null,"created_at": string,"department_id": string,"due_at": string | null,"id": string,"mention_id": string,"org_id": string,"resolved_at": string | null,"status": Database["public"]['Enums']["ticket_status"]
+                    "assignee_id": string | null,"created_at": string,"created_by": string | null,"department_id": string,"due_at": string | null,"id": string,"mention_id": string,"org_id": string,"resolved_at": string | null,"status": Database["public"]['Enums']["ticket_status"]
                   }
                   ComputedFields: never
                   Insert: {
-                    "assignee_id"?: string | null,"created_at"?: string,"department_id": string,"due_at"?: string | null,"id"?: string,"mention_id": string,"org_id": string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"]
+                    "assignee_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_id": string,"due_at"?: string | null,"id"?: string,"mention_id": string,"org_id": string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"]
                   }
                   Update: {
-                    "assignee_id"?: string | null,"created_at"?: string,"department_id"?: string,"due_at"?: string | null,"id"?: string,"mention_id"?: string,"org_id"?: string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"]
+                    "assignee_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_id"?: string,"due_at"?: string | null,"id"?: string,"mention_id"?: string,"org_id"?: string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"]
                   }
                   Relationships: [
                     {
@@ -468,6 +494,9 @@ isOneToOne: false
 "record_ai_usage":
 { Args: { "p_cache_read_tokens": number,"p_cache_write_tokens": number,"p_cost_usd": number,"p_input_tokens": number,"p_model": string,"p_org_id": string,"p_output_tokens": number,"p_purpose": string }; Returns: undefined
                            },
+"route_mentions":
+{ Args: { "p_department_id": string,"p_due_at": string,"p_mention_ids": (string)[] }; Returns: number
+                           },
 "save_query_version":
 { Args: { "p_builder"?: Json,"p_expression": string,"p_lineage_id"?: string,"p_name": string,"p_project_id": string }; Returns: {
               "builder": Json | null,
@@ -491,10 +520,15 @@ isOneToOne: false
       } },
 "set_source_secret":
 { Args: { "p_secret": string,"p_source_id": string }; Returns: undefined
+                           },
+"source_labels":
+{ Args: { "p_org_id": string }; Returns: {
+              "id": string,"name": string,"type": Database["public"]['Enums']["source_type"]
+            }[]
                            }
           }
           Enums: {
-            "author_kind": "media"|"public_figure"|"citizen","membership_role": "admin"|"comunicacion"|"dependencia"|"lectura","mention_status": "pending"|"classified"|"failed","priority": "low"|"medium"|"high"|"critical","report_period": "daily"|"weekly"|"monthly","sentiment": "positive"|"neutral"|"negative","source_type": "meta"|"rss"|"youtube"|"x","ticket_status": "open"|"in_progress"|"resolved"|"closed"
+            "author_kind": "media"|"public_figure"|"citizen","membership_role": "admin"|"comunicacion"|"dependencia"|"lectura","mention_status": "pending"|"classified"|"failed","priority": "low"|"medium"|"high"|"critical","report_period": "daily"|"weekly"|"monthly","sentiment": "positive"|"neutral"|"negative","source_type": "meta"|"rss"|"youtube"|"x","ticket_status": "open"|"in_progress"|"resolved"|"closed","triage_status": "new"|"reviewed"|"routed"|"discarded"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -610,7 +644,7 @@ export type CompositeTypes<
 export const Constants = {
   "public": {
           Enums: {
-            "author_kind": ["media", "public_figure", "citizen"],"membership_role": ["admin", "comunicacion", "dependencia", "lectura"],"mention_status": ["pending", "classified", "failed"],"priority": ["low", "medium", "high", "critical"],"report_period": ["daily", "weekly", "monthly"],"sentiment": ["positive", "neutral", "negative"],"source_type": ["meta", "rss", "youtube", "x"],"ticket_status": ["open", "in_progress", "resolved", "closed"]
+            "author_kind": ["media", "public_figure", "citizen"],"membership_role": ["admin", "comunicacion", "dependencia", "lectura"],"mention_status": ["pending", "classified", "failed"],"priority": ["low", "medium", "high", "critical"],"report_period": ["daily", "weekly", "monthly"],"sentiment": ["positive", "neutral", "negative"],"source_type": ["meta", "rss", "youtube", "x"],"ticket_status": ["open", "in_progress", "resolved", "closed"],"triage_status": ["new", "reviewed", "routed", "discarded"]
           }
         }
 } as const
