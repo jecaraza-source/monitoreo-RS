@@ -147,6 +147,16 @@ export function FilterBar({
           options={catalogs.neighborhoods.map((n) => ({ value: n.id, label: n.name }))}
           className="w-40"
         />
+        {filters.mention && (
+          <Button variant="secondary" size="sm" onClick={() => onChange({ ...filters, mention: undefined })}>
+            Una mención del dashboard <X aria-hidden />
+          </Button>
+        )}
+        {filters.author && (
+          <Button variant="secondary" size="sm" onClick={() => onChange({ ...filters, author: undefined })}>
+            Un medio del dashboard <X aria-hidden />
+          </Button>
+        )}
         {active && (
           <Button
             variant="ghost"

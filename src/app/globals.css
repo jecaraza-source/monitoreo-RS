@@ -161,3 +161,26 @@
     background-color: transparent;
   }
 }
+
+/* Card entry: fade + 12px rise (ui-kit Reveal). "both" keeps the start state
+   during the stagger delay. */
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-reveal {
+  animation: reveal 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-reveal {
+    animation: none;
+  }
+}

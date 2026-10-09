@@ -460,7 +460,7 @@ isOneToOne: false
           Views: {
             "mention_stats_hourly": {
                   Row: {
-                    "department_id": string | null,"hour": string | null,"interactions": number | null,"mentions": number | null,"org_id": string | null,"sentiment": Database["public"]['Enums']["sentiment"] | null
+                    "complaint": boolean | null,"department_id": string | null,"hour": string | null,"interactions": number | null,"mentions": number | null,"neighborhood_id": string | null,"org_id": string | null,"sentiment": Database["public"]['Enums']["sentiment"] | null,"topic": string | null
                   }
                   ComputedFields: never
                   Relationships: [
@@ -478,6 +478,9 @@ isOneToOne: false
             "clear_source_secret":
 { Args: { "p_source_id": string }; Returns: undefined
                            },
+"dashboard_stats":
+{ Args: { "p_bucket"?: string,"p_detail"?: boolean,"p_from": string,"p_org_id": string,"p_to": string }; Returns: Json
+                           },
 "get_source_secret":
 { Args: { "p_source_id": string }; Returns: string
                            },
@@ -493,6 +496,9 @@ isOneToOne: false
                            },
 "record_ai_usage":
 { Args: { "p_cache_read_tokens": number,"p_cache_write_tokens": number,"p_cost_usd": number,"p_input_tokens": number,"p_model": string,"p_org_id": string,"p_output_tokens": number,"p_purpose": string }; Returns: undefined
+                           },
+"refresh_mention_stats":
+{ Args: Record<PropertyKey, never>; Returns: undefined
                            },
 "route_mentions":
 { Args: { "p_department_id": string,"p_due_at": string,"p_mention_ids": (string)[] }; Returns: number

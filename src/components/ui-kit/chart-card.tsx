@@ -15,6 +15,8 @@ export type ChartCardProps = {
   index?: number;
   className?: string;
   children?: React.ReactNode;
+  /** Below the chart area (e.g. a collapsible data table). */
+  footer?: React.ReactNode;
 };
 
 export function ChartCard({
@@ -26,6 +28,7 @@ export function ChartCard({
   index = 0,
   className,
   children,
+  footer,
 }: ChartCardProps) {
   return (
     <Reveal delay={index * 0.06} className={cn("h-full", className)}>
@@ -48,6 +51,7 @@ export function ChartCard({
           ) : (
             <div style={{ height }}>{children}</div>
           )}
+          {footer}
         </CardContent>
       </Card>
     </Reveal>

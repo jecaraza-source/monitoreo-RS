@@ -2,6 +2,7 @@ import "server-only";
 import { getConnector, type SourceType } from "@/lib/connectors";
 import { ConnectorError, type AuthorRef } from "@/lib/connectors/types";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { refreshMentionStats } from "@/lib/dashboard/refresh";
 import type { Json } from "@/lib/supabase/database.types";
 import { assignQueries, compileQueries, inBackoff, sinceFor, type Assigned, type CompiledQuery } from "./assign";
 
@@ -84,6 +85,7 @@ export async function runIngest(options: {
     }
   }
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  if (results.some((r) => r.inserted > 0)) await refreshMentionStats(admin);
 
   return { startedAt, durationMs: Date.now() - started, sources: results };
 }

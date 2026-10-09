@@ -1,5 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
+import { refreshMentionStats } from "@/lib/dashboard/refresh";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/supabase/database.types";
 import {
@@ -109,8 +110,15 @@ async function defaultProject(admin: Admin, orgId: string): Promise<string | nul
  * Uses the service role; callers must authorize (CRON_SECRET).
  */
 export async function classifyPending(options: { client?: Anthropic; maxBatches?: number } = {}): Promise<ClassifySummary> {
-  const started = Date.now();
   const admin = createAdminClient();
+  const summary = await classifyLoop(admin, options);
+  // New sentiment/topic/neighborhood values change the dashboard rollup.
+  if (summary.classified > 0) await refreshMentionStats(admin);
+  return summary;
+}
+
+async function classifyLoop(admin: Admin, options: { client?: Anthropic; maxBatches?: number }): Promise<ClassifySummary> {
+  const started = Date.now();
   const client = options.client ?? new Anthropic();
   const models = modelPlan();
   const summary: ClassifySummary = { batches: 0, classified: 0, failed: 0, escalated: 0, costUsd: 0 };

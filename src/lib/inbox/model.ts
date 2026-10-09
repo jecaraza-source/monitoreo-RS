@@ -75,6 +75,10 @@ export const filtersSchema = z.object({
   neighborhood: optional(guid),
   priority: optional(z.enum(PRIORITIES)),
   status: optional(z.enum([...EDITOR_STATUS_OPTIONS, ...DEPARTMENT_STATUS_OPTIONS])),
+  /** One mention (links from the dashboard ranking). */
+  mention: optional(guid),
+  /** Mentions by one media outlet or public figure (dashboard ranking). */
+  author: optional(guid),
 });
 export type InboxFilters = z.infer<typeof filtersSchema>;
 export const FILTER_KEYS = Object.keys(filtersSchema.shape) as (keyof InboxFilters)[];
