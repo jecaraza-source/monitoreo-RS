@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Radar } from "lucide-react";
+import { SigmaShield } from "@/components/brand/sigma-shield";
 import {
   Sidebar,
   SidebarContent,
@@ -44,11 +44,14 @@ export function AppSidebar({
               tooltip={orgName}
               render={
                 <Link href="/">
-                  <span className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                    <Radar className="size-4" aria-hidden />
+                  <span className="flex aspect-square size-8 items-center justify-center">
+                    {/* The menu button forces child svgs to size-4; the logo keeps its size. */}
+                    <SigmaShield className="h-8! w-7!" />
                   </span>
                   <span className="grid flex-1 text-left leading-tight">
-                    <span className="truncate font-semibold">Monitoreo Municipal</span>
+                    <span className="truncate font-semibold">
+                      Sigma <span className="font-black italic">Pulso</span>
+                    </span>
                     <span className="truncate text-xs text-muted-foreground">{orgName}</span>
                   </span>
                 </Link>
