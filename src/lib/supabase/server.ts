@@ -1,9 +1,13 @@
 import "server-only";
 import { createServerClient } from "@supabase/ssr";
+import { connection } from "next/server";
 import { cookies } from "next/headers";
 import type { Database } from "./database.types";
 
 export async function createClient() {
+  // The auth client checks token expiry with Date.now() as soon as it loads the
+  // session; mark this as request-time work so prerendering never runs it.
+  await connection();
   const cookieStore = await cookies();
 
   return createServerClient<Database>(
