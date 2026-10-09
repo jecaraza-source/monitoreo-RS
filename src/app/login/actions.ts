@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { rateLimitMessage } from "@/lib/auth/rate-limit";
 import { safeNext } from "@/lib/auth/redirect";
 import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
@@ -37,9 +38,8 @@ export async function sendMagicLink(_prev: MagicLinkState, formData: FormData): 
     },
   });
 
-  if (error?.status === 429) {
-    return { status: "error", message: "Demasiados intentos. Espera un minuto e inténtalo de nuevo." };
-  }
+  const limited = rateLimitMessage(error);
+  if (limited) return { status: "error", message: limited };
   if (error) {
     // Unknown emails also land here. Answer the same as a success so the form
     // cannot be used to find out who has an account.
