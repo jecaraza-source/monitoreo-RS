@@ -39,6 +39,10 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-muted: var(--brand-muted);
   --color-positive: var(--positive);
   --color-neutral: var(--neutral);
   --color-negative: var(--negative);
@@ -52,74 +56,88 @@
 }
 
 :root {
+  /* ------------------------------------------------------------------------
+     Institutional palette. A municipality's colors are applied by overriding
+     only these --brand-* variables (globally here, or per org at runtime with
+     style="--brand: …" on <html>); every brand-tinted token derives from them.
+     ------------------------------------------------------------------------ */
+  --brand: oklch(0.52 0.16 255);
+  --brand-foreground: oklch(0.985 0 0);
+  --brand-secondary: oklch(0.62 0.12 195);
+  --brand-muted: oklch(0.95 0.025 255);
+
+  /* Semantic sentiment colors: positive / neutral / negative. Kept apart from
+     the brand so a red or green institutional color never reads as sentiment. */
+  --positive: oklch(0.6 0.15 150);
+  --neutral: oklch(0.58 0.01 260);
+  --negative: oklch(0.58 0.22 27);
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-foreground);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.52 0 0);
+  --accent: var(--brand-muted);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  /* Semantic sentiment colors: positive / neutral / negative */
-  --positive: oklch(0.6 0.15 150);
-  --neutral: oklch(0.6 0 0);
-  --negative: oklch(0.58 0.22 27);
-  --chart-1: var(--positive);
-  --chart-2: var(--neutral);
-  --chart-3: var(--negative);
-  --chart-4: oklch(0.6 0.12 250);
-  --chart-5: oklch(0.7 0.14 80);
+  --ring: var(--brand);
+  --chart-1: var(--brand);
+  --chart-2: var(--brand-secondary);
+  --chart-3: oklch(0.7 0.14 80);
+  --chart-4: oklch(0.6 0.13 320);
+  --chart-5: oklch(0.65 0.05 260);
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: var(--brand-foreground);
+  --sidebar-accent: var(--brand-muted);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-ring: var(--brand);
 }
 
 .dark {
+  --brand: oklch(0.7 0.13 255);
+  --brand-foreground: oklch(0.18 0.03 255);
+  --brand-secondary: oklch(0.74 0.1 195);
+  --brand-muted: oklch(0.27 0.03 255);
+
+  /* Validated against the dark card surface (dataviz lightness band 0.48–0.67). */
+  --positive: oklch(0.66 0.16 150);
+  --neutral: oklch(0.62 0.01 260);
+  --negative: oklch(0.64 0.19 25);
+
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.72 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --positive: oklch(0.72 0.17 150);
-  --neutral: oklch(0.7 0 0);
-  --negative: oklch(0.7 0.19 25);
-  --sidebar: oklch(0.205 0 0);
+  --chart-3: oklch(0.78 0.13 80);
+  --chart-4: oklch(0.72 0.12 320);
+  --chart-5: oklch(0.72 0.04 260);
+  --sidebar: oklch(0.18 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
 }
 
 @layer base {

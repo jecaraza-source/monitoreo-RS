@@ -387,6 +387,11 @@ isOneToOne: false
 { Args: { "p_from": string,"p_org_id": string,"p_to": string }; Returns: {
               "department_id": string,"hour": string,"interactions": number,"mentions": number,"sentiment": Database["public"]['Enums']["sentiment"]
             }[]
+                           },
+"org_members":
+{ Args: { "p_org_id": string }; Returns: {
+              "department_id": string,"department_name": string,"email": string,"invited_at": string,"last_sign_in_at": string,"role": Database["public"]['Enums']["membership_role"],"user_id": string
+            }[]
                            }
           }
           Enums: {

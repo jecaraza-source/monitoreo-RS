@@ -1,10 +1,17 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Reachable without a session. Everything else requires one.
+const PUBLIC_PATHS = ["/login", "/auth/", "/dev/"];
+
+function isPublic(pathname: string) {
+  return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p));
+}
+
 /**
- * Refreshes the Supabase auth session and forwards the updated cookies to both
- * the request (for Server Components) and the response (for the browser).
- * Route protection by role is added later; this only keeps the session alive.
+ * Refreshes the Supabase session cookies and does the optimistic auth check:
+ * no session → /login. Role checks need the membership, so they happen in each
+ * page (requireSection) and, for data, in RLS.
  */
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -31,7 +38,31 @@ export async function updateSession(request: NextRequest) {
 
   // Do not run code between createServerClient and getClaims(): it validates the
   // JWT and triggers the refresh that writes new cookies through setAll.
-  await supabase.auth.getClaims();
+  const { data } = await supabase.auth.getClaims();
+  const signedIn = Boolean(data?.claims?.sub);
+  const { pathname, search } = request.nextUrl;
+
+  if (!signedIn && !isPublic(pathname)) {
+    return redirectKeepingCookies(request, response, "/login", pathname === "/" ? null : pathname + search);
+  }
+  if (signedIn && pathname === "/login") {
+    return redirectKeepingCookies(request, response, "/", null);
+  }
 
   return response;
+}
+
+// A redirect must carry any refreshed auth cookies, or the browser keeps the stale ones.
+function redirectKeepingCookies(
+  request: NextRequest,
+  response: NextResponse,
+  pathname: string,
+  next: string | null,
+) {
+  const target = request.nextUrl.clone();
+  target.pathname = pathname;
+  target.search = next ? `?next=${encodeURIComponent(next)}` : "";
+  const redirect = NextResponse.redirect(target);
+  response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+  return redirect;
 }
