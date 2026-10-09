@@ -151,3 +151,13 @@
     @apply font-sans;
   }
 }
+
+/* Inbox: highlight that fades out on mentions that arrive in real time. */
+@keyframes inbox-flash {
+  from {
+    background-color: color-mix(in oklch, var(--primary) 16%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}

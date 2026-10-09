@@ -21,6 +21,7 @@ npm run dev
 - `npm run db:reset` — recrea la base local con migraciones + `supabase/seed.sql`
 - `npm run db:types` — regenera `src/lib/supabase/database.types.ts`
 - `npm run test:db` — pruebas de RLS (pgTAP) en `supabase/tests`
+- `npm run eval:classify` — mide la precisión del clasificador con 30 menciones etiquetadas (usa la API de Claude)
 - `supabase db push` — aplica migraciones de `supabase/migrations` al proyecto remoto
 
 ## Base de datos local
@@ -130,3 +131,68 @@ curl -H "Authorization: Bearer $CRON_SECRET" https://<dominio>/api/cron/ingest
 
 En **Configuración → Fuentes** (`/config/fuentes`) se conectan las fuentes, se prueban (últimos 7 días,
 sin guardar), se ejecutan al momento y se ve la bitácora de corridas.
+
+## Clasificación con Claude
+
+`/api/cron/classify` (cada 5 minutos, protegido con `CRON_SECRET`) toma las menciones `pending` en lotes
+de hasta 20 por proyecto y las clasifica en una sola llamada a `CLAUDE_MODEL_FAST` con una herramienta
+de esquema estricto (`src/lib/ai/classifier.ts`): sentimiento, confianza, emoción, tema (taxonomía del
+proyecto u `otro`), intención, prioridad, dependencia y colonia (de los catálogos, o `null`).
+
+- El prompt de sistema incluye el contexto del municipio, modismos mexicanos, sarcasmo y las reglas del
+  proyecto (columnas `projects.topics` y `projects.classification_rules`; aún sin editor en la UI).
+  Ese bloque fijo va con `cache_control`, así que los lotes siguientes leen de caché.
+- La respuesta se valida con zod; si falla se reintenta una vez indicando el error y, si vuelve a fallar,
+  las menciones quedan `failed`.
+- Las menciones con confianza < 0.6 o prioridad alta se reprocesan con `CLAUDE_MODEL_SMART`.
+- Si la API no responde, la corrida se detiene y las menciones siguen `pending` para la próxima.
+- Tokens y costo estimado se acumulan por día, modelo y propósito en `ai_usage` (zona America/Mexico_City),
+  visible para admin y comunicación.
+
+Corrida manual:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" https://<dominio>/api/cron/classify
+```
+
+### Evaluación
+
+`evals/classify/dataset.json` tiene 30 menciones ficticias con la etiqueta esperada (mismos catálogos y
+reglas que el seed: sarcasmo, modismos, rumores, denuncias, avisos, un intento de inyección…).
+
+```bash
+ANTHROPIC_API_KEY=... CLAUDE_MODEL_FAST=claude-haiku-5-5 CLAUDE_MODEL_SMART=claude-opus-5-5 npm run eval:classify
+npm run eval:classify -- --fast   # sólo el modelo rápido, sin escalar
+```
+
+Reporta precisión por campo, precisión/exhaustividad por clase, tokens y costo, y guarda el detalle en
+`evals/classify/results/` (ignorado por git).
+
+## Bandeja
+
+`/bandeja` es la mesa de trabajo diaria:
+
+- **Comunicación y admin** ven todas las menciones. Estado de triage (`mentions.triage`): nueva, revisada,
+  turnada, descartada; por omisión se ocultan las descartadas.
+- **Dependencia** ve sólo las menciones con un ticket de su área (RLS) y un contador de tickets vencidos
+  (clic para filtrarlos). Puede cambiar el estado de sus tickets y agregar notas.
+
+Funciones:
+
+- Lista virtualizada (sólo se montan las tarjetas visibles) con paginación por cursor de 50 en 50.
+- Filtros por fecha (días de la Ciudad de México), fuente, sentimiento, tema, dependencia, colonia,
+  prioridad y estado, guardados en la URL. Búsqueda de texto completo en español sin acentos
+  (`websearch`: `fuga "sin agua" -simulacro`).
+- Panel de detalle: corrección de la clasificación (la base registra `corrected_by` y `corrected_at`),
+  turnar con fecha límite sugerida por prioridad (crítica 12 h, alta 24 h, media 72 h, baja 7 días),
+  estado del ticket y notas compartidas entre Comunicación y la dependencia.
+- Acciones masivas: turnar, marcar revisadas y descartar (con deshacer).
+- Atajos: `j`/`k` navegar, `Enter` abrir, `x` seleccionar, `t` turnar, `d` descartar, `r` revisada,
+  `/` buscar, `?` ayuda.
+- Tiempo real con Supabase Realtime (`mentions`, `classifications`, `tickets`, `mention_notes` en la
+  publicación `supabase_realtime`): cada cambio llega filtrado por RLS, la tarjeta entra animada y a la
+  dependencia le aparece el ticket recién turnado con un aviso.
+
+Turnar usa `route_mentions()` (crea los tickets y marca las menciones como turnadas en una transacción,
+con los permisos de quien llama). En Supabase hospedado, la publicación `supabase_realtime` ya existe; la
+migración le agrega las tablas.

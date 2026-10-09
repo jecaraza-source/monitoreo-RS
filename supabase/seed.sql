@@ -97,6 +97,24 @@ insert into public.projects (id, org_id, name, goal, kpis) values
    'Detectar y atender en menos de 72 horas las demandas ciudadanas publicadas en medios y redes.',
    '[{"key":"tiempo_respuesta_horas","target":72},{"key":"sentimiento_positivo_pct","target":45},{"key":"tickets_resueltos_pct","target":80}]');
 
+-- Taxonomy and rules the classifier uses for this project.
+update public.projects set
+  topics = array[
+    'agua potable', 'alumbrado público', 'baches y pavimentación', 'drenaje', 'gestión del gobierno',
+    'medio ambiente', 'obra pública', 'programas sociales', 'recolección de basura', 'salud',
+    'seguridad pública', 'trámites y servicios', 'tránsito y vialidad'
+  ],
+  classification_rules = $rules$- Fugas, falta de agua, pipas, tandeo y drenaje: Agua Potable y Alcantarillado.
+- Baches, banquetas, obras inconclusas y pavimentación: Obras Públicas.
+- Basura, alumbrado, parques y panteones: Servicios Públicos.
+- Robos, asaltos, patrullaje y violencia: Seguridad Pública.
+- Becas, apoyos, salud comunitaria y DIF: Desarrollo Social.
+- Tránsito, semáforos y vialidad: Seguridad Pública.
+- Medio ambiente y tiraderos clandestinos: Servicios Públicos.
+- Un bloqueo o protesta por falta de agua es prioridad alta.
+- Los avisos oficiales de cortes programados son neutrales, intención "otro", prioridad baja.$rules$
+where id = '00000000-0000-4000-e000-000000000001';
+
 insert into public.queries (id, org_id, project_id, lineage_id, name, expression, builder, filters) values
   ('00000000-0000-4000-e100-000000000001', '00000000-0000-4000-a000-000000000001', '00000000-0000-4000-e000-000000000001',
    '00000000-0000-4000-e110-000000000001', 'Municipio',
@@ -161,31 +179,31 @@ create temporary table seed_templates (
 ) on commit drop;
 
 insert into seed_templates values
-  (1,  'obras',     'negative', 'baches',               'queja',          'enojo',        false, 'Llevamos tres semanas con un bache enorme en la calle principal de {c} y nadie viene a taparlo. Hoy se ponchó otra llanta.'),
-  (2,  'obras',     'positive', 'pavimentación',        'reconocimiento', 'gratitud',     false, 'Por fin terminaron la repavimentación en {c}, quedó muy bien. Gracias a Obras Públicas.'),
-  (3,  'obras',     'neutral',  'obra pública',         'consulta',       'neutral',      false, '¿Alguien sabe hasta cuándo va a estar cerrada la avenida en {c} por la obra del colector?'),
-  (4,  'obras',     'negative', 'obra pública',         'queja',          'frustración',  false, 'La obra de la banqueta en {c} lleva dos meses abandonada, con varillas expuestas. Es un peligro para los niños.'),
-  (5,  'agua',      'negative', 'desabasto de agua',    'queja',          'enojo',        false, 'Otra vez sin agua en {c}, ya van cuatro días. ¿Dónde está la pipa que nos prometieron?'),
-  (6,  'agua',      'negative', 'fugas',                'denuncia',       'preocupación', false, 'Hay una fuga de agua potable en {c} desde el lunes, se están desperdiciando miles de litros y nadie atiende el reporte.'),
-  (7,  'agua',      'positive', 'fugas',                'reconocimiento', 'gratitud',     false, 'Muy rápida la respuesta del organismo de agua: repararon la fuga en {c} en menos de 24 horas.'),
-  (8,  'agua',      'neutral',  'cortes programados',   'informativo',    'neutral',      false, 'Aviso para vecinos de {c}: mañana habrá corte de agua de 8 a 16 h por mantenimiento al pozo.'),
-  (9,  'agua',      'negative', 'drenaje',              'queja',          'enojo',        false, 'El drenaje en {c} se desborda cada vez que llueve, el agua negra entra a las casas.'),
-  (10, 'servicios', 'negative', 'recolección de basura','queja',          'frustración',  false, 'El camión de la basura no ha pasado en toda la semana por {c}, ya huele horrible.'),
-  (11, 'servicios', 'negative', 'alumbrado público',    'queja',          'preocupación', false, 'Mi calle en {c} está totalmente a oscuras, llevan un mes las luminarias fundidas. Da miedo caminar de noche.'),
-  (12, 'servicios', 'positive', 'alumbrado público',    'reconocimiento', 'alegría',      false, 'Gracias por cambiar las lámparas del parque de {c}, ahora los niños pueden jugar en la tarde.'),
-  (13, 'servicios', 'neutral',  'recolección de basura','consulta',       'neutral',      false, '¿Cuál es el horario del camión de la basura en {c}? Nunca sé qué días pasa.'),
-  (14, 'seguridad', 'negative', 'robo',                 'denuncia',       'miedo',        false, 'Asaltaron a una señora en la parada del camión en {c}. Necesitamos más rondines, por favor.'),
-  (15, 'seguridad', 'negative', 'robo a casa habitación','queja',         'miedo',        false, 'Muchos robos a casa habitación en {c} últimamente y la patrulla casi nunca pasa.'),
-  (16, 'seguridad', 'positive', 'policía municipal',    'reconocimiento', 'gratitud',     false, 'Bien por la policía municipal, detuvieron a los que robaban autopartes en {c}.'),
-  (17, 'seguridad', 'neutral',  'prevención',           'informativo',    'neutral',      false, 'Este jueves hay reunión vecinal de seguridad en {c} con la policía municipal, a las 7 pm en la cancha.'),
-  (18, 'social',    'positive', 'programas sociales',   'reconocimiento', 'gratitud',     false, 'Mi mamá ya recibió su apoyo del programa municipal para adultos mayores. Muy agradecidos.'),
-  (19, 'social',    'positive', 'salud',                'reconocimiento', 'alegría',      false, 'Excelente la jornada de salud en {c}, atendieron a muchísimas familias y fue gratis.'),
-  (20, 'social',    'negative', 'becas',                'queja',          'frustración',  false, 'Fui a registrarme al programa de becas y me dijeron que ya no había lugares. Muy mal organizado.'),
-  (21, 'social',    'neutral',  'becas',                'consulta',       'neutral',      false, '¿Dónde puedo inscribir a mi hijo al programa de becas municipales? Vivo en {c}.'),
-  (22, 'obras',     'neutral',  'inversión pública',    'informativo',    'neutral',      true,  'Ayuntamiento de San Andrés del Valle anuncia inversión de 12 millones de pesos para pavimentación en {c}.'),
-  (23, 'agua',      'negative', 'desabasto de agua',    'informativo',    'preocupación', true,  'Vecinos de {c} bloquean la avenida principal por falta de agua; exigen la presencia de autoridades municipales.'),
-  (24, 'social',    'positive', 'infraestructura social','informativo',   'alegría',      true,  'El presidente municipal inaugura el nuevo centro comunitario en {c}, con talleres y consultorio médico.'),
-  (25, 'seguridad', 'negative', 'seguridad',            'informativo',    'preocupación', true,  'Aumentan los reportes de robo en {c}, según vecinos consultados por este medio.');
+  (1,  'obras',     'negative', 'baches y pavimentación', 'queja',    'enojo',        false, 'Llevamos tres semanas con un bache enorme en la calle principal de {c} y nadie viene a taparlo. Hoy se ponchó otra llanta.'),
+  (2,  'obras',     'positive', 'baches y pavimentación', 'elogio',   'gratitud',     false, 'Por fin terminaron la repavimentación en {c}, quedó muy bien. Gracias a Obras Públicas.'),
+  (3,  'obras',     'neutral',  'obra pública',           'pregunta', 'neutral',      false, '¿Alguien sabe hasta cuándo va a estar cerrada la avenida en {c} por la obra del colector?'),
+  (4,  'obras',     'negative', 'obra pública',           'queja',    'frustración',  false, 'La obra de la banqueta en {c} lleva dos meses abandonada, con varillas expuestas. Es un peligro para los niños.'),
+  (5,  'agua',      'negative', 'agua potable',           'queja',    'enojo',        false, 'Otra vez sin agua en {c}, ya van cuatro días. ¿Dónde está la pipa que nos prometieron?'),
+  (6,  'agua',      'negative', 'agua potable',           'denuncia', 'preocupación', false, 'Hay una fuga de agua potable en {c} desde el lunes, se están desperdiciando miles de litros y nadie atiende el reporte.'),
+  (7,  'agua',      'positive', 'agua potable',           'elogio',   'gratitud',     false, 'Muy rápida la respuesta del organismo de agua: repararon la fuga en {c} en menos de 24 horas.'),
+  (8,  'agua',      'neutral',  'agua potable',           'otro',     'neutral',      false, 'Aviso para vecinos de {c}: mañana habrá corte de agua de 8 a 16 h por mantenimiento al pozo.'),
+  (9,  'agua',      'negative', 'drenaje',                'queja',    'enojo',        false, 'El drenaje en {c} se desborda cada vez que llueve, el agua negra entra a las casas.'),
+  (10, 'servicios', 'negative', 'recolección de basura',  'queja',    'frustración',  false, 'El camión de la basura no ha pasado en toda la semana por {c}, ya huele horrible.'),
+  (11, 'servicios', 'negative', 'alumbrado público',      'queja',    'preocupación', false, 'Mi calle en {c} está totalmente a oscuras, llevan un mes las luminarias fundidas. Da miedo caminar de noche.'),
+  (12, 'servicios', 'positive', 'alumbrado público',      'elogio',   'alegría',      false, 'Gracias por cambiar las lámparas del parque de {c}, ahora los niños pueden jugar en la tarde.'),
+  (13, 'servicios', 'neutral',  'recolección de basura',  'pregunta', 'neutral',      false, '¿Cuál es el horario del camión de la basura en {c}? Nunca sé qué días pasa.'),
+  (14, 'seguridad', 'negative', 'seguridad pública',      'denuncia', 'miedo',        false, 'Asaltaron a una señora en la parada del camión en {c}. Necesitamos más rondines, por favor.'),
+  (15, 'seguridad', 'negative', 'seguridad pública',      'queja',    'miedo',        false, 'Muchos robos a casa habitación en {c} últimamente y la patrulla casi nunca pasa.'),
+  (16, 'seguridad', 'positive', 'seguridad pública',      'elogio',   'gratitud',     false, 'Bien por la policía municipal, detuvieron a los que robaban autopartes en {c}.'),
+  (17, 'seguridad', 'neutral',  'seguridad pública',      'otro',     'neutral',      false, 'Este jueves hay reunión vecinal de seguridad en {c} con la policía municipal, a las 7 pm en la cancha.'),
+  (18, 'social',    'positive', 'programas sociales',     'elogio',   'gratitud',     false, 'Mi mamá ya recibió su apoyo del programa municipal para adultos mayores. Muy agradecidos.'),
+  (19, 'social',    'positive', 'salud',                  'elogio',   'alegría',      false, 'Excelente la jornada de salud en {c}, atendieron a muchísimas familias y fue gratis.'),
+  (20, 'social',    'negative', 'programas sociales',     'queja',    'frustración',  false, 'Fui a registrarme al programa de becas y me dijeron que ya no había lugares. Muy mal organizado.'),
+  (21, 'social',    'neutral',  'programas sociales',     'pregunta', 'neutral',      false, '¿Dónde puedo inscribir a mi hijo al programa de becas municipales? Vivo en {c}.'),
+  (22, 'obras',     'neutral',  'obra pública',           'otro',     'neutral',      true,  'Ayuntamiento de San Andrés del Valle anuncia inversión de 12 millones de pesos para pavimentación en {c}.'),
+  (23, 'agua',      'negative', 'agua potable',           'otro',     'preocupación', true,  'Vecinos de {c} bloquean la avenida principal por falta de agua; exigen la presencia de autoridades municipales.'),
+  (24, 'social',    'positive', 'obra pública',           'otro',     'alegría',      true,  'El presidente municipal inaugura el nuevo centro comunitario en {c}, con talleres y consultorio médico.'),
+  (25, 'seguridad', 'negative', 'seguridad pública',      'otro',     'preocupación', true,  'Aumentan los reportes de robo en {c}, según vecinos consultados por este medio.');
 
 create temporary table seed_mentions on commit drop as
 select
@@ -220,7 +238,8 @@ select
   case when sm.department in ('agua', 'obras', 'servicios')
     then '00000000-0000-4000-e100-000000000002'::uuid
     else '00000000-0000-4000-e100-000000000001'::uuid end,
-  (case when sm.r < 0.9 then 'classified' when sm.r < 0.95 then 'pending' else 'failed' end)::public.mention_status
+  -- ~10 % stay pending so the AI classifier (/api/cron/classify) has real work on a fresh seed.
+  (case when sm.r < 0.9 then 'classified' else 'pending' end)::public.mention_status
 from seed_mentions sm
 join public.neighborhoods h on h.id = sm.neighborhood_id
 cross join lateral (
@@ -245,7 +264,7 @@ select
     when sm.sentiment = 'negative' and sm.department = 'seguridad' then 'critical'
     when sm.sentiment = 'negative' and sm.is_media then 'high'
     when sm.sentiment = 'negative' then (array['medium', 'high'])[1 + (sm.n % 2)]
-    when sm.intent = 'consulta' then 'medium'
+    when sm.intent = 'pregunta' then 'medium'
     else 'low'
   end)::public.priority,
   d.id,
@@ -275,8 +294,15 @@ join public.mentions m on m.id = c.mention_id
 cross join lateral (
   select (array['open', 'open', 'in_progress', 'resolved', 'closed'])[1 + (abs(hashtext(c.mention_id::text)) % 5)]::public.ticket_status as status
 ) st
-where c.intent in ('queja', 'denuncia', 'consulta')
+where c.intent in ('queja', 'denuncia', 'pregunta')
    or (c.sentiment = 'negative');
+
+-- Triage state in the inbox: routed when it has a ticket, some praise already reviewed.
+update public.mentions m set triage = 'routed'
+where exists (select 1 from public.tickets t where t.mention_id = m.id);
+update public.mentions m set triage = 'reviewed'
+from public.classifications c
+where c.mention_id = m.id and m.triage = 'new' and c.sentiment = 'positive' and abs(hashtext(m.id::text)) % 2 = 0;
 
 -- ---------------------------------------------------------------------------
 -- Alerts and reports
@@ -287,7 +313,7 @@ insert into public.alert_rules (id, org_id, name, condition, channels, departmen
    'Pico de menciones negativas', '{"sentiment":"negative","min_mentions":15,"window_minutes":60}',
    '{"email":["comunicacion@monitoreo.test"]}', null),
   ('00000000-0000-4000-e300-000000000002', '00000000-0000-4000-a000-000000000001',
-   'Desabasto de agua por colonia', '{"topic":"desabasto de agua","min_mentions":5,"window_minutes":180,"group_by":"neighborhood"}',
+   'Desabasto de agua por colonia', '{"topic":"agua potable","min_mentions":5,"window_minutes":180,"group_by":"neighborhood"}',
    '{"email":["agua@monitoreo.test"]}', '00000000-0000-4000-b000-000000000002');
 
 insert into public.alert_events (org_id, rule_id, mention_id, department_id, payload)
@@ -299,7 +325,7 @@ select
   jsonb_build_object('neighborhood_id', c.neighborhood_id, 'mentions_in_window', 6)
 from public.mentions m
 join public.classifications c on c.mention_id = m.id
-where c.topic = 'desabasto de agua'
+where c.topic = 'agua potable' and c.sentiment = 'negative'
 order by m.published_at desc
 limit 3;
 
