@@ -95,3 +95,38 @@ más recientes.
 
 **Catálogos** (sólo admin): dependencias, colonias (alta manual o carga de GeoJSON con polígonos, hasta
 ~4 MB) y términos de riesgo. Los nombres no se repiten aunque cambien acentos o mayúsculas.
+
+## Ingesta de menciones
+
+Conectores en `src/lib/connectors`, todos con la interfaz `fetchSince(source, since)`, que devuelve
+menciones normalizadas sin tocar la base:
+
+| Tipo | Qué lee | Credencial |
+|---|---|---|
+| `rss` | Feeds RSS 2.0, RSS 1.0 y Atom de medios | — |
+| `meta` | Publicaciones y comentarios de páginas oficiales de Facebook (Graph API) | Token de página, guardado en **Supabase Vault**; `META_APP_SECRET` para `appsecret_proof` |
+| `youtube` | Videos por búsqueda o canal, y sus comentarios | `YOUTUBE_API_KEY` (cada corrida cuesta unas 101 unidades de 10,000 diarias) |
+| `x` | Deshabilitado: requiere plan de pago de la API de X | — |
+
+Los autores de comentarios (ciudadanos) no se guardan; sólo medios y páginas oficiales.
+
+**Cron:** `vercel.json` programa `/api/cron/ingest` cada hora (requiere plan Pro de Vercel; en Hobby
+sólo se permiten crons diarios). La ruta exige `Authorization: Bearer $CRON_SECRET`. En cada corrida:
+
+1. Toma hasta 12 fuentes activas, empezando por las que llevan más tiempo sin correr, y procesa 3 a la vez
+   (deja de iniciar fuentes nuevas a los ~45 s).
+2. Lee desde el último éxito, con 15 minutos de traslape (3 días de historial la primera vez).
+3. Asigna `query_id` con `match.ts`: gana la primera consulta activa que coincida. Si la fuente exige
+   coincidencia (RSS y YouTube, por defecto), lo que no coincide se descarta.
+4. Inserta con `ON CONFLICT (source_id, external_id) DO NOTHING` y `status = pending`.
+5. Guarda `last_run_at`, `last_success_at` y el error de la fuente, y registra la corrida en `ingest_runs`.
+   Tras 3 fallos seguidos la fuente espera 1 h, 2 h, 4 h… (hasta 24 h) antes de reintentarse.
+
+Corrida manual:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" https://<dominio>/api/cron/ingest
+```
+
+En **Configuración → Fuentes** (`/config/fuentes`) se conectan las fuentes, se prueban (últimos 7 días,
+sin guardar), se ejecutan al momento y se ve la bitácora de corridas.

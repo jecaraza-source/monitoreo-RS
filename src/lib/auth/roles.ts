@@ -45,6 +45,7 @@ export const SECTIONS: readonly Section[] = [
 // Comunicación manages projects and queries; users and catalogs are admin-only.
 export const SUBSECTIONS: readonly { href: string; label: string; roles: readonly Role[] }[] = [
   { href: "/configuracion/proyectos", label: "Proyectos", roles: ["admin", "comunicacion"] },
+  { href: "/configuracion/fuentes", label: "Fuentes", roles: ["admin", "comunicacion"] },
   { href: "/configuracion/catalogos", label: "Catálogos", roles: ["admin"] },
   { href: "/configuracion/usuarios", label: "Usuarios", roles: ["admin"] },
 ];

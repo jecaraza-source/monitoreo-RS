@@ -109,11 +109,13 @@ insert into public.queries (id, org_id, project_id, lineage_id, name, expression
    '{"groups":[{"mode":"any","terms":["agua","fuga*","bache*","basura","luminaria*","drenaje"]},{"mode":"none","terms":["garrafon*","agua mineral"]}]}',
    '{"lang":"es"}');
 
-insert into public.sources (id, org_id, name, type, config, last_run_at) values
-  ('00000000-0000-4000-e200-000000000001', '00000000-0000-4000-a000-000000000001', 'Página oficial del Ayuntamiento', 'meta', '{"page_id":"000000000000001"}', now() - interval '20 minutes'),
-  ('00000000-0000-4000-e200-000000000002', '00000000-0000-4000-a000-000000000001', 'Noticias regionales (RSS)', 'rss', '{"url":"https://example.com/feed.xml"}', now() - interval '15 minutes'),
-  ('00000000-0000-4000-e200-000000000003', '00000000-0000-4000-a000-000000000001', 'Canal del Ayuntamiento', 'youtube', '{"channel_id":"UC000000000000000000000"}', now() - interval '1 hour'),
-  ('00000000-0000-4000-e200-000000000004', '00000000-0000-4000-a000-000000000001', 'Búsqueda en X', 'x', '{"query_ids":["00000000-0000-4000-e100-000000000001"]}', now() - interval '10 minutes');
+-- Seed sources point at placeholder URLs/ids, so they start inactive: the cron
+-- would only log errors for them. Connect real ones in Configuración → Fuentes.
+insert into public.sources (id, org_id, name, type, config, is_active) values
+  ('00000000-0000-4000-e200-000000000001', '00000000-0000-4000-a000-000000000001', 'Página oficial del Ayuntamiento', 'meta', '{"pageId":"000000000000001","includeComments":true}', false),
+  ('00000000-0000-4000-e200-000000000002', '00000000-0000-4000-a000-000000000001', 'Noticias regionales (RSS)', 'rss', '{"url":"https://example.com/feed.xml"}', false),
+  ('00000000-0000-4000-e200-000000000003', '00000000-0000-4000-a000-000000000001', 'Canal del Ayuntamiento', 'youtube', '{"channelId":"UC0000000000000000000000","includeComments":true}', false),
+  ('00000000-0000-4000-e200-000000000004', '00000000-0000-4000-a000-000000000001', 'Búsqueda en X', 'x', '{}', false);
 
 insert into public.authors (org_id, platform, handle, display_name, followers, kind) values
   ('00000000-0000-4000-a000-000000000001', 'rss', 'diario-del-valle', 'Diario del Valle', 85000, 'media'),

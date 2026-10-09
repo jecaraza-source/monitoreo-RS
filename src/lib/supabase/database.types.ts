@@ -147,6 +147,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"ingest_runs": {
+                  Row: {
+                    "created_at": string,"duplicates": number,"error": string | null,"fetched": number,"finished_at": string,"id": string,"inserted": number,"org_id": string,"source_id": string,"started_at": string,"status": string,"trigger": string,"unmatched": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"duplicates"?: number,"error"?: string | null,"fetched"?: number,"finished_at"?: string,"id"?: string,"inserted"?: number,"org_id": string,"source_id": string,"started_at": string,"status": string,"trigger": string,"unmatched"?: number
+                  }
+                  Update: {
+                    "created_at"?: string,"duplicates"?: number,"error"?: string | null,"fetched"?: number,"finished_at"?: string,"id"?: string,"inserted"?: number,"org_id"?: string,"source_id"?: string,"started_at"?: string,"status"?: string,"trigger"?: string,"unmatched"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ingest_runs_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ingest_runs_source_id_fkey"
+      columns: ["source_id"]
+isOneToOne: false
+      referencedRelation: "sources"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"memberships": {
                   Row: {
                     "created_at": string,"department_id": string | null,"id": string,"org_id": string,"role": Database["public"]['Enums']["membership_role"],"user_id": string
@@ -333,14 +359,14 @@ isOneToOne: false
                   ]
                 },"sources": {
                   Row: {
-                    "config": NonNullable<Json>,"created_at": string,"id": string,"is_active": boolean,"last_run_at": string | null,"name": string,"org_id": string,"type": Database["public"]['Enums']["source_type"]
+                    "config": NonNullable<Json>,"consecutive_failures": number,"created_at": string,"cursor": NonNullable<Json>,"has_secret": boolean,"id": string,"is_active": boolean,"last_error": string | null,"last_error_at": string | null,"last_run_at": string | null,"last_success_at": string | null,"name": string,"org_id": string,"type": Database["public"]['Enums']["source_type"]
                   }
                   ComputedFields: never
                   Insert: {
-                    "config"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"is_active"?: boolean,"last_run_at"?: string | null,"name": string,"org_id": string,"type": Database["public"]['Enums']["source_type"]
+                    "config"?: NonNullable<Json>,"consecutive_failures"?: number,"created_at"?: string,"cursor"?: NonNullable<Json>,"has_secret"?: boolean,"id"?: string,"is_active"?: boolean,"last_error"?: string | null,"last_error_at"?: string | null,"last_run_at"?: string | null,"last_success_at"?: string | null,"name": string,"org_id": string,"type": Database["public"]['Enums']["source_type"]
                   }
                   Update: {
-                    "config"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"is_active"?: boolean,"last_run_at"?: string | null,"name"?: string,"org_id"?: string,"type"?: Database["public"]['Enums']["source_type"]
+                    "config"?: NonNullable<Json>,"consecutive_failures"?: number,"created_at"?: string,"cursor"?: NonNullable<Json>,"has_secret"?: boolean,"id"?: string,"is_active"?: boolean,"last_error"?: string | null,"last_error_at"?: string | null,"last_run_at"?: string | null,"last_success_at"?: string | null,"name"?: string,"org_id"?: string,"type"?: Database["public"]['Enums']["source_type"]
                   }
                   Relationships: [
                     {
@@ -403,7 +429,13 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "mention_stats":
+            "clear_source_secret":
+{ Args: { "p_source_id": string }; Returns: undefined
+                           },
+"get_source_secret":
+{ Args: { "p_source_id": string }; Returns: string
+                           },
+"mention_stats":
 { Args: { "p_from": string,"p_org_id": string,"p_to": string }; Returns: {
               "department_id": string,"hour": string,"interactions": number,"mentions": number,"sentiment": Database["public"]['Enums']["sentiment"]
             }[]
@@ -433,7 +465,10 @@ isOneToOne: false
         to: "queries"
         isOneToOne: true
         isSetofReturn: false
-      } }
+      } },
+"set_source_secret":
+{ Args: { "p_secret": string,"p_source_id": string }; Returns: undefined
+                           }
           }
           Enums: {
             "author_kind": "media"|"public_figure"|"citizen","membership_role": "admin"|"comunicacion"|"dependencia"|"lectura","mention_status": "pending"|"classified"|"failed","priority": "low"|"medium"|"high"|"critical","report_period": "daily"|"weekly"|"monthly","sentiment": "positive"|"neutral"|"negative","source_type": "meta"|"rss"|"youtube"|"x","ticket_status": "open"|"in_progress"|"resolved"|"closed"

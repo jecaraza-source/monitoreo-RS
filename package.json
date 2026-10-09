@@ -11,7 +11,7 @@
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local --schema public > src/lib/supabase/database.types.ts",
     "test:db": "supabase test db",
-    "test": "node --test \"src/**/*.test.ts\""
+    "test": "NODE_ENV=test node --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.1",
