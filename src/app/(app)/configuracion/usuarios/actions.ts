@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { rateLimitMessage } from "@/lib/auth/rate-limit";
 import { ROLES, ROLE_LABELS } from "@/lib/auth/roles";
 import { requireRole } from "@/lib/auth/session";
 import { getSiteUrl } from "@/lib/site-url";
@@ -71,6 +72,8 @@ export async function inviteUser(_prev: InviteState, formData: FormData): Promis
     if (error?.code === "email_exists") {
       return { status: "error", message: "Ese correo ya tiene una cuenta.", field: "email" };
     }
+    const limited = rateLimitMessage(error);
+    if (limited) return { status: "error", message: limited };
     console.error("[invite] inviteUserByEmail:", error?.code ?? error?.message);
     return { status: "error", message: "No se pudo enviar la invitación. Inténtalo de nuevo." };
   }
