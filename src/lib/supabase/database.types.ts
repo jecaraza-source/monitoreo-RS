@@ -5,7 +5,27 @@ export type Database = {
   
   "public": {
           Tables: {
-            "alert_events": {
+            "ai_usage": {
+                  Row: {
+                    "cache_read_tokens": number,"cache_write_tokens": number,"cost_usd": number,"created_at": string,"day": string,"id": string,"input_tokens": number,"model": string,"org_id": string,"output_tokens": number,"purpose": string,"requests": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "cache_read_tokens"?: number,"cache_write_tokens"?: number,"cost_usd"?: number,"created_at"?: string,"day": string,"id"?: string,"input_tokens"?: number,"model": string,"org_id": string,"output_tokens"?: number,"purpose": string,"requests"?: number
+                  }
+                  Update: {
+                    "cache_read_tokens"?: number,"cache_write_tokens"?: number,"cost_usd"?: number,"created_at"?: string,"day"?: string,"id"?: string,"input_tokens"?: number,"model"?: string,"org_id"?: string,"output_tokens"?: number,"purpose"?: string,"requests"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ai_usage_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"alert_events": {
                   Row: {
                     "acknowledged_at": string | null,"created_at": string,"department_id": string | null,"id": string,"mention_id": string | null,"org_id": string,"payload": NonNullable<Json>,"rule_id": string
                   }
@@ -273,14 +293,14 @@ isOneToOne: false
                   ]
                 },"projects": {
                   Row: {
-                    "created_at": string,"goal": string | null,"id": string,"kpis": NonNullable<Json>,"name": string,"org_id": string,"territory": NonNullable<Json>,"updated_at": string
+                    "classification_rules": string,"created_at": string,"goal": string | null,"id": string,"kpis": NonNullable<Json>,"name": string,"org_id": string,"territory": NonNullable<Json>,"topics": (string)[],"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"goal"?: string | null,"id"?: string,"kpis"?: NonNullable<Json>,"name": string,"org_id": string,"territory"?: NonNullable<Json>,"updated_at"?: string
+                    "classification_rules"?: string,"created_at"?: string,"goal"?: string | null,"id"?: string,"kpis"?: NonNullable<Json>,"name": string,"org_id": string,"territory"?: NonNullable<Json>,"topics"?: (string)[],"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"goal"?: string | null,"id"?: string,"kpis"?: NonNullable<Json>,"name"?: string,"org_id"?: string,"territory"?: NonNullable<Json>,"updated_at"?: string
+                    "classification_rules"?: string,"created_at"?: string,"goal"?: string | null,"id"?: string,"kpis"?: NonNullable<Json>,"name"?: string,"org_id"?: string,"territory"?: NonNullable<Json>,"topics"?: (string)[],"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -444,6 +464,9 @@ isOneToOne: false
 { Args: { "p_org_id": string }; Returns: {
               "department_id": string,"department_name": string,"email": string,"invited_at": string,"last_sign_in_at": string,"role": Database["public"]['Enums']["membership_role"],"user_id": string
             }[]
+                           },
+"record_ai_usage":
+{ Args: { "p_cache_read_tokens": number,"p_cache_write_tokens": number,"p_cost_usd": number,"p_input_tokens": number,"p_model": string,"p_org_id": string,"p_output_tokens": number,"p_purpose": string }; Returns: undefined
                            },
 "save_query_version":
 { Args: { "p_builder"?: Json,"p_expression": string,"p_lineage_id"?: string,"p_name": string,"p_project_id": string }; Returns: {

@@ -97,6 +97,24 @@ insert into public.projects (id, org_id, name, goal, kpis) values
    'Detectar y atender en menos de 72 horas las demandas ciudadanas publicadas en medios y redes.',
    '[{"key":"tiempo_respuesta_horas","target":72},{"key":"sentimiento_positivo_pct","target":45},{"key":"tickets_resueltos_pct","target":80}]');
 
+-- Taxonomy and rules the classifier uses for this project.
+update public.projects set
+  topics = array[
+    'agua potable', 'alumbrado público', 'baches y pavimentación', 'drenaje', 'gestión del gobierno',
+    'medio ambiente', 'obra pública', 'programas sociales', 'recolección de basura', 'salud',
+    'seguridad pública', 'trámites y servicios', 'tránsito y vialidad'
+  ],
+  classification_rules = $rules$- Fugas, falta de agua, pipas, tandeo y drenaje: Agua Potable y Alcantarillado.
+- Baches, banquetas, obras inconclusas y pavimentación: Obras Públicas.
+- Basura, alumbrado, parques y panteones: Servicios Públicos.
+- Robos, asaltos, patrullaje y violencia: Seguridad Pública.
+- Becas, apoyos, salud comunitaria y DIF: Desarrollo Social.
+- Tránsito, semáforos y vialidad: Seguridad Pública.
+- Medio ambiente y tiraderos clandestinos: Servicios Públicos.
+- Un bloqueo o protesta por falta de agua es prioridad alta.
+- Los avisos oficiales de cortes programados son neutrales, intención "otro", prioridad baja.$rules$
+where id = '00000000-0000-4000-e000-000000000001';
+
 insert into public.queries (id, org_id, project_id, lineage_id, name, expression, builder, filters) values
   ('00000000-0000-4000-e100-000000000001', '00000000-0000-4000-a000-000000000001', '00000000-0000-4000-e000-000000000001',
    '00000000-0000-4000-e110-000000000001', 'Municipio',
@@ -220,7 +238,8 @@ select
   case when sm.department in ('agua', 'obras', 'servicios')
     then '00000000-0000-4000-e100-000000000002'::uuid
     else '00000000-0000-4000-e100-000000000001'::uuid end,
-  (case when sm.r < 0.9 then 'classified' when sm.r < 0.95 then 'pending' else 'failed' end)::public.mention_status
+  -- ~10 % stay pending so the AI classifier (/api/cron/classify) has real work on a fresh seed.
+  (case when sm.r < 0.9 then 'classified' else 'pending' end)::public.mention_status
 from seed_mentions sm
 join public.neighborhoods h on h.id = sm.neighborhood_id
 cross join lateral (
