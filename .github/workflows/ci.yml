@@ -23,3 +23,20 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder-publishable-key
+
+  db:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      # Applies supabase/migrations and supabase/seed.sql on a fresh local Postgres.
+      - run: npx supabase db start
+      - name: RLS tests (pgTAP)
+        run: npm run test:db
+      - name: Generated types are up to date
+        run: |
+          npm run db:types
+          git diff --exit-code src/lib/supabase/database.types.ts \
+            || (echo "database.types.ts is stale: run npm run db:types and commit" && exit 1)
