@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { cookies } from "next/headers";
+import { AlertBell } from "@/components/alerts/alert-bell";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { ProjectSelector } from "@/components/layout/project-selector";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -8,6 +9,8 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireMember } from "@/lib/auth/session";
 import { getActiveProjectId, getProjects } from "@/lib/projects";
+import { createClient } from "@/lib/supabase/server";
+import { DAY_MS, isoAgo } from "@/lib/time";
 
 export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
@@ -21,7 +24,18 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
 
 async function AppShell({ children }: { children: React.ReactNode }) {
   const member = await requireMember();
-  const [cookieStore, projects] = await Promise.all([cookies(), getProjects(member)]);
+  const supabase = await createClient();
+  const [cookieStore, projects, unseen] = await Promise.all([
+    cookies(),
+    getProjects(member),
+    // Unseen alerts of the last week for the bell (RLS scopes departments).
+    supabase
+      .from("alert_events")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", member.orgId)
+      .is("acknowledged_at", null)
+      .gte("created_at", isoAgo(7 * DAY_MS)),
+  ]);
   const activeProjectId = await getActiveProjectId(projects);
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
@@ -34,6 +48,7 @@ async function AppShell({ children }: { children: React.ReactNode }) {
           <div aria-hidden className="mx-1 h-5 w-px bg-border" />
           <ProjectSelector projects={projects} activeProjectId={activeProjectId} />
           <div className="ml-auto flex items-center gap-1">
+            <AlertBell orgId={member.orgId} initialCount={unseen.count ?? 0} />
             <ThemeToggle />
             <UserMenu email={member.email} role={member.role} />
           </div>

@@ -249,11 +249,11 @@ otp_expiry = 3600
 # (the default PKCE link only works in the browser that requested it).
 # Mirror these templates in the hosted project's Auth > Email Templates.
 [auth.email.template.invite]
-subject = "Te invitaron a Monitoreo Municipal"
+subject = "Te invitaron a Sigma Pulso"
 content_path = "./supabase/templates/invite.html"
 
 [auth.email.template.magic_link]
-subject = "Tu enlace para entrar a Monitoreo Municipal"
+subject = "Tu enlace para entrar a Sigma Pulso"
 content_path = "./supabase/templates/magic_link.html"
 
 # Uncomment to customize notification email template

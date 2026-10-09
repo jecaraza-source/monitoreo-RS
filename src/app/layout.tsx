@@ -14,8 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Monitoreo Municipal", template: "%s · Monitoreo Municipal" },
-  description: "Escucha social y atención ciudadana para el gobierno municipal",
+  title: { default: "Sigma Pulso", template: "%s · Sigma Pulso" },
+  applicationName: "Sigma Pulso",
+  description: "Sigma Pulso: inteligencia social municipal. Escucha social y atención ciudadana para el gobierno municipal.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

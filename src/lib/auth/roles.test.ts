@@ -55,3 +55,14 @@ describe("homeForRole", () => {
     assert.equal(homeForRole("dependencia"), "/bandeja");
   });
 });
+
+describe("crisis room", () => {
+  it("is for org-wide readers only and stays out of the settings tabs", () => {
+    assert.equal(canAccessPath("comunicacion", "/alertas/crisis"), true);
+    assert.equal(canAccessPath("lectura", "/alertas/crisis"), true);
+    assert.equal(canAccessPath("dependencia", "/alertas/crisis"), false);
+    assert.equal(canAccessPath("dependencia", "/alertas"), true);
+    assert.deepEqual(subsectionsForRole("lectura").map((s) => s.label), []);
+    assert.deepEqual(subsectionsForRole("lectura", "/alertas").map((s) => s.label), ["Sala de crisis"]);
+  });
+});
