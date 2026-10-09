@@ -38,8 +38,20 @@ export const SECTIONS: readonly Section[] = [
   { key: "alerts", href: "/alertas", label: "Alertas", roles: ["admin", "comunicacion", "dependencia", "lectura"] },
   { key: "reports", href: "/reportes", label: "Reportes", roles: ["admin", "comunicacion", "lectura"] },
   { key: "assistant", href: "/asistente", label: "Asistente", roles: ["admin", "comunicacion"] },
-  { key: "settings", href: "/configuracion", label: "Configuración", roles: ["admin"] },
+  { key: "settings", href: "/configuracion", label: "Configuración", roles: ["admin", "comunicacion"] },
 ];
+
+// Pages inside a section with a narrower audience than the section itself.
+// Comunicación manages projects and queries; users and catalogs are admin-only.
+export const SUBSECTIONS: readonly { href: string; label: string; roles: readonly Role[] }[] = [
+  { href: "/configuracion/proyectos", label: "Proyectos", roles: ["admin", "comunicacion"] },
+  { href: "/configuracion/catalogos", label: "Catálogos", roles: ["admin"] },
+  { href: "/configuracion/usuarios", label: "Usuarios", roles: ["admin"] },
+];
+
+function isUnder(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function isRole(value: unknown): value is Role {
   return typeof value === "string" && (ROLES as readonly string[]).includes(value);
@@ -51,15 +63,19 @@ export function sectionsForRole(role: Role): Section[] {
 
 /** Section that owns a pathname (exact match or nested route), if any. */
 export function sectionForPath(pathname: string): Section | undefined {
-  return SECTIONS.find(
-    (section) => pathname === section.href || pathname.startsWith(`${section.href}/`),
-  );
+  return SECTIONS.find((section) => isUnder(pathname, section.href));
 }
 
 /** Paths outside every section (e.g. /sin-acceso) are not role-gated here. */
 export function canAccessPath(role: Role, pathname: string): boolean {
   const section = sectionForPath(pathname);
-  return !section || section.roles.includes(role);
+  if (section && !section.roles.includes(role)) return false;
+  const subsection = SUBSECTIONS.find((sub) => isUnder(pathname, sub.href));
+  return !subsection || subsection.roles.includes(role);
+}
+
+export function subsectionsForRole(role: Role) {
+  return SUBSECTIONS.filter((sub) => sub.roles.includes(role));
 }
 
 /** Landing page after login: the first section the role can open. */

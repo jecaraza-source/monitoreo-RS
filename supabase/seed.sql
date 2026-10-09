@@ -97,11 +97,17 @@ insert into public.projects (id, org_id, name, goal, kpis) values
    'Detectar y atender en menos de 72 horas las demandas ciudadanas publicadas en medios y redes.',
    '[{"key":"tiempo_respuesta_horas","target":72},{"key":"sentimiento_positivo_pct","target":45},{"key":"tickets_resueltos_pct","target":80}]');
 
-insert into public.queries (id, org_id, project_id, name, expression, filters) values
+insert into public.queries (id, org_id, project_id, lineage_id, name, expression, builder, filters) values
   ('00000000-0000-4000-e100-000000000001', '00000000-0000-4000-a000-000000000001', '00000000-0000-4000-e000-000000000001',
-   'Municipio', '"San Andrés del Valle" OR #SanAndrésDelValle OR "ayuntamiento de San Andrés"', '{"lang":"es"}'),
+   '00000000-0000-4000-e110-000000000001', 'Municipio',
+   '("San Andrés del Valle" OR SanAndresDelValle OR "ayuntamiento de San Andrés") AND NOT ("San Andrés Tuxtla" OR "San Andrés Cholula")',
+   '{"groups":[{"mode":"any","terms":["San Andrés del Valle","SanAndresDelValle","ayuntamiento de San Andrés"]},{"mode":"none","terms":["San Andrés Tuxtla","San Andrés Cholula"]}]}',
+   '{"lang":"es"}'),
   ('00000000-0000-4000-e100-000000000002', '00000000-0000-4000-a000-000000000001', '00000000-0000-4000-e000-000000000001',
-   'Servicios básicos', '(agua OR fuga OR bache OR basura OR luminaria) AND "San Andrés"', '{"lang":"es"}');
+   '00000000-0000-4000-e110-000000000002', 'Servicios básicos',
+   '(agua OR fuga* OR bache* OR basura OR luminaria* OR drenaje) AND NOT (garrafon* OR "agua mineral")',
+   '{"groups":[{"mode":"any","terms":["agua","fuga*","bache*","basura","luminaria*","drenaje"]},{"mode":"none","terms":["garrafon*","agua mineral"]}]}',
+   '{"lang":"es"}');
 
 insert into public.sources (id, org_id, name, type, config, last_run_at) values
   ('00000000-0000-4000-e200-000000000001', '00000000-0000-4000-a000-000000000001', 'Página oficial del Ayuntamiento', 'meta', '{"page_id":"000000000000001"}', now() - interval '20 minutes'),
@@ -127,6 +133,15 @@ select
   (random() * 900)::integer,
   'citizen'
 from generate_series(1, 30) as n;
+
+-- Topics that raise priority. Never names of people (see CLAUDE.md).
+insert into public.risk_terms (org_id, term, normalized, severity) values
+  ('00000000-0000-4000-a000-000000000001', 'Balacera', 'balacera', 'critical'),
+  ('00000000-0000-4000-a000-000000000001', 'Inundación', 'inundacion', 'high'),
+  ('00000000-0000-4000-a000-000000000001', 'Socavón', 'socavon', 'high'),
+  ('00000000-0000-4000-a000-000000000001', 'Bloqueo', 'bloqueo', 'high'),
+  ('00000000-0000-4000-a000-000000000001', 'Derrumbe', 'derrumbe', 'high'),
+  ('00000000-0000-4000-a000-000000000001', 'Manifestación', 'manifestacion', 'medium');
 
 -- ---------------------------------------------------------------------------
 -- Mentions, classifications and tickets

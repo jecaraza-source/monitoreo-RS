@@ -17,7 +17,7 @@ const schema = z
   .object({
     email: z.email("Escribe un correo válido.").trim().toLowerCase(),
     role: z.enum(ROLES, { error: "Elige un rol." }),
-    departmentId: z.uuid().optional(),
+    departmentId: z.guid("Identificador inválido.").optional(),
   })
   .refine((v) => v.role !== "dependencia" || v.departmentId, {
     message: "Elige la dependencia del usuario.",
@@ -93,7 +93,7 @@ export async function inviteUser(_prev: InviteState, formData: FormData): Promis
     return { status: "error", message: "No se pudo asignar el rol. Inténtalo de nuevo." };
   }
 
-  revalidatePath("/configuracion");
+  revalidatePath("/configuracion/usuarios");
   return { status: "success", message: `Invitación enviada a ${email} como ${ROLE_LABELS[role]}.` };
 }
 

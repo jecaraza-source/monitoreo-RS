@@ -39,8 +39,8 @@ Usuarios de prueba (contraseña `password123`): `admin@`, `comunicacion@`,
 
   | Rol | Secciones |
   |---|---|
-  | admin | Dashboard, Bandeja, Mapa, Alertas, Reportes, Asistente, Configuración |
-  | comunicacion | Dashboard, Bandeja, Mapa, Alertas, Reportes, Asistente |
+  | admin | Dashboard, Bandeja, Mapa, Alertas, Reportes, Asistente, Configuración (Proyectos, Catálogos, Usuarios) |
+  | comunicacion | Dashboard, Bandeja, Mapa, Alertas, Reportes, Asistente, Configuración (sólo Proyectos) |
   | dependencia | Bandeja, Alertas |
   | lectura | Dashboard, Mapa, Alertas, Reportes |
 
@@ -66,3 +66,32 @@ PageTransition), con ejemplos en **`/dev/ui`** (oculto en producción).
 Los colores viven en variables CSS en `src/app/globals.css`. Para aplicar la identidad del
 municipio basta con cambiar las `--brand-*` (claro y oscuro); los colores de sentimiento
 (`--positive`, `--neutral`, `--negative`) son independientes de la marca.
+
+## Proyectos y consultas
+
+En **Configuración → Proyectos** (`/configuracion/proyectos`, alias `/config/proyectos`) se da de alta
+cada proyecto con su ficha (objetivo, KPIs, territorio) y sus consultas. El constructor visual arma
+grupos que se combinan con AND:
+
+| Grupo | Genera |
+|---|---|
+| Incluir cualquiera de | `(a OR b OR c)` |
+| Incluir todas | `(a AND b)` |
+| Excluir | `NOT (a OR b)` |
+
+La expresión resultante usa el lenguaje de `src/lib/query/match.ts`:
+
+- `AND`, `OR`, `NOT` en mayúsculas y paréntesis; términos seguidos equivalen a `AND`.
+- `"frase exacta"`: palabras juntas y en orden.
+- `educa*`: el comodín completa letras dentro de una palabra.
+- No distingue acentos ni mayúsculas, y compara palabras completas (`agua` no coincide con `aguacate`).
+
+Para homónimos se excluye el contexto ajeno, por ejemplo:
+`"san andres" AND NOT ("san andres tuxtla" OR "san andres cholula")`.
+
+Cada guardado crea una **versión nueva**. Las anteriores se conservan y pueden volver a cargarse, y cada
+mención guarda la versión que la capturó. La vista previa evalúa la consulta contra las 2,000 menciones
+más recientes.
+
+**Catálogos** (sólo admin): dependencias, colonias (alta manual o carga de GeoJSON con polígonos, hasta
+~4 MB) y términos de riesgo. Los nombres no se repiten aunque cambien acentos o mayúsculas.

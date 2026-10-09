@@ -247,14 +247,14 @@ isOneToOne: false
                   ]
                 },"projects": {
                   Row: {
-                    "created_at": string,"goal": string | null,"id": string,"kpis": NonNullable<Json>,"name": string,"org_id": string
+                    "created_at": string,"goal": string | null,"id": string,"kpis": NonNullable<Json>,"name": string,"org_id": string,"territory": NonNullable<Json>,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"goal"?: string | null,"id"?: string,"kpis"?: NonNullable<Json>,"name": string,"org_id": string
+                    "created_at"?: string,"goal"?: string | null,"id"?: string,"kpis"?: NonNullable<Json>,"name": string,"org_id": string,"territory"?: NonNullable<Json>,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"goal"?: string | null,"id"?: string,"kpis"?: NonNullable<Json>,"name"?: string,"org_id"?: string
+                    "created_at"?: string,"goal"?: string | null,"id"?: string,"kpis"?: NonNullable<Json>,"name"?: string,"org_id"?: string,"territory"?: NonNullable<Json>,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -267,14 +267,14 @@ isOneToOne: false
                   ]
                 },"queries": {
                   Row: {
-                    "created_at": string,"expression": string,"filters": NonNullable<Json>,"id": string,"is_active": boolean,"name": string,"org_id": string,"project_id": string,"version": number
+                    "builder": Json | null,"created_at": string,"created_by": string | null,"expression": string,"filters": NonNullable<Json>,"id": string,"is_active": boolean,"lineage_id": string,"name": string,"org_id": string,"project_id": string,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"expression": string,"filters"?: NonNullable<Json>,"id"?: string,"is_active"?: boolean,"name": string,"org_id": string,"project_id": string,"version"?: number
+                    "builder"?: Json | null,"created_at"?: string,"created_by"?: string | null,"expression": string,"filters"?: NonNullable<Json>,"id"?: string,"is_active"?: boolean,"lineage_id"?: string,"name": string,"org_id": string,"project_id": string,"version"?: number
                   }
                   Update: {
-                    "created_at"?: string,"expression"?: string,"filters"?: NonNullable<Json>,"id"?: string,"is_active"?: boolean,"name"?: string,"org_id"?: string,"project_id"?: string,"version"?: number
+                    "builder"?: Json | null,"created_at"?: string,"created_by"?: string | null,"expression"?: string,"filters"?: NonNullable<Json>,"id"?: string,"is_active"?: boolean,"lineage_id"?: string,"name"?: string,"org_id"?: string,"project_id"?: string,"version"?: number
                   }
                   Relationships: [
                     {
@@ -305,6 +305,26 @@ isOneToOne: false
                   Relationships: [
                     {
       foreignKeyName: "reports_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"risk_terms": {
+                  Row: {
+                    "created_at": string,"id": string,"normalized": string,"org_id": string,"severity": Database["public"]['Enums']["priority"],"term": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"normalized": string,"org_id": string,"severity"?: Database["public"]['Enums']["priority"],"term": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"normalized"?: string,"org_id"?: string,"severity"?: Database["public"]['Enums']["priority"],"term"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "risk_terms_org_id_fkey"
       columns: ["org_id"]
 isOneToOne: false
       referencedRelation: "organizations"
@@ -392,7 +412,28 @@ isOneToOne: false
 { Args: { "p_org_id": string }; Returns: {
               "department_id": string,"department_name": string,"email": string,"invited_at": string,"last_sign_in_at": string,"role": Database["public"]['Enums']["membership_role"],"user_id": string
             }[]
-                           }
+                           },
+"save_query_version":
+{ Args: { "p_builder"?: Json,"p_expression": string,"p_lineage_id"?: string,"p_name": string,"p_project_id": string }; Returns: {
+              "builder": Json | null,
+"created_at": string,
+"created_by": string | null,
+"expression": string,
+"filters": NonNullable<Json>,
+"id": string,
+"is_active": boolean,
+"lineage_id": string,
+"name": string,
+"org_id": string,
+"project_id": string,
+"version": number
+            }
+                          SetofOptions: {
+        from: "*"
+        to: "queries"
+        isOneToOne: true
+        isSetofReturn: false
+      } }
           }
           Enums: {
             "author_kind": "media"|"public_figure"|"citizen","membership_role": "admin"|"comunicacion"|"dependencia"|"lectura","mention_status": "pending"|"classified"|"failed","priority": "low"|"medium"|"high"|"critical","report_period": "daily"|"weekly"|"monthly","sentiment": "positive"|"neutral"|"negative","source_type": "meta"|"rss"|"youtube"|"x","ticket_status": "open"|"in_progress"|"resolved"|"closed"
