@@ -173,6 +173,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"daily_readings": {
+                  Row: {
+                    "facts": NonNullable<Json>,"generated_at": string,"model": string | null,"org_id": string,"sentences": (string)[]
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "facts"?: NonNullable<Json>,"generated_at"?: string,"model"?: string | null,"org_id": string,"sentences": (string)[]
+                  }
+                  Update: {
+                    "facts"?: NonNullable<Json>,"generated_at"?: string,"model"?: string | null,"org_id"?: string,"sentences"?: (string)[]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "daily_readings_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: true
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"departments": {
                   Row: {
                     "created_at": string,"id": string,"name": string,"org_id": string,"short_name": string | null
@@ -331,14 +351,14 @@ isOneToOne: false
                   ]
                 },"organizations": {
                   Row: {
-                    "created_at": string,"id": string,"name": string,"slug": string,"state": string | null
+                    "brand_accent": string,"brand_primary": string,"created_at": string,"id": string,"name": string,"slug": string,"state": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"id"?: string,"name": string,"slug": string,"state"?: string | null
+                    "brand_accent"?: string,"brand_primary"?: string,"created_at"?: string,"id"?: string,"name": string,"slug": string,"state"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"id"?: string,"name"?: string,"slug"?: string,"state"?: string | null
+                    "brand_accent"?: string,"brand_primary"?: string,"created_at"?: string,"id"?: string,"name"?: string,"slug"?: string,"state"?: string | null
                   }
                   Relationships: [
                     
@@ -389,16 +409,36 @@ isOneToOne: false
       referencedColumns: ["org_id","id"]
     }
                   ]
-                },"reports": {
+                },"report_schedules": {
                   Row: {
-                    "content": NonNullable<Json>,"created_at": string,"id": string,"org_id": string,"pdf_path": string | null,"period": Database["public"]['Enums']["report_period"],"period_end": string,"period_start": string
+                    "auto_approve": boolean,"created_at": string,"id": string,"is_active": boolean,"last_run_at": string | null,"org_id": string,"period": Database["public"]['Enums']["report_period"],"recipients": (string)[],"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "content"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"org_id": string,"pdf_path"?: string | null,"period": Database["public"]['Enums']["report_period"],"period_end": string,"period_start": string
+                    "auto_approve"?: boolean,"created_at"?: string,"id"?: string,"is_active"?: boolean,"last_run_at"?: string | null,"org_id": string,"period": Database["public"]['Enums']["report_period"],"recipients"?: (string)[],"updated_at"?: string
                   }
                   Update: {
-                    "content"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"org_id"?: string,"pdf_path"?: string | null,"period"?: Database["public"]['Enums']["report_period"],"period_end"?: string,"period_start"?: string
+                    "auto_approve"?: boolean,"created_at"?: string,"id"?: string,"is_active"?: boolean,"last_run_at"?: string | null,"org_id"?: string,"period"?: Database["public"]['Enums']["report_period"],"recipients"?: (string)[],"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "report_schedules_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"reports": {
+                  Row: {
+                    "approved_at": string | null,"approved_by": string | null,"content": NonNullable<Json>,"created_at": string,"created_by": string | null,"delivery": NonNullable<Json>,"facts": NonNullable<Json>,"id": string,"model": string | null,"org_id": string,"pdf_path": string | null,"period": Database["public"]['Enums']["report_period"],"period_end": string,"period_start": string,"recipients": (string)[],"schedule_id": string | null,"sent_at": string | null,"status": Database["public"]['Enums']["report_status"],"title": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "approved_at"?: string | null,"approved_by"?: string | null,"content"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"delivery"?: NonNullable<Json>,"facts"?: NonNullable<Json>,"id"?: string,"model"?: string | null,"org_id": string,"pdf_path"?: string | null,"period": Database["public"]['Enums']["report_period"],"period_end": string,"period_start": string,"recipients"?: (string)[],"schedule_id"?: string | null,"sent_at"?: string | null,"status"?: Database["public"]['Enums']["report_status"],"title"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "approved_at"?: string | null,"approved_by"?: string | null,"content"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"delivery"?: NonNullable<Json>,"facts"?: NonNullable<Json>,"id"?: string,"model"?: string | null,"org_id"?: string,"pdf_path"?: string | null,"period"?: Database["public"]['Enums']["report_period"],"period_end"?: string,"period_start"?: string,"recipients"?: (string)[],"schedule_id"?: string | null,"sent_at"?: string | null,"status"?: Database["public"]['Enums']["report_status"],"title"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -406,6 +446,12 @@ isOneToOne: false
       columns: ["org_id"]
 isOneToOne: false
       referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "reports_schedule_fk"
+      columns: ["schedule_id"]
+isOneToOne: false
+      referencedRelation: "report_schedules"
       referencedColumns: ["id"]
     }
                   ]
@@ -550,6 +596,9 @@ isOneToOne: false
 "refresh_mention_stats":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },
+"report_extras":
+{ Args: { "p_bucket"?: string,"p_from": string,"p_org_id": string,"p_peaks"?: (string)[],"p_to": string }; Returns: Json
+                           },
 "route_mentions":
 { Args: { "p_department_id": string,"p_due_at": string,"p_mention_ids": (string)[] }; Returns: number
                            },
@@ -584,7 +633,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "author_kind": "media"|"public_figure"|"citizen","membership_role": "admin"|"comunicacion"|"dependencia"|"lectura","mention_status": "pending"|"classified"|"failed","priority": "low"|"medium"|"high"|"critical","report_period": "daily"|"weekly"|"monthly","sentiment": "positive"|"neutral"|"negative","source_type": "meta"|"rss"|"youtube"|"x","ticket_status": "open"|"in_progress"|"resolved"|"closed","triage_status": "new"|"reviewed"|"routed"|"discarded"
+            "author_kind": "media"|"public_figure"|"citizen","membership_role": "admin"|"comunicacion"|"dependencia"|"lectura","mention_status": "pending"|"classified"|"failed","priority": "low"|"medium"|"high"|"critical","report_period": "daily"|"weekly"|"monthly","report_status": "draft"|"approved"|"sent","sentiment": "positive"|"neutral"|"negative","source_type": "meta"|"rss"|"youtube"|"x","ticket_status": "open"|"in_progress"|"resolved"|"closed","triage_status": "new"|"reviewed"|"routed"|"discarded"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -700,7 +749,7 @@ export type CompositeTypes<
 export const Constants = {
   "public": {
           Enums: {
-            "author_kind": ["media", "public_figure", "citizen"],"membership_role": ["admin", "comunicacion", "dependencia", "lectura"],"mention_status": ["pending", "classified", "failed"],"priority": ["low", "medium", "high", "critical"],"report_period": ["daily", "weekly", "monthly"],"sentiment": ["positive", "neutral", "negative"],"source_type": ["meta", "rss", "youtube", "x"],"ticket_status": ["open", "in_progress", "resolved", "closed"],"triage_status": ["new", "reviewed", "routed", "discarded"]
+            "author_kind": ["media", "public_figure", "citizen"],"membership_role": ["admin", "comunicacion", "dependencia", "lectura"],"mention_status": ["pending", "classified", "failed"],"priority": ["low", "medium", "high", "critical"],"report_period": ["daily", "weekly", "monthly"],"report_status": ["draft", "approved", "sent"],"sentiment": ["positive", "neutral", "negative"],"source_type": ["meta", "rss", "youtube", "x"],"ticket_status": ["open", "in_progress", "resolved", "closed"],"triage_status": ["new", "reviewed", "routed", "discarded"]
           }
         }
 } as const

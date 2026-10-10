@@ -1,5 +1,6 @@
 import "server-only";
 import { notify } from "@/lib/notify";
+import { siteUrl } from "@/lib/site-url";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import {
   decideDigest,
@@ -39,13 +40,6 @@ export type EvaluateSummary = {
   suppressed: number;
   errors: string[];
 };
-
-function siteUrl(): string {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL;
-  if (configured) return configured.replace(/\/$/, "");
-  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-  return vercel ? `https://${vercel}` : "http://localhost:3000";
-}
 
 /**
  * Evaluates every active rule and fires what crosses its threshold. Called

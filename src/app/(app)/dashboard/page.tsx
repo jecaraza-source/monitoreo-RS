@@ -25,7 +25,7 @@ async function Dashboard({ searchParams }: { searchParams: PageProps<"/dashboard
 
   return (
     <DashboardFrame toolbar={<PeriodSelector />}>
-      <DashboardContent data={data} period={period} />
+      <DashboardContent data={data} period={period} member={member} />
     </DashboardFrame>
   );
 }

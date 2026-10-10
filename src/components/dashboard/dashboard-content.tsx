@@ -1,5 +1,6 @@
 import { AlarmClock, Gauge, MessagesSquare, ThumbsDown, Timer } from "lucide-react";
 import { ChartCard, EmptyState, KpiCard } from "@/components/ui-kit";
+import type { Member } from "@/lib/auth/session";
 import type { Dashboard } from "@/lib/dashboard/data";
 import { inboxHref, negativeShare, nss } from "@/lib/dashboard/model";
 import type { Period } from "@/lib/dashboard/period";
@@ -19,7 +20,7 @@ const signed = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0, signDi
 
 const barsHeight = (rows: number) => Math.max(rows, 3) * NSS_ROW_HEIGHT + 32;
 
-export function DashboardContent({ data, period }: { data: Dashboard; period: Period }) {
+export function DashboardContent({ data, period, member }: { data: Dashboard; period: Period; member: Member }) {
   const { totals, previous } = data;
   const empty = totals.mentions === 0;
 
@@ -116,7 +117,7 @@ export function DashboardContent({ data, period }: { data: Dashboard; period: Pe
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
         <div className="lg:col-span-4">
-          <DailyReading index={5} />
+          <DailyReading index={5} member={member} />
         </div>
         <ChartCard
           index={6}

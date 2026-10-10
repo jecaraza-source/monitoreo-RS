@@ -27,7 +27,7 @@ export const emailNotifier: Notifier = {
     if (!key || !from) return { status: "not_configured", detail: "Faltan RESEND_API_KEY o ALERTS_FROM_EMAIL." };
     const { subject, html, text } = renderEmail(message);
     try {
-      const res = await fetch("https://api.resend.com/emails", {
+      const res = await fetch(`${env.RESEND_BASE_URL ?? "https://api.resend.com"}/emails`, {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
         body: JSON.stringify({ from, to: recipients, subject, html, text }),

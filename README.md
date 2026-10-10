@@ -252,3 +252,34 @@ dependencias ven sólo las alertas de su área). Tipos de regla (`alert_rules.ki
 NSS en vivo, principales difusores (sólo medios y figuras públicas; los ciudadanos se cuentan en agregado),
 alertas de las últimas 24 h y bitácora de acciones (`crisis_log`). Se actualiza cada 15 s y al instante
 con Realtime.
+
+## Reportes
+
+`/reportes` (admin y comunicación generan y aprueban; lectura consulta y descarga): reporte diario, semanal o
+mensual de un periodo que termina en el día elegido (semanal = 7 días; mensual = mes calendario a la fecha),
+comparado contra el periodo anterior de la misma duración.
+
+1. **Cifras en código.** `src/lib/reports/data.ts` arma `ReportFacts` (`src/lib/ai/narrative.ts`) con
+   `dashboard_stats()` y `report_extras()`: KPIs con variación, temas, dependencias por NSS, colonias con más
+   quejas, picos con sus menciones principales, alertas, tiempos de atención, metas del proyecto y 15 menciones
+   representativas. Sólo se nombran medios y figuras públicas.
+2. **Narrativa con Claude** (`CLAUDE_MODEL_SMART`, tool use estricto): titular, resumen ejecutivo (≤ 120
+   palabras), hallazgos con evidencia, riesgos, oportunidades, recomendaciones (acción, responsable, plazo) y
+   mensajes clave. Cada número citado debe existir en `ReportFacts`; si no, se reintenta indicando las cifras
+   inválidas (hasta 3 intentos). El costo queda en `ai_usage` (`purpose = 'report'`).
+3. **Borrador editable.** La vista web muestra KPIs, gráficas y la narrativa en un editor; avisa si una edición
+   introduce cifras que no están en los datos.
+4. **Aprobación.** Congela el reporte (trigger `reports_guard`), genera el PDF con `@react-pdf/renderer`
+   (portada con `organizations.brand_primary/brand_accent`, editables por admin), lo guarda en el bucket privado
+   `reports/<org>/<id>.pdf` y lo envía por Resend como adjunto a los destinatarios. La descarga usa un enlace
+   firmado de 5 minutos.
+5. **Envío programado.** `report_schedules` por tipo; `/api/cron/reports` (13:00 UTC = 7:00 CDMX) prepara el
+   diario cada día, el semanal los lunes y el mensual el día 1. Con *aprobar sin revisión* se envía de inmediato;
+   si no, espera la aprobación en `/reportes`.
+
+**Lectura del día** (dashboard): 2 o 3 oraciones sobre las últimas 24 h, redactadas con `CLAUDE_MODEL_FAST` y
+las mismas validaciones, guardadas en `daily_readings` y regeneradas cuando tienen más de 1 h.
+
+**Pruebas locales sin llaves:** `node e2e/mock-anthropic.mjs` y arrancar la app con
+`ANTHROPIC_API_KEY=mock ANTHROPIC_BASE_URL=http://127.0.0.1:4010 RESEND_API_KEY=re_mock RESEND_BASE_URL=http://127.0.0.1:4010`;
+los correos enviados se listan en `http://127.0.0.1:4010/emails`.
