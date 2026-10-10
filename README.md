@@ -55,8 +55,12 @@ En local, los correos llegan a Mailpit: http://127.0.0.1:54324.
    (y la URL de previews de Vercel si se usan).
 2. **Auth > Providers > Email:** desactivar *Allow new users to sign up*.
 3. **Auth > Email Templates:** copiar `supabase/templates/magic_link.html` e `invite.html`. Usan
-   `token_hash`, así el enlace funciona aunque se abra en otro dispositivo.
-4. En Vercel: `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_URL`,
+   `token_hash`, así el enlace funciona aunque se abra en otro dispositivo, y lo arman con la
+   Site URL (`{{ .SiteURL }}/auth/confirm?…`), por lo que la Site URL debe ser el dominio con
+   `https://` y sin `/` al final.
+4. **Auth > SMTP Settings:** SMTP propio (Resend: `smtp.resend.com`, puerto 465, usuario `resend`);
+   el correo integrado de Supabase sólo permite unos cuantos envíos por hora.
+5. En Vercel: `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_URL`,
    `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` y `SUPABASE_SERVICE_ROLE_KEY` (sólo servidor).
 
 ## UI kit
