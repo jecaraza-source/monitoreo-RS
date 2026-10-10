@@ -3,7 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // Reachable without a session. Everything else requires one.
 // /api/cron/* authorizes itself with CRON_SECRET and must answer JSON, not redirect.
-const PUBLIC_PATHS = ["/login", "/auth/", "/dev/", "/api/cron/"];
+// /api/demo/* serves fictitious public RSS feeds for demos.
+const PUBLIC_PATHS = ["/login", "/auth/", "/dev/", "/api/cron/", "/api/demo/"];
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p));
