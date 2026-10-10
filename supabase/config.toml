@@ -246,7 +246,9 @@ otp_expiry = 3600
 # sender_name = "Admin"
 
 # Links point at /auth/confirm with a token_hash so they work on any device
-# (the default PKCE link only works in the browser that requested it).
+# (the default PKCE link only works in the browser that requested it). They are
+# built from the Site URL, not RedirectTo: a redirect the project does not allow
+# falls back to the bare Site URL and would leave a malformed link.
 # Mirror these templates in the hosted project's Auth > Email Templates.
 [auth.email.template.invite]
 subject = "Te invitaron a Sigma Pulso"
