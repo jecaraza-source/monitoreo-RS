@@ -1,21 +1,29 @@
 import type { Metadata } from "next";
-import { Bot } from "lucide-react";
+import { Suspense } from "react";
+import { AssistantChat } from "@/components/assistant/chat";
 import { PageHeader } from "@/components/layout/page-header";
-import { EmptyState } from "@/components/ui-kit";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SUGGESTED_QUESTIONS } from "@/lib/ai/assistant";
 import { requireSection } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Asistente" };
 
-export default async function AsistentePage() {
-  await requireSection("/asistente");
+export default function AsistentePage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-[60svh]" />}>
+      <Assistant />
+    </Suspense>
+  );
+}
 
+async function Assistant() {
+  const member = await requireSection("/asistente");
   return (
     <>
-      <PageHeader title="Asistente" description="Pregunta sobre las menciones y la conversación pública." />
-      <EmptyState
-        icon={<Bot />}
-        title="El asistente estará disponible pronto"
-        description="Podrás hacer preguntas en lenguaje natural sobre lo que se dice del municipio."
+      <PageHeader title="Asistente" description="Pregunta en lenguaje natural sobre las menciones y la atención ciudadana." />
+      <AssistantChat
+        suggestions={SUGGESTED_QUESTIONS}
+        scopeNote={member.role === "dependencia" ? `Sólo veo lo turnado a ${member.departmentName ?? "tu dependencia"}.` : null}
       />
     </>
   );

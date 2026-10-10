@@ -42,8 +42,8 @@ Usuarios de prueba (contraseña `password123`): `admin@`, `comunicacion@`,
   |---|---|
   | admin | Dashboard, Bandeja, Mapa, Alertas, Reportes, Asistente, Configuración (Proyectos, Catálogos, Usuarios) |
   | comunicacion | Dashboard, Bandeja, Mapa, Alertas, Reportes, Asistente, Configuración (sólo Proyectos) |
-  | dependencia | Bandeja, Alertas |
-  | lectura | Dashboard, Mapa, Alertas, Reportes |
+  | dependencia | Bandeja, Alertas, Asistente (sólo con lo turnado a su dependencia) |
+  | lectura | Dashboard, Mapa, Alertas, Reportes, Asistente |
 
   Esto controla la navegación; la visibilidad de los datos la impone RLS.
 
@@ -283,3 +283,19 @@ las mismas validaciones, guardadas en `daily_readings` y regeneradas cuando tien
 **Pruebas locales sin llaves:** `node e2e/mock-anthropic.mjs` y arrancar la app con
 `ANTHROPIC_API_KEY=mock ANTHROPIC_BASE_URL=http://127.0.0.1:4010 RESEND_API_KEY=re_mock RESEND_BASE_URL=http://127.0.0.1:4010`;
 los correos enviados se listan en `http://127.0.0.1:4010/emails`.
+
+## Asistente
+
+`/asistente` (todos los roles): chat en lenguaje natural ("¿qué colonias se quejaron más del agua esta
+semana?"). Usa `CLAUDE_MODEL_SMART` con cinco herramientas de **sólo lectura** definidas en
+`src/lib/ai/tools.ts`: `get_kpis`, `top_topics`, `search_mentions`, `stats_by_neighborhood` y
+`stats_by_department`.
+
+- Cada herramienta es una consulta fija y parametrizada; su entrada se valida con zod (periodo máximo de 92
+  días, nombres de catálogo exactos). **No hay SQL libre.**
+- Las consultas usan la sesión del usuario, así que RLS decide qué ve cada quien: un enlace de dependencia
+  sólo obtiene lo turnado a su dependencia, y el prompt se lo aclara al modelo.
+- `/api/asistente` responde en streaming (NDJSON): texto, avisos de herramienta, mini-gráficas cuando hay
+  series o rankings y enlaces a la bandeja filtrada con el mismo periodo y filtros.
+- Los ciudadanos nunca se identifican en los resultados; sólo se nombran medios y figuras públicas.
+- El costo queda en `ai_usage` (`purpose = 'assistant'`).

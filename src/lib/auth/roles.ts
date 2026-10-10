@@ -37,7 +37,7 @@ export const SECTIONS: readonly Section[] = [
   { key: "map", href: "/mapa", label: "Mapa", roles: ["admin", "comunicacion", "lectura"] },
   { key: "alerts", href: "/alertas", label: "Alertas", roles: ["admin", "comunicacion", "dependencia", "lectura"] },
   { key: "reports", href: "/reportes", label: "Reportes", roles: ["admin", "comunicacion", "lectura"] },
-  { key: "assistant", href: "/asistente", label: "Asistente", roles: ["admin", "comunicacion"] },
+  { key: "assistant", href: "/asistente", label: "Asistente", roles: ["admin", "comunicacion", "dependencia", "lectura"] },
   { key: "settings", href: "/configuracion", label: "Configuración", roles: ["admin", "comunicacion"] },
 ];
 
