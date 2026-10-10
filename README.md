@@ -156,12 +156,12 @@ Palancas: subir el umbral de escalamiento (`ESCALATE_BELOW_CONFIDENCE`), usar So
       (y sus clasificaciones, turnos y notas) y deja constancia en la bitácora.
 - [x] **Monitoreo de errores:** `instrumentation.ts` (`onRequestError`) y los error boundaries guardan los
       errores en `app_errors` sin cabeceras ni secretos y avisan a `ERROR_WEBHOOK_URL`.
-- [x] **Pruebas e2e** con Playwright (login, bandeja, turnado y reporte) en cada PR contra el stack local.
-- [ ] **e2e en cada preview** de Vercel contra su propio Supabase: el job `e2e-preview` está listo (mientras falten los secretos, avisa y se omite); falta crear
-      el proyecto de preview y los secretos del paso 4 de [Despliegue](#despliegue).
+- [x] **Pruebas e2e** con Playwright (login, bandeja, turnado, reporte y mapa) en cada PR contra el stack local.
+- [x] **e2e en cada preview** de Vercel contra su propio Supabase (`monitoreo-preview`): el job `e2e-preview`
+      corre al terminar cada despliegue de preview (9 de 9 en verde).
 - [x] **Crons sólo en producción** (Vercel + guardia `VERCEL_ENV` en cada ruta).
-- [ ] **Entornos separados:** falta crear el proyecto de Supabase de preview y cambiar las variables *Preview*
-      de Vercel (hoy apuntan al de producción); pasos 1 y 2 de [Despliegue](#despliegue).
+- [x] **Entornos separados:** producción usa `monitoreo-municipal` y los previews `monitoreo-preview`, cada uno
+      con sus propias llaves en Vercel (*Production* / *Preview*).
 - [x] **Datos personales:** sólo contenido público por APIs oficiales o RSS; no se perfila a ciudadanos (los
       análisis de autores se limitan a medios y figuras públicas, y la IA nunca recibe nombres de ciudadanos).
 - [x] **Sesiones y acceso:** sólo por invitación, enlaces de un solo uso, RLS como fuente de verdad y cada página
