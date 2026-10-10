@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import maplibregl, { type GeoJSONSource, type StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useTheme } from "next-themes";
+import { applyBasemap, PLAIN_BACKGROUND } from "@/components/map/basemap";
 import { formatNumber } from "./chart-theme";
 import { useDashboardFrame } from "./dashboard-frame";
 
@@ -36,23 +37,13 @@ function toCollection(features: MapFeature[]): GeoJSON.FeatureCollection {
 const opacityByComplaints = (max: number) =>
   ["interpolate", ["linear"], ["get", "complaints"], 0, 0.06, Math.max(max, 1), 0.72] as maplibregl.ExpressionSpecification;
 
+/** Our layers: the colonias over a plain background. applyBasemap() later puts the streets underneath. */
 function baseStyle(theme: "light" | "dark", features: MapFeature[], max: number): StyleSpecification {
-  const variant = theme === "dark" ? "dark_all" : "light_all";
   return {
     version: 8,
-    sources: {
-      carto: {
-        type: "raster",
-        tiles: ["a", "b", "c", "d"].map((s) => `https://${s}.basemaps.cartocdn.com/${variant}/{z}/{x}/{y}.png`),
-        tileSize: 256,
-        attribution: "© OpenStreetMap · © CARTO",
-      },
-      // Part of the initial style: the colonias render even if basemap tiles fail.
-      colonias: { type: "geojson", data: toCollection(features) },
-    },
+    sources: { colonias: { type: "geojson", data: toCollection(features) } },
     layers: [
-      { id: "background", type: "background", paint: { "background-color": theme === "dark" ? "#1c1c1c" : "#f4f4f5" } },
-      { id: "carto", type: "raster", source: "carto" },
+      { id: "background", type: "background", paint: { "background-color": PLAIN_BACKGROUND[theme] } },
       {
         id: "colonias-fill",
         type: "fill",
@@ -115,6 +106,7 @@ export function NeighborhoodsMapCanvas({ features, max }: { features: MapFeature
     });
     map.current = m;
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    const stopBasemap = applyBasemap(m, theme, () => baseStyle(theme, dataRef.current.features, dataRef.current.max));
     const box = bounds(initial);
     if (box) m.fitBounds(box, { padding: 24, animate: false });
 
@@ -141,6 +133,7 @@ export function NeighborhoodsMapCanvas({ features, max }: { features: MapFeature
     });
 
     return () => {
+      stopBasemap();
       m.remove();
       map.current = null;
     };
