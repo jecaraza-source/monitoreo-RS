@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import maplibregl, { type GeoJSONSource, type StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useTheme } from "next-themes";
+import { applyBasemap, PLAIN_BACKGROUND } from "./basemap";
 
 export type ColoniaFeature = {
   id: string;
@@ -53,25 +54,15 @@ function toCollection(features: ColoniaFeature[], scale: ColorScale, theme: Them
   };
 }
 
+/** Our layers: the colonias over a plain background. applyBasemap() later puts the streets underneath. */
 function baseStyle(theme: Theme, data: GeoJSON.FeatureCollection, selectedId: string | null): StyleSpecification {
-  const variant = theme === "dark" ? "dark_all" : "light_all";
   const hue = HUES[theme];
   const hovered = ["boolean", ["feature-state", "hover"], false] as maplibregl.ExpressionSpecification;
   return {
     version: 8,
-    sources: {
-      carto: {
-        type: "raster",
-        tiles: ["a", "b", "c", "d"].map((s) => `https://${s}.basemaps.cartocdn.com/${variant}/{z}/{x}/{y}.png`),
-        tileSize: 256,
-        attribution: "© OpenStreetMap · © CARTO",
-      },
-      // Part of the initial style: the colonias render even if basemap tiles fail.
-      colonias: { type: "geojson", data },
-    },
+    sources: { colonias: { type: "geojson", data } },
     layers: [
-      { id: "background", type: "background", paint: { "background-color": theme === "dark" ? "#1c1c1c" : "#f4f4f5" } },
-      { id: "carto", type: "raster", source: "carto" },
+      { id: "background", type: "background", paint: { "background-color": PLAIN_BACKGROUND[theme] } },
       {
         id: "colonias-fill",
         type: "fill",
@@ -153,6 +144,10 @@ export function ColoniasMap({
     });
     map.current = m;
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    const stopBasemap = applyBasemap(m, theme, () => {
+      const now = latest.current;
+      return baseStyle(theme, toCollection(now.features, now.scale, theme), now.selectedId);
+    });
     // Open on the selected colonia, else on those with data (a municipality's
     // localities can span 60 km; the activity is usually in a few of them).
     const selected = initial.find((f) => f.id === initialSelected);
@@ -183,6 +178,7 @@ export function ColoniasMap({
     });
 
     return () => {
+      stopBasemap();
       m.remove();
       map.current = null;
     };
