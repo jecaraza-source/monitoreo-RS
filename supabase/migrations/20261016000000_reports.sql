@@ -12,11 +12,8 @@ alter table public.organizations
   add column brand_primary text not null default '#032a50' check (brand_primary ~ '^#[0-9a-fA-F]{6}$'),
   add column brand_accent text not null default '#36c6c0' check (brand_accent ~ '^#[0-9a-fA-F]{6}$');
 
--- Admins may edit their org's cover colors (the row had no update policy).
-create policy "admins update organization" on public.organizations
-  for update to authenticated
-  using ((select private.has_role(id, '{admin}')))
-  with check ((select private.has_role(id, '{admin}')));
+-- Admins edit their org through "admins update their org"; from the API only
+-- the cover colors may change.
 revoke update on public.organizations from authenticated;
 grant update (brand_primary, brand_accent) on public.organizations to authenticated;
 
@@ -28,7 +25,7 @@ create type public.report_status as enum ('draft', 'approved', 'sent');
 alter table public.reports
   add column status public.report_status not null default 'draft',
   add column title text not null default '',
-  -- ReportFacts (src/lib/reports/facts.ts): the only source of figures.
+  -- ReportFacts (src/lib/reports/data.ts): the only source of figures.
   add column facts jsonb not null default '{}'::jsonb,
   add column model text,
   add column recipients text[] not null default '{}',
