@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import maplibregl, { type GeoJSONSource, type StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useTheme } from "next-themes";
+import { Expand } from "lucide-react";
+import { focusShapes } from "@/lib/map/focus";
 import { applyBasemap, PLAIN_BACKGROUND } from "./basemap";
 
 export type ColoniaFeature = {
@@ -148,12 +150,11 @@ export function ColoniasMap({
       const now = latest.current;
       return baseStyle(theme, toCollection(now.features, now.scale, theme), now.selectedId);
     });
-    // Open on the selected colonia, else on those with data (a municipality's
-    // localities can span 60 km; the activity is usually in a few of them).
+    // Open on the selected colonia, else on the one with most of the metric and
+    // its neighbors ("Ver todo" shows the whole municipality).
     const selected = initial.find((f) => f.id === initialSelected);
-    const active = initial.filter((f) => f.value !== null && f.value !== 0);
-    const box = boundsOf((selected ? [selected] : active.length ? active : initial).map((f) => f.geometry));
-    if (box) m.fitBounds(box, { padding: selected ? 80 : 32, maxZoom: 15, animate: false });
+    const box = boundsOf((selected ? [selected] : focusShapes(initial)).map((f) => f.geometry));
+    if (box) m.fitBounds(box, { padding: selected ? 80 : 48, maxZoom: 15, animate: false });
 
     let hovered: number | string | undefined;
     m.on("mousemove", "colonias-fill", (e) => {
@@ -204,9 +205,21 @@ export function ColoniasMap({
     previous.current = selectedId;
   }, [selectedId]);
 
+  function showAll() {
+    const box = boundsOf(latest.current.features.map((f) => f.geometry));
+    if (box) map.current?.fitBounds(box, { padding: 32, maxZoom: 15, duration: 600 });
+  }
+
   return (
     <>
       <div ref={container} className="size-full" role="img" aria-label="Mapa de colonias coloreado según la métrica elegida" />
+      <button
+        type="button"
+        onClick={showAll}
+        className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 rounded-md border bg-background/90 px-2.5 py-1.5 text-xs font-medium shadow-sm backdrop-blur hover:bg-muted"
+      >
+        <Expand aria-hidden className="size-3.5" /> Ver todo
+      </button>
       {hover && (
         <div
           className="pointer-events-none absolute z-10 rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md"
