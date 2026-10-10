@@ -48,6 +48,7 @@ export const SUBSECTIONS: readonly { href: string; label: string; roles: readonl
   { href: "/configuracion/fuentes", label: "Fuentes", roles: ["admin", "comunicacion"] },
   { href: "/configuracion/catalogos", label: "Catálogos", roles: ["admin"] },
   { href: "/configuracion/usuarios", label: "Usuarios", roles: ["admin"] },
+  { href: "/configuracion/bitacora", label: "Bitácora", roles: ["admin"] },
   // Crisis room: live org-wide picture, so not for a single department.
   { href: "/alertas/crisis", label: "Sala de crisis", roles: ["admin", "comunicacion", "lectura"] },
 ];

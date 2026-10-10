@@ -1,35 +1,171 @@
-# Monitoreo Municipal
+# Sigma Pulso · Monitoreo Municipal
 
-Plataforma de escucha social para un gobierno municipal de México. Ver `CLAUDE.md`
-para contexto, stack, convenciones y límites éticos.
+Plataforma de escucha social para un gobierno municipal de México: recolecta menciones públicas, las
+clasifica con Claude, las turna a las dependencias, genera alertas, dashboards, reportes y un asistente.
+Ver `CLAUDE.md` para el stack, las convenciones y los límites éticos.
 
-## Setup local
+- [Instalación local](#instalación-local)
+- [Variables de entorno](#variables-de-entorno)
+- [Despliegue](#despliegue)
+- [Costo mensual estimado de IA](#costo-mensual-estimado-de-ia)
+- [Seguridad](#seguridad)
+
+## Instalación local
+
+Requisitos: Node 22, Docker y Git.
 
 ```bash
-npm install
-cp .env.example .env.local   # llena los valores
-npm run dev
+npm ci
+npx supabase start            # Postgres, Auth, Storage, Realtime y Mailpit en Docker
+npm run db:reset              # migraciones + municipio ficticio (supabase/seed.sql)
+cp .env.example .env.local    # llena los valores (ver la tabla de abajo)
+npx supabase status -o env    # muestra API_URL, PUBLISHABLE_KEY y SECRET_KEY locales
+npm run dev                   # http://localhost:3000
 ```
 
-## Comandos
+- Usuarios del seed: `admin@`, `comunicacion@`, `obras@`, `agua@` y `lectura@monitoreo.test`. Se entra con
+  enlace de acceso; los correos llegan a Mailpit (http://127.0.0.1:54324).
+- Sin llaves de Claude ni Resend: `node e2e/mock-anthropic.mjs` y arranca la app con
+  `ANTHROPIC_API_KEY=mock ANTHROPIC_BASE_URL=http://127.0.0.1:4010 RESEND_API_KEY=re_mock RESEND_BASE_URL=http://127.0.0.1:4010`.
 
-- `npm run dev` — servidor de desarrollo
-- `npm run build` — build de producción
-- `npm run lint` — ESLint
-- `npm run typecheck` — TypeScript
-- `npm test` — pruebas unitarias (`node --test`, archivos `*.test.ts`)
-- `npm run db:reset` — recrea la base local con migraciones + `supabase/seed.sql`
-- `npm run db:types` — regenera `src/lib/supabase/database.types.ts`
-- `npm run test:db` — pruebas de RLS (pgTAP) en `supabase/tests`
-- `npm run eval:classify` — mide la precisión del clasificador con 30 menciones etiquetadas (usa la API de Claude)
-- `supabase db push` — aplica migraciones de `supabase/migrations` al proyecto remoto
+### Comandos
 
-## Base de datos local
+| Comando | Qué hace |
+|---|---|
+| `npm run dev` / `build` / `start` | Desarrollo, build y servidor de producción |
+| `npm run lint` · `npm run typecheck` | ESLint y TypeScript |
+| `npm test` | Pruebas unitarias y de seguridad estática (`node --test`, `src/**/*.test.ts`) |
+| `npm run test:db` | Pruebas pgTAP: RLS por rol, bitácora, retención, reportes (`supabase/tests`) |
+| `npm run test:e2e` | Playwright: login, bandeja, turnado y reporte (`e2e/`) |
+| `npm run check:bundle` | Verifica que ningún secreto llegue al bundle del navegador (después de `build`) |
+| `npm run ai:cost` | Costo de IA de los últimos 7 días y proyección a 30 (lee `ai_usage`) |
+| `npm run eval:classify` | Precisión del clasificador con 30 menciones etiquetadas (usa la API de Claude) |
+| `npm run db:reset` · `npm run db:types` | Recrea la base local · regenera los tipos de Supabase |
+| `supabase db push` | Aplica `supabase/migrations` al proyecto remoto enlazado |
 
-Requiere Docker. `npx supabase start` levanta el stack; `npm run db:reset` carga
-un municipio ficticio con 5 dependencias, 10 colonias y 200 menciones.
-Usuarios de prueba (contraseña `password123`): `admin@`, `comunicacion@`,
-`obras@`, `agua@` y `lectura@monitoreo.test`.
+Para correr el e2e en local: con la app y `e2e/mock-anthropic.mjs` arriba,
+`E2E_SUPABASE_SERVICE_ROLE_KEY=<SECRET_KEY local> npm run test:e2e` (con Chromium ya instalado:
+`PW_CHROMIUM_PATH=/ruta/a/chrome`).
+
+## Variables de entorno
+
+Se documentan en `.env.example`. Las marcadas como **secreto** sólo existen en el servidor (en Vercel,
+tipo *Sensitive*); el build de CI comprueba que ninguna aparezca en el bundle del navegador.
+
+| Variable | Tipo | Para qué |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | pública | URL del proyecto Supabase |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | pública | Llave publicable (respeta RLS) |
+| `NEXT_PUBLIC_SITE_URL` | pública | Dominio de la app (enlaces de correo y alertas) |
+| `SUPABASE_SERVICE_ROLE_KEY` | **secreto** | Cron, ingesta, clasificación, PDF y límite de solicitudes |
+| `ANTHROPIC_API_KEY` | **secreto** | API de Claude |
+| `CLAUDE_MODEL_FAST` | config | Clasificación y Lectura del día (p. ej. `claude-haiku-5-5`) |
+| `CLAUDE_MODEL_SMART` | config | Escalamiento, reportes y asistente (p. ej. `claude-opus-5-5`) |
+| `CRON_SECRET` | **secreto** | Vercel lo manda como `Authorization: Bearer` a los crons |
+| `RESEND_API_KEY` | **secreto** | Correo de alertas y reportes |
+| `ALERTS_FROM_EMAIL` · `REPORTS_FROM_EMAIL` | config | Remitentes (dominio verificado en Resend) |
+| `META_APP_SECRET` · `META_GRAPH_VERSION` | **secreto** · config | Conector de Facebook/Instagram |
+| `YOUTUBE_API_KEY` | **secreto** | Conector de YouTube |
+| `WHATSAPP_TOKEN` · `WHATSAPP_PHONE_NUMBER_ID` · `WHATSAPP_TEMPLATE` · `WHATSAPP_TEMPLATE_LANG` | **secreto** · config | Alertas por WhatsApp (opcional) |
+| `RETENTION_MONTHS` | config | Meses que se conservan las menciones (por omisión 24) |
+| `ERROR_WEBHOOK_URL` | **secreto** | Webhook tipo Slack para avisar errores (opcional) |
+
+Sólo para pruebas: `ANTHROPIC_BASE_URL`, `RESEND_BASE_URL`, `E2E_BASE_URL`, `E2E_SUPABASE_URL`,
+`E2E_SUPABASE_SERVICE_ROLE_KEY`, `VERCEL_AUTOMATION_BYPASS_SECRET`, `PW_CHROMIUM_PATH`.
+
+## Despliegue
+
+Vercel (hosting y cron) + Supabase (Postgres, Auth, Storage, Realtime). Dos entornos con **proyectos de
+Supabase separados**, para que un preview nunca toque datos reales:
+
+| Entorno | Rama | Supabase | Datos | Crons |
+|---|---|---|---|---|
+| Production | `main` | proyecto de producción | reales | sí |
+| Preview | ramas y PRs | proyecto de preview | `supabase/seed.sql` (ficticio) | no |
+
+Proyectos actuales: producción `monitoreo-municipal` (`dayduaiginbfpohchujl`) y preview `monitoreo-preview`
+(`llxskobppithldckfrnj`). En el SQL Editor de Supabase un script largo no respeta `begin/commit`: para
+preparar un proyecto nuevo es más seguro `supabase db push` y luego el seed.
+
+1. **Supabase.** Crea los dos proyectos. En cada uno: `supabase link --project-ref <ref>` y
+   `supabase db push`; en el de preview carga además `supabase/seed.sql` (SQL Editor). Configura Auth:
+   - **URL Configuration:** Site URL = dominio con `https://` y sin `/` final; Redirect URLs =
+     `https://<dominio>/**` (en preview, `https://*-<equipo>.vercel.app/**`).
+   - **Providers → Email:** desactiva *Allow new users to sign up*.
+   - **Email Templates:** copia `supabase/templates/magic_link.html` e `invite.html` (usan
+     `{{ .SiteURL }}/auth/confirm?token_hash=…`, así funcionan en cualquier dispositivo).
+   - **SMTP:** Resend (`smtp.resend.com`, puerto 465, usuario `resend`); el correo integrado sólo permite
+     unos cuantos envíos por hora.
+2. **Vercel → Settings → Environment Variables.** Captura cada variable de la tabla para *Production* con
+   los valores del proyecto de producción, y otra vez para *Preview* con los del proyecto de preview
+   (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
+   `NEXT_PUBLIC_SITE_URL` cambian; las de Claude y Resend pueden repetirse). Las `NEXT_PUBLIC_*` se fijan
+   en el build: tras cambiarlas, *Redeploy*.
+3. **Crons** (`vercel.json`): ingesta cada hora, clasificación y alertas cada 5 min, reportes programados
+   a las 7:00 (CDMX) y retención a las 3:30 (CDMX). Vercel sólo los ejecuta en *Production*; además cada
+   ruta responde `skipped` si `VERCEL_ENV` no es `production`.
+4. **e2e en preview** (job `e2e-preview` de CI, al terminar cada despliegue de preview): en GitHub →
+   Settings → Secrets and variables → Actions crea `PREVIEW_SUPABASE_URL`,
+   `PREVIEW_SUPABASE_SERVICE_ROLE_KEY` (del proyecto de preview) y `VERCEL_AUTOMATION_BYPASS_SECRET`
+   (Vercel → Settings → Deployment Protection → Protection Bypass for Automation).
+5. **Migraciones:** cada PR que agrega una en `supabase/migrations` se aplica primero en preview y, al
+   mergear, en producción (`supabase db push` con el proyecto de producción enlazado).
+
+## Costo mensual estimado de IA
+
+Todo uso queda en `ai_usage` (tokens y costo estimado con precios de lista de `src/lib/ai/pricing.ts`);
+`npm run ai:cost` lo resume y proyecta a 30 días con datos reales. Medición en producción con la demo
+de Alvarado (octubre de 2026): 97 menciones clasificadas por USD 0.108, es decir, **USD 0.0011 por
+mención**. El 94 % lo aporta el escalamiento a `CLAUDE_MODEL_SMART` del 27 % de menciones con prioridad
+alta o baja confianza; con Haiku solo serían USD 0.00007 por mención.
+
+| Concepto | Supuesto | USD al mes |
+|---|---|---|
+| Clasificación | 100 menciones al día | ~3.4 |
+| Clasificación | 300 menciones al día | ~10 |
+| Clasificación | 1,000 menciones al día | ~34 |
+| Reportes | diario + semanal + mensual (~35 al mes, ~USD 0.10 c/u con Opus) | ~3.5 |
+| Lectura del día | 1 por hora con Haiku (~USD 0.001 c/u) | ~0.7 |
+| Asistente | 20 preguntas al día (~USD 0.10 c/u con Opus, 2–3 rondas) | ~60 |
+
+Ejemplo típico (300 menciones/día, reportes programados y 10 preguntas diarias al asistente):
+**~USD 45 al mes**. Las cifras de reportes, lectura y asistente son estimaciones con precios de lista
+y tamaños típicos de prompt; se reemplazan por las reales con `npm run ai:cost` tras unas semanas de uso.
+Palancas: subir el umbral de escalamiento (`ESCALATE_BELOW_CONFIDENCE`), usar Sonnet como modelo
+"smart" o limitar preguntas por usuario.
+
+## Seguridad
+
+### Checklist
+
+- [x] **RLS en todas las tablas** de `public`, con pruebas pgTAP por rol (`supabase/tests/database/rls_matrix.test.sql`
+      y `rls.test.sql`): anon sin privilegios; comunicación y lectura leen su municipio (lectura sin costos);
+      dependencia sólo lo turnado a su dependencia; nadie de otro municipio lee ni modifica filas.
+- [x] **Ninguna llave llega al cliente:** variables secretas sólo en servidor, cliente de service role tras
+      `server-only`, prueba estática (`src/lib/security.test.ts`) y escaneo del bundle con valores canario en CI
+      (`npm run check:bundle`).
+- [x] **Rate limit en `/api/*`** desde el proxy, compartido por todas las instancias (`rate_limit_hit` en
+      Postgres): asistente 20/min por usuario, errores 30/min, cron 30/min y demás 60/min por IP; responde 429
+      con `Retry-After`. El login además tiene el límite de Supabase Auth.
+- [x] **Validación zod en todas las Server Actions** y rutas que reciben datos; una prueba estática falla si
+      una Server Action con parámetros no valida su entrada.
+- [x] **Bitácora de auditoría** (`audit_log`, Configuración → Bitácora, sólo admin): triggers registran quién
+      creó, modificó o eliminó usuarios, catálogos, proyectos, consultas, fuentes, reglas, reportes y turnos
+      (con valores anterior y nuevo), y la app registra descargas y envíos de PDF.
+- [x] **Retención:** `/api/cron/retention` borra a diario las menciones con más de `RETENTION_MONTHS` meses
+      (y sus clasificaciones, turnos y notas) y deja constancia en la bitácora.
+- [x] **Monitoreo de errores:** `instrumentation.ts` (`onRequestError`) y los error boundaries guardan los
+      errores en `app_errors` sin cabeceras ni secretos y avisan a `ERROR_WEBHOOK_URL`.
+- [x] **Pruebas e2e** con Playwright (login, bandeja, turnado, reporte y mapa) en cada PR contra el stack local.
+- [x] **e2e en cada preview** de Vercel contra su propio Supabase (`monitoreo-preview`): el job `e2e-preview`
+      corre al terminar cada despliegue de preview (9 de 9 en verde).
+- [x] **Crons sólo en producción** (Vercel + guardia `VERCEL_ENV` en cada ruta).
+- [x] **Entornos separados:** producción usa `monitoreo-municipal` y los previews `monitoreo-preview`, cada uno
+      con sus propias llaves en Vercel (*Production* / *Preview*).
+- [x] **Datos personales:** sólo contenido público por APIs oficiales o RSS; no se perfila a ciudadanos (los
+      análisis de autores se limitan a medios y figuras públicas, y la IA nunca recibe nombres de ciudadanos).
+- [x] **Sesiones y acceso:** sólo por invitación, enlaces de un solo uso, RLS como fuente de verdad y cada página
+      verifica el rol (`requireSection`).
 
 ## Acceso y roles
 
@@ -46,22 +182,6 @@ Usuarios de prueba (contraseña `password123`): `admin@`, `comunicacion@`,
   | lectura | Dashboard, Mapa, Alertas, Reportes, Asistente |
 
   Esto controla la navegación; la visibilidad de los datos la impone RLS.
-
-En local, los correos llegan a Mailpit: http://127.0.0.1:54324.
-
-### Configurar el proyecto de Supabase (producción)
-
-1. **Auth > URL Configuration:** Site URL = dominio de la app; Redirect URLs = `https://<dominio>/**`
-   (y la URL de previews de Vercel si se usan).
-2. **Auth > Providers > Email:** desactivar *Allow new users to sign up*.
-3. **Auth > Email Templates:** copiar `supabase/templates/magic_link.html` e `invite.html`. Usan
-   `token_hash`, así el enlace funciona aunque se abra en otro dispositivo, y lo arman con la
-   Site URL (`{{ .SiteURL }}/auth/confirm?…`), por lo que la Site URL debe ser el dominio con
-   `https://` y sin `/` al final.
-4. **Auth > SMTP Settings:** SMTP propio (Resend: `smtp.resend.com`, puerto 465, usuario `resend`);
-   el correo integrado de Supabase sólo permite unos cuantos envíos por hora.
-5. En Vercel: `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SUPABASE_URL`,
-   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` y `SUPABASE_SERVICE_ROLE_KEY` (sólo servidor).
 
 ## UI kit
 
@@ -98,8 +218,16 @@ Cada guardado crea una **versión nueva**. Las anteriores se conservan y pueden 
 mención guarda la versión que la capturó. La vista previa evalúa la consulta contra las 2,000 menciones
 más recientes.
 
-**Catálogos** (sólo admin): dependencias, colonias (alta manual o carga de GeoJSON con polígonos, hasta
-~4 MB) y términos de riesgo. Los nombres no se repiten aunque cambien acentos o mayúsculas.
+**Catálogos** (sólo admin): dependencias, colonias (alta manual, carga de GeoJSON con polígonos hasta
+~4 MB, o **traer de OpenStreetMap**) y términos de riesgo. Los nombres no se repiten aunque cambien
+acentos o mayúsculas.
+
+*Colonias desde OpenStreetMap*: con el municipio y el estado, el servidor consulta Overpass
+(`src/lib/geo/osm.ts`) y muestra la cabecera, colonias, fraccionamientos, pueblos y rancherías con
+nombre. En muchos municipios OSM sólo tiene un punto por lugar; para esos se dibuja una **zona
+aproximada** (celda de Voronoi entre los lugares, con un radio máximo según el tipo) que se marca
+`shape_source = 'osm_approx'` y se ve punteada en el mapa. Al subir después el GeoJSON oficial, las
+colonias con el mismo nombre toman su polígono real. Datos © OpenStreetMap (ODbL).
 
 ## Ingesta de menciones
 
@@ -224,6 +352,17 @@ la clasificación la refrescan (`refresh_mention_stats()`, sólo service role) c
 Rendimiento: las gráficas (Recharts) y el mapa (MapLibre) se cargan sólo cuando están por entrar en
 pantalla; las animaciones de entrada son CSS. Con el seed, el dashboard carga en ~0.5 s y Lighthouse
 móvil da 86–90 de rendimiento y 100 de accesibilidad.
+
+## Mapa
+
+`/mapa` (admin, comunicación y lectura): colonias coloreadas por quejas, menciones, % negativo,
+sentimiento neto o cambio en quejas contra el periodo anterior; filtros de periodo, tema, dependencia y
+sentimiento en la URL (compartible). Clic en una colonia (o en el ranking) abre su panel: indicadores,
+temas, turnos por dependencia (abiertos, vencidos, resueltos) y últimas menciones, todo con enlace a la
+bandeja filtrada; el ranking se descarga en CSV. Datos: `map_stats()` (sobre `mention_stats_hourly`) y
+`neighborhood_detail()`, ambas sólo para lectores de toda la organización. Las menciones no tienen
+coordenadas: el mapa es por colonia y nunca ubica personas. Las que no tienen colonia identificada se
+cuentan aparte.
 
 ## Alertas
 

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { isAuthorizedCron } from "@/lib/auth/cron";
+import { cronDisabledHere, isAuthorizedCron } from "@/lib/auth/cron";
 import { classifyPending, type ClassifySummary } from "@/lib/ai/classify";
 import { evaluateAlerts } from "@/lib/alerts/evaluate";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
   if (!isAuthorizedCron(request.headers.get("authorization"))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  if (cronDisabledHere()) return NextResponse.json({ ok: true, skipped: "Los crons sólo corren en producción." });
   let summary: ClassifySummary;
   try {
     summary = await classifyPending();

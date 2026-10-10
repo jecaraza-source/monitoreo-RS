@@ -65,7 +65,7 @@ export function renderReportEmail(report: ReportRow, orgName: string, url: strin
 export type DeliveryResult = { status: "sent" | "skipped" | "not_configured" | "failed"; detail?: string; recipients: number };
 
 /** Emails the approved report with its PDF attached and marks it as sent. */
-export async function sendReport(reportId: string, recipients?: string[]): Promise<DeliveryResult> {
+export async function sendReport(reportId: string, recipients?: string[], actorId?: string): Promise<DeliveryResult> {
   const { path, bytes, report, orgName } = await storeReportPdf(reportId);
   const to = recipients ?? report.recipients;
   const admin = createAdminClient();
@@ -108,5 +108,15 @@ export async function sendReport(reportId: string, recipients?: string[]): Promi
     })
     .eq("id", reportId);
   if (error) console.error("[reports] delivery:", error.message);
+  // Audit: report emailed (to whom and with what result). The actor is the
+  // editor when approved from the app, the system when sent by the cron.
+  const { error: auditError } = await admin.rpc("log_event", {
+    p_org_id: report.orgId,
+    p_action: "send",
+    p_entity: "reports",
+    p_entity_id: report.id,
+    p_details: { to, status: result.status, ...(actorId ? { by: actorId } : {}) },
+  });
+  if (auditError) console.error("[audit] send:", auditError.message);
   return result;
 }

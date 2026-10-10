@@ -83,6 +83,7 @@ export async function setSourceActive(sourceId: string, active: boolean): Promis
 export async function clearSourceSecret(sourceId: string): Promise<SourceActionResult> {
   const member = await editor();
   if (!member) return FORBIDDEN;
+  if (!idSchema.safeParse(sourceId).success) return { ok: false, message: "Fuente inválida." };
   const supabase = await createClient();
   const { error } = await supabase.rpc("clear_source_secret", { p_source_id: sourceId });
   if (error) return { ok: false, message: "No se pudo quitar la credencial." };

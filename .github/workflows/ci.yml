@@ -2,9 +2,11 @@ name: CI
 
 on:
   pull_request:
+  # Vercel reports each deployment; previews get the e2e suite against their own Supabase project.
+  deployment_status:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.event.deployment.id || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -12,6 +14,7 @@ permissions:
 
 jobs:
   lint-build:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,12 +24,33 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      # Canary values: if any of them reaches the browser bundle, check:bundle fails.
       - run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder-publishable-key
+          SUPABASE_SERVICE_ROLE_KEY: canary-service-role-0c1d2e3f
+          ANTHROPIC_API_KEY: canary-anthropic-4a5b6c7d
+          RESEND_API_KEY: canary-resend-8e9f0a1b
+          CRON_SECRET: canary-cron-2c3d4e5f
+          WHATSAPP_TOKEN: canary-whatsapp-6a7b8c9d
+          META_APP_SECRET: canary-meta-0e1f2a3b
+          YOUTUBE_API_KEY: canary-youtube-4c5d6e7f
+          ERROR_WEBHOOK_URL: https://canary-webhook.invalid/8a9b0c1d
+      - name: No secrets in the client bundle
+        run: npm run check:bundle
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: canary-service-role-0c1d2e3f
+          ANTHROPIC_API_KEY: canary-anthropic-4a5b6c7d
+          RESEND_API_KEY: canary-resend-8e9f0a1b
+          CRON_SECRET: canary-cron-2c3d4e5f
+          WHATSAPP_TOKEN: canary-whatsapp-6a7b8c9d
+          META_APP_SECRET: canary-meta-0e1f2a3b
+          YOUTUBE_API_KEY: canary-youtube-4c5d6e7f
+          ERROR_WEBHOOK_URL: https://canary-webhook.invalid/8a9b0c1d
 
   db:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,10 +59,96 @@ jobs:
       - run: npm ci
       # Applies supabase/migrations and supabase/seed.sql on a fresh local Postgres.
       - run: npx supabase db start
-      - name: RLS tests (pgTAP)
+      - name: RLS, audit and security tests (pgTAP)
         run: npm run test:db
       - name: Generated types are up to date
         run: |
           npm run db:types
           git diff --exit-code src/lib/supabase/database.types.ts \
             || (echo "database.types.ts is stale: run npm run db:types and commit" && exit 1)
+
+  # Full app against the local Supabase stack with the seed; Claude and Resend
+  # are replaced by e2e/mock-anthropic.mjs, so no keys are needed.
+  e2e:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta
+      - name: App environment from the local stack
+        run: |
+          eval "$(npx supabase status -o env)"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SECRET_KEY"
+            echo "E2E_SUPABASE_URL=$API_URL"
+            echo "E2E_SUPABASE_SERVICE_ROLE_KEY=$SECRET_KEY"
+            echo "NEXT_PUBLIC_SITE_URL=http://localhost:3000"
+            echo "ANTHROPIC_API_KEY=mock"
+            echo "ANTHROPIC_BASE_URL=http://127.0.0.1:4010"
+            echo "RESEND_API_KEY=re_mock"
+            echo "RESEND_BASE_URL=http://127.0.0.1:4010"
+            echo "ALERTS_FROM_EMAIL=Sigma Pulso <alertas@mail.test>"
+            echo "CLAUDE_MODEL_FAST=claude-haiku-5-5"
+            echo "CLAUDE_MODEL_SMART=claude-opus-5-5"
+            echo "CRON_SECRET=e2e-cron-secret"
+          } >> "$GITHUB_ENV"
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Start mock APIs and the app
+        run: |
+          node e2e/mock-anthropic.mjs > mock.log 2>&1 &
+          npx next start -p 3000 > app.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://localhost:3000/login && exit 0; sleep 1; done; exit 1
+      - run: npm run test:e2e
+      - if: failure()
+        run: tail -n 200 app.log mock.log
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with: { name: playwright-traces, path: test-results, retention-days: 7 }
+
+  # Same suite against the Vercel preview (separate Supabase project, seeded with
+  # supabase/seed.sql). Needs the repository secrets PREVIEW_SUPABASE_URL,
+  # PREVIEW_SUPABASE_SERVICE_ROLE_KEY and VERCEL_AUTOMATION_BYPASS_SECRET.
+  e2e-preview:
+    if: >-
+      github.event_name == 'deployment_status' &&
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment == 'Preview'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      E2E_BASE_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
+      E2E_SUPABASE_URL: ${{ secrets.PREVIEW_SUPABASE_URL }}
+      E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PREVIEW_SUPABASE_SERVICE_ROLE_KEY }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ github.event.deployment.sha }}" }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      # Until the preview Supabase project and its secrets exist (README → Despliegue),
+      # the job warns and skips instead of failing every PR.
+      - name: Preview secrets configured
+        id: cfg
+        run: |
+          if [ -z "$E2E_SUPABASE_SERVICE_ROLE_KEY" ] || [ -z "$E2E_SUPABASE_URL" ]; then
+            echo "::warning::e2e de preview omitido: faltan PREVIEW_SUPABASE_URL / PREVIEW_SUPABASE_SERVICE_ROLE_KEY (README, Despliegue)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.cfg.outputs.ready == 'true'
+        run: npm ci
+      - if: steps.cfg.outputs.ready == 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.cfg.outputs.ready == 'true'
+        run: npm run test:e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with: { name: playwright-preview-traces, path: test-results, retention-days: 7 }

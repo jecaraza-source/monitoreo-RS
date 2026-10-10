@@ -89,6 +89,46 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"app_errors": {
+                  Row: {
+                    "context": NonNullable<Json>,"created_at": string,"digest": string | null,"id": number,"message": string,"org_id": string | null,"path": string | null,"source": string,"user_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "context"?: NonNullable<Json>,"created_at"?: string,"digest"?: string | null,"id"?: never,"message": string,"org_id"?: string | null,"path"?: string | null,"source": string,"user_id"?: string | null
+                  }
+                  Update: {
+                    "context"?: NonNullable<Json>,"created_at"?: string,"digest"?: string | null,"id"?: never,"message"?: string,"org_id"?: string | null,"path"?: string | null,"source"?: string,"user_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "app_errors_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"audit_log": {
+                  Row: {
+                    "action": string,"actor_id": string | null,"changes": NonNullable<Json>,"created_at": string,"entity": string,"entity_id": string | null,"id": number,"org_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "action": string,"actor_id"?: string | null,"changes"?: NonNullable<Json>,"created_at"?: string,"entity": string,"entity_id"?: string | null,"id"?: never,"org_id": string
+                  }
+                  Update: {
+                    "action"?: string,"actor_id"?: string | null,"changes"?: NonNullable<Json>,"created_at"?: string,"entity"?: string,"entity_id"?: string | null,"id"?: never,"org_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "audit_log_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"authors": {
                   Row: {
                     "created_at": string,"display_name": string | null,"followers": number | null,"handle": string,"id": string,"kind": Database["public"]['Enums']["author_kind"],"org_id": string,"platform": Database["public"]['Enums']["source_type"]
@@ -331,14 +371,14 @@ isOneToOne: false
                   ]
                 },"neighborhoods": {
                   Row: {
-                    "created_at": string,"geojson": Json | null,"id": string,"name": string,"org_id": string
+                    "created_at": string,"geojson": Json | null,"id": string,"name": string,"org_id": string,"shape_source": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"geojson"?: Json | null,"id"?: string,"name": string,"org_id": string
+                    "created_at"?: string,"geojson"?: Json | null,"id"?: string,"name": string,"org_id": string,"shape_source"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"geojson"?: Json | null,"id"?: string,"name"?: string,"org_id"?: string
+                    "created_at"?: string,"geojson"?: Json | null,"id"?: string,"name"?: string,"org_id"?: string,"shape_source"?: string | null
                   }
                   Relationships: [
                     {
@@ -580,14 +620,31 @@ isOneToOne: false
 "get_source_secret":
 { Args: { "p_source_id": string }; Returns: string
                            },
+"log_event":
+{ Args: { "p_action": string,"p_details"?: Json,"p_entity": string,"p_entity_id": string,"p_org_id": string }; Returns: undefined
+                           },
+"map_stats":
+{ Args: { "p_department"?: string,"p_from": string,"p_org_id": string,"p_prev_from": string,"p_sentiment"?: Database["public"]['Enums']["sentiment"],"p_to": string,"p_topic"?: string }; Returns: Json
+                           },
 "mention_stats":
 { Args: { "p_from": string,"p_org_id": string,"p_to": string }; Returns: {
               "department_id": string,"hour": string,"interactions": number,"mentions": number,"sentiment": Database["public"]['Enums']["sentiment"]
             }[]
                            },
+"neighborhood_detail":
+{ Args: { "p_from": string,"p_neighborhood_id": string,"p_org_id": string,"p_to": string }; Returns: Json
+                           },
 "org_members":
 { Args: { "p_org_id": string }; Returns: {
               "department_id": string,"department_name": string,"email": string,"invited_at": string,"last_sign_in_at": string,"role": Database["public"]['Enums']["membership_role"],"user_id": string
+            }[]
+                           },
+"purge_old_mentions":
+{ Args: { "p_batch"?: number,"p_months": number }; Returns: number
+                           },
+"rate_limit_hit":
+{ Args: { "p_key": string,"p_limit": number,"p_window_seconds": number }; Returns: {
+              "allowed": boolean,"remaining": number,"reset_at": string
             }[]
                            },
 "record_ai_usage":

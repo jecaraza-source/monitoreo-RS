@@ -96,7 +96,7 @@ export async function approveReport(input: unknown): Promise<ReportActionResult>
 
   try {
     if (parsed.data.send && data.recipients.length) {
-      const result = await sendReport(data.id);
+      const result = await sendReport(data.id, undefined, m.userId);
       revalidatePath("/reportes");
       revalidatePath(`/reportes/${data.id}`);
       if (result.status === "sent") return { ok: true, message: `Aprobado. PDF enviado a ${result.recipients} destinatario(s).` };
@@ -124,7 +124,7 @@ export async function resendReport(input: unknown): Promise<ReportActionResult> 
   if (!data) return { ok: false, message: "No se encontró el reporte." };
   if (data.status === "draft") return { ok: false, message: "Aprueba el reporte antes de enviarlo." };
   try {
-    const result = await sendReport(data.id);
+    const result = await sendReport(data.id, undefined, m.userId);
     revalidatePath(`/reportes/${data.id}`);
     return result.status === "sent"
       ? { ok: true, message: `PDF enviado a ${result.recipients} destinatario(s).` }

@@ -8,7 +8,12 @@ export type NeighborhoodGeometry =
   | { type: "Polygon"; coordinates: number[][][] }
   | { type: "MultiPolygon"; coordinates: number[][][][] };
 
-export type NeighborhoodFeature = { name: string; geometry: NeighborhoodGeometry };
+export type NeighborhoodFeature = {
+  name: string;
+  geometry: NeighborhoodGeometry;
+  /** Zone derived from a point (OpenStreetMap import), not a drawn outline. */
+  approx: boolean;
+};
 
 export type GeoJsonParseResult =
   | {
@@ -83,7 +88,7 @@ export function parseNeighborhoodsGeoJson(input: unknown, nameProperty?: string)
     if (!geometry) return skipped.push({ index, reason: "Geometría no es Polygon/MultiPolygon válido" });
     const key = normalizeText(name);
     if (byName.has(key)) return skipped.push({ index, reason: `Nombre repetido: ${name}` });
-    byName.set(key, { name, geometry });
+    byName.set(key, { name, geometry, approx: feature.properties?.approx === true });
   });
 
   if (byName.size === 0) {

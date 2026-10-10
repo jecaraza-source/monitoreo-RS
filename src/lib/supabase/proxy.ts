@@ -1,10 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { clientIp, hitRateLimit, policyFor } from "@/lib/rate-limit";
 
 // Reachable without a session. Everything else requires one.
 // /api/cron/* authorizes itself with CRON_SECRET and must answer JSON, not redirect.
-// /api/demo/* serves fictitious public RSS feeds for demos.
-const PUBLIC_PATHS = ["/login", "/auth/", "/dev/", "/api/cron/", "/api/demo/"];
+// /api/demo/* serves fictitious public RSS feeds for demos; /api/errors takes client error reports.
+const PUBLIC_PATHS = ["/login", "/auth/", "/dev/", "/api/cron/", "/api/demo/", "/api/errors"];
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p));
@@ -43,6 +44,22 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const signedIn = Boolean(data?.claims?.sub);
   const { pathname, search } = request.nextUrl;
+
+  // Rate limit every /api/* route (per user when signed in, else per IP).
+  const policy = policyFor(pathname);
+  if (policy) {
+    const subject = policy.by === "user" && data?.claims?.sub ? `u:${data.claims.sub}` : `ip:${clientIp(request.headers)}`;
+    const limit = await hitRateLimit(policy, subject);
+    if (!limit.allowed) {
+      const retry = limit.resetAt ? Math.max(1, Math.ceil((limit.resetAt.getTime() - Date.now()) / 1000)) : 60;
+      return NextResponse.json(
+        { error: "Demasiadas solicitudes. Espera un momento e inténtalo de nuevo." },
+        { status: 429, headers: { "retry-after": String(retry), "x-ratelimit-limit": String(policy.limit), "x-ratelimit-remaining": "0" } },
+      );
+    }
+    response.headers.set("x-ratelimit-limit", String(policy.limit));
+    response.headers.set("x-ratelimit-remaining", String(limit.remaining));
+  }
 
   if (!signedIn && !isPublic(pathname)) {
     return redirectKeepingCookies(request, response, "/login", pathname === "/" ? null : pathname + search);

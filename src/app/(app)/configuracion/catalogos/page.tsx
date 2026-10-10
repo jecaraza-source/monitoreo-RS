@@ -4,6 +4,7 @@ import { NeighborhoodsCatalog } from "@/components/catalogs/neighborhoods-catalo
 import { RiskTermsCatalog } from "@/components/catalogs/risk-terms-catalog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireSection } from "@/lib/auth/session";
+import { municipalityFromOrgName } from "@/lib/geo/osm";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Catálogos" };
@@ -11,11 +12,12 @@ export const metadata: Metadata = { title: "Catálogos" };
 export default async function CatalogsPage() {
   const member = await requireSection("/configuracion/catalogos");
   const supabase = await createClient();
-  const [departments, neighborhoods, riskTerms] = await Promise.all([
+  const [departments, neighborhoods, riskTerms, org] = await Promise.all([
     supabase.from("departments").select("id, name, short_name").eq("org_id", member.orgId).order("name"),
     // Only the geometry type, not the polygons themselves.
-    supabase.from("neighborhoods").select("id, name, shape:geojson->>type").eq("org_id", member.orgId).order("name"),
+    supabase.from("neighborhoods").select("id, name, shape_source, shape:geojson->>type").eq("org_id", member.orgId).order("name"),
     supabase.from("risk_terms").select("id, term, severity").eq("org_id", member.orgId).order("term"),
+    supabase.from("organizations").select("name").eq("id", member.orgId).single(),
   ]);
 
   return (
@@ -51,7 +53,13 @@ export default async function CatalogsPage() {
         </CardHeader>
         <CardContent>
           <NeighborhoodsCatalog
-            neighborhoods={(neighborhoods.data ?? []).map((n) => ({ id: n.id, name: n.name, hasShape: Boolean(n.shape) }))}
+            neighborhoods={(neighborhoods.data ?? []).map((n) => ({
+              id: n.id,
+              name: n.name,
+              hasShape: Boolean(n.shape),
+              approx: n.shape_source === "osm_approx",
+            }))}
+            municipality={municipalityFromOrgName(org.data?.name ?? "")}
           />
         </CardContent>
       </Card>

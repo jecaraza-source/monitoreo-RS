@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth/session";
 import { canAccessPath } from "@/lib/auth/roles";
 import { signedPdfUrl } from "@/lib/reports/deliver";
 import { getReport } from "@/lib/reports/list";
+import { createClient } from "@/lib/supabase/server";
 
 /** Redirects readers of the report to a short-lived link to its PDF (private bucket). */
 export async function GET(request: NextRequest, { params }: RouteContext<"/reportes/[id]/pdf">) {
@@ -16,5 +17,15 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/repor
   if (!report?.pdfPath) return new NextResponse("El reporte no tiene PDF todavía.", { status: 404 });
   const url = await signedPdfUrl(report.pdfPath);
   if (!url) return new NextResponse("No se pudo preparar la descarga.", { status: 500 });
+  // Audit: who downloaded which report.
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("log_event", {
+    p_org_id: member.orgId,
+    p_action: "export",
+    p_entity: "reports",
+    p_entity_id: report.id,
+    p_details: { format: "pdf", title: report.title },
+  });
+  if (error) console.error("[audit] export:", error.message);
   return NextResponse.redirect(url);
 }
