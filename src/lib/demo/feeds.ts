@@ -5,17 +5,21 @@
 
 export const DEMO_TOWN = "Alvarado";
 
+// Real localities and colonias of Alvarado as mapped in OpenStreetMap (the
+// demo catalog is imported from there); the stories about them are invented.
 export const DEMO_NEIGHBORHOODS = [
-  "Centro",
-  "Benito Juárez",
-  "Emiliano Zapata",
-  "Miguel Hidalgo",
-  "Las Flores",
-  "La Playa",
-  "Pescadores",
-  "El Faro",
-  "Lázaro Cárdenas",
-  "Revolución",
+  "Paso Nacional",
+  "Las Escolleras",
+  "Antón Lizardo",
+  "Mandinga y Matoza",
+  "Lomas del Sol",
+  "Costa de la Palma",
+  "Punta Grande",
+  "Arbolillo",
+  "Salinas",
+  "Real Mandinga",
+  "El Zapote",
+  "Playa de la Libertad",
 ] as const;
 
 type Story = { title: string; body: string };
@@ -32,7 +36,7 @@ export type DemoFeed = {
 
 // {c} = neighborhood, {t} = town.
 const NEWS: readonly Story[] = [
-  { title: "Vecinos de {c} reportan cuatro días sin agua", body: "Habitantes de la colonia {c}, en {t}, denunciaron que llevan cuatro días sin servicio de agua potable y que la pipa prometida no ha llegado." },
+  { title: "Vecinos de {c} reportan cuatro días sin agua", body: "Habitantes de {c}, en {t}, denunciaron que llevan cuatro días sin servicio de agua potable y que la pipa prometida no ha llegado." },
   { title: "Fuga de agua en {c} lleva una semana sin atenderse", body: "Una fuga en la calle principal de {c} desperdicia miles de litros desde hace una semana, según vecinos consultados por este medio en {t}." },
   { title: "Bloqueo en la carretera por falta de agua en {c}", body: "Vecinos de {c} realizaron un bloqueo en el acceso a {t} para exigir el restablecimiento del servicio de agua potable." },
   { title: "Ayuntamiento de {t} repara red de drenaje en {c}", body: "Cuadrillas municipales concluyeron la reparación del colector de drenaje en {c}; vecinos reconocieron la rapidez de la obra." },

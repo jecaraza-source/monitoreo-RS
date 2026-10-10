@@ -9,7 +9,8 @@ import { PERIOD_KEYS, PERIOD_LABELS, periodSearch, type PeriodKey } from "@/lib/
 import { cn } from "@/lib/utils";
 import { useDashboardFrame } from "./dashboard-frame";
 
-export function PeriodSelector() {
+/** basePath: the page whose URL changes (other params, like map filters, are kept). */
+export function PeriodSelector({ basePath = "/dashboard" }: { basePath?: string }) {
   const params = useSearchParams();
   const { navigate } = useDashboardFrame();
   const raw = params.get("periodo");
@@ -17,6 +18,14 @@ export function PeriodSelector() {
   const [custom, setCustom] = useState(current === "custom");
   const [desde, setDesde] = useState(params.get("desde") ?? "");
   const [hasta, setHasta] = useState(params.get("hasta") ?? "");
+
+  const go = (key: PeriodKey, from?: string, to?: string) => {
+    const next = new URLSearchParams(periodSearch(key, from, to));
+    params.forEach((value, name) => {
+      if (!["periodo", "desde", "hasta"].includes(name)) next.set(name, value);
+    });
+    navigate(`${basePath}?${next}`);
+  };
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -32,7 +41,7 @@ export function PeriodSelector() {
               onClick={() => {
                 if (key === "custom") return setCustom(true);
                 setCustom(false);
-                navigate(`/dashboard${periodSearch(key)}`);
+                go(key);
               }}
               className={cn(
                 "rounded-md px-2.5 py-1 text-sm transition-colors",
@@ -49,7 +58,7 @@ export function PeriodSelector() {
           className="flex flex-wrap items-center gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            if (desde && hasta) navigate(`/dashboard${periodSearch("custom", desde, hasta)}`);
+            if (desde && hasta) go("custom", desde, hasta);
           }}
         >
           <Input type="date" aria-label="Desde" value={desde} max={hasta || undefined} onChange={(e) => setDesde(e.target.value)} className="h-8 w-36" required />

@@ -218,8 +218,16 @@ Cada guardado crea una **versión nueva**. Las anteriores se conservan y pueden 
 mención guarda la versión que la capturó. La vista previa evalúa la consulta contra las 2,000 menciones
 más recientes.
 
-**Catálogos** (sólo admin): dependencias, colonias (alta manual o carga de GeoJSON con polígonos, hasta
-~4 MB) y términos de riesgo. Los nombres no se repiten aunque cambien acentos o mayúsculas.
+**Catálogos** (sólo admin): dependencias, colonias (alta manual, carga de GeoJSON con polígonos hasta
+~4 MB, o **traer de OpenStreetMap**) y términos de riesgo. Los nombres no se repiten aunque cambien
+acentos o mayúsculas.
+
+*Colonias desde OpenStreetMap*: con el municipio y el estado, el servidor consulta Overpass
+(`src/lib/geo/osm.ts`) y muestra la cabecera, colonias, fraccionamientos, pueblos y rancherías con
+nombre. En muchos municipios OSM sólo tiene un punto por lugar; para esos se dibuja una **zona
+aproximada** (celda de Voronoi entre los lugares, con un radio máximo según el tipo) que se marca
+`shape_source = 'osm_approx'` y se ve punteada en el mapa. Al subir después el GeoJSON oficial, las
+colonias con el mismo nombre toman su polígono real. Datos © OpenStreetMap (ODbL).
 
 ## Ingesta de menciones
 
@@ -344,6 +352,17 @@ la clasificación la refrescan (`refresh_mention_stats()`, sólo service role) c
 Rendimiento: las gráficas (Recharts) y el mapa (MapLibre) se cargan sólo cuando están por entrar en
 pantalla; las animaciones de entrada son CSS. Con el seed, el dashboard carga en ~0.5 s y Lighthouse
 móvil da 86–90 de rendimiento y 100 de accesibilidad.
+
+## Mapa
+
+`/mapa` (admin, comunicación y lectura): colonias coloreadas por quejas, menciones, % negativo,
+sentimiento neto o cambio en quejas contra el periodo anterior; filtros de periodo, tema, dependencia y
+sentimiento en la URL (compartible). Clic en una colonia (o en el ranking) abre su panel: indicadores,
+temas, turnos por dependencia (abiertos, vencidos, resueltos) y últimas menciones, todo con enlace a la
+bandeja filtrada; el ranking se descarga en CSV. Datos: `map_stats()` (sobre `mention_stats_hourly`) y
+`neighborhood_detail()`, ambas sólo para lectores de toda la organización. Las menciones no tienen
+coordenadas: el mapa es por colonia y nunca ubica personas. Las que no tienen colonia identificada se
+cuentan aparte.
 
 ## Alertas
 

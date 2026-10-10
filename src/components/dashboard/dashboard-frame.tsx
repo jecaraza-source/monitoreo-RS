@@ -97,3 +97,23 @@ export function DashboardFrame({ toolbar, children }: { toolbar: React.ReactNode
     </Context.Provider>
   );
 }
+
+/**
+ * The dashboard's navigation without its header: period and filter changes run
+ * as transitions and the current view stays, dimmed, until the next one is ready.
+ */
+export function NavigationFrame({ children, className }: { children: React.ReactNode; className?: string }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const navigate = useCallback(
+    (href: string) => startTransition(() => router.push(href, { scroll: false })),
+    [router],
+  );
+  return (
+    <Context.Provider value={{ navigate, pending, presenting: false }}>
+      <div aria-busy={pending || undefined} className={cn("transition-opacity duration-300", pending && "opacity-60", className)}>
+        {children}
+      </div>
+    </Context.Provider>
+  );
+}

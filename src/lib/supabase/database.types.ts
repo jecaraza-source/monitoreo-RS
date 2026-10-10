@@ -371,14 +371,14 @@ isOneToOne: false
                   ]
                 },"neighborhoods": {
                   Row: {
-                    "created_at": string,"geojson": Json | null,"id": string,"name": string,"org_id": string
+                    "created_at": string,"geojson": Json | null,"id": string,"name": string,"org_id": string,"shape_source": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"geojson"?: Json | null,"id"?: string,"name": string,"org_id": string
+                    "created_at"?: string,"geojson"?: Json | null,"id"?: string,"name": string,"org_id": string,"shape_source"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"geojson"?: Json | null,"id"?: string,"name"?: string,"org_id"?: string
+                    "created_at"?: string,"geojson"?: Json | null,"id"?: string,"name"?: string,"org_id"?: string,"shape_source"?: string | null
                   }
                   Relationships: [
                     {
@@ -623,10 +623,16 @@ isOneToOne: false
 "log_event":
 { Args: { "p_action": string,"p_details"?: Json,"p_entity": string,"p_entity_id": string,"p_org_id": string }; Returns: undefined
                            },
+"map_stats":
+{ Args: { "p_department"?: string,"p_from": string,"p_org_id": string,"p_prev_from": string,"p_sentiment"?: Database["public"]['Enums']["sentiment"],"p_to": string,"p_topic"?: string }; Returns: Json
+                           },
 "mention_stats":
 { Args: { "p_from": string,"p_org_id": string,"p_to": string }; Returns: {
               "department_id": string,"hour": string,"interactions": number,"mentions": number,"sentiment": Database["public"]['Enums']["sentiment"]
             }[]
+                           },
+"neighborhood_detail":
+{ Args: { "p_from": string,"p_neighborhood_id": string,"p_org_id": string,"p_to": string }; Returns: Json
                            },
 "org_members":
 { Args: { "p_org_id": string }; Returns: {

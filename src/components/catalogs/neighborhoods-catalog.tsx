@@ -8,13 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { deleteNeighborhood, importNeighborhoods, saveNeighborhood } from "@/lib/catalogs/actions";
 import { parseNeighborhoodsGeoJson, type GeoJsonParseResult } from "@/lib/geo/neighborhoods-geojson";
+import { OsmImport } from "./osm-import";
 import { useCatalogAction } from "./use-catalog-action";
 
-type Neighborhood = { id: string; name: string; hasShape: boolean };
+type Neighborhood = { id: string; name: string; hasShape: boolean; approx: boolean };
 
 const MAX_BYTES = 3.8 * 1024 * 1024; // under the 4 MB Server Action limit
 
-export function NeighborhoodsCatalog({ neighborhoods }: { neighborhoods: Neighborhood[] }) {
+export function NeighborhoodsCatalog({ neighborhoods, municipality }: { neighborhoods: Neighborhood[]; municipality: string }) {
   const { pending, run } = useCatalogAction();
   const [newName, setNewName] = useState("");
   const [file, setFile] = useState<{ name: string; json: unknown } | null>(null);
@@ -46,6 +47,7 @@ export function NeighborhoodsCatalog({ neighborhoods }: { neighborhoods: Neighbo
 
   return (
     <div className="flex flex-col gap-4">
+      <OsmImport defaultMunicipality={municipality} />
       <div className="flex flex-col gap-3 rounded-xl border border-dashed p-4">
         <span className="flex items-center gap-2 text-sm font-medium">
           <FileUp className="size-4" aria-hidden /> Cargar GeoJSON de colonias
@@ -122,8 +124,8 @@ export function NeighborhoodsCatalog({ neighborhoods }: { neighborhoods: Neighbo
         {neighborhoods.map((n) => (
           <li key={n.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/50">
             <MapPin
-              className={n.hasShape ? "size-4 text-positive" : "size-4 text-muted-foreground"}
-              aria-label={n.hasShape ? "Con polígono" : "Sin polígono"}
+              className={n.hasShape ? (n.approx ? "size-4 text-positive/60" : "size-4 text-positive") : "size-4 text-muted-foreground"}
+              aria-label={n.hasShape ? (n.approx ? "Zona aproximada" : "Con polígono") : "Sin polígono"}
             />
             <span className="flex-1 truncate">{n.name}</span>
             <Button
