@@ -146,6 +146,9 @@ export async function previewQuery(expression: string): Promise<ActionResult<Pre
   } catch {
     return { ok: false, message: "No tienes permiso para probar consultas." };
   }
+  const input = z.string().trim().min(1, "Escribe una consulta.").max(2000, "La consulta es demasiado larga.").safeParse(expression);
+  if (!input.success) return { ok: false, message: input.error.issues[0].message };
+  expression = input.data;
   const validation = validateQuery(expression);
   if (!validation.ok) return { ok: false, message: validation.message };
   const test = compileQuery(expression);

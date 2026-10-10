@@ -124,7 +124,10 @@ export async function deleteNeighborhood(neighborhoodId: string): Promise<Catalo
 export async function importNeighborhoods(geojson: unknown, nameProperty: string): Promise<CatalogResult> {
   const orgId = await adminOrg();
   if (!orgId) return FORBIDDEN;
-  const parsed = parseNeighborhoodsGeoJson(geojson, nameProperty);
+  // The geometry is checked structurally by parseNeighborhoodsGeoJson (rings, positions, limits).
+  const property = z.string().trim().min(1, "Elige la propiedad con el nombre.").max(80).safeParse(nameProperty);
+  if (!property.success) return { ok: false, message: property.error.issues[0].message };
+  const parsed = parseNeighborhoodsGeoJson(geojson, property.data);
   if (!parsed.ok) return { ok: false, message: parsed.message };
 
   const supabase = await createClient();
