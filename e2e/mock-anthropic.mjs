@@ -94,6 +94,7 @@ createServer((req, res) => {
       return;
     }
     const body = JSON.parse(raw);
+    if (body.stream) return assistant(body, res);
     const tool = body.tools?.[0]?.name;
     const facts = factsFrom(body);
     const input = tool === "redactar_reporte" ? narrative(facts) : tool === "redactar_lectura" ? reading(facts) : classify(body);
@@ -112,3 +113,69 @@ createServer((req, res) => {
     );
   });
 }).listen(port, "127.0.0.1", () => console.log(`mock anthropic on http://127.0.0.1:${port}`));
+
+// ---------------------------------------------------------------------------
+// Assistant (streaming): first turn calls a tool picked from the question,
+// second turn answers from the tool result.
+// ---------------------------------------------------------------------------
+function sse(res, events) {
+  res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
+  for (const [event, data] of events) res.write(`event: ${event}\ndata: ${JSON.stringify({ type: event, ...data })}\n\n`);
+  res.end();
+}
+
+function pickTool(question) {
+  const q = question.toLowerCase();
+  if (q.includes("colonia")) return ["stats_by_neighborhood", q.includes("agua") ? { tema: "agua potable" } : {}];
+  if (q.includes("dependencia")) return ["stats_by_department", {}];
+  if (q.includes("ejemplo") || q.includes("menciones")) return ["search_mentions", { sentimiento: "negativo", limite: 3 }];
+  if (q.includes("tema")) return ["top_topics", {}];
+  return ["get_kpis", {}];
+}
+
+function answerFrom(name, result) {
+  if (!result) return "No encontré datos para esa consulta.";
+  if (name === "stats_by_neighborhood") {
+    const top = result.colonias.slice(0, 3);
+    return top.length
+      ? `Del ${result.periodo.desde} al ${result.periodo.hasta}, las colonias con más quejas fueron:\n\n${top.map((c) => `- **${c.colonia}**: ${c.quejas} quejas de ${c.menciones} menciones`).join("\n")}`
+      : "No hay quejas con colonia en ese periodo.";
+  }
+  if (name === "stats_by_department") return `Dependencias consultadas: ${result.dependencias.map((d) => `${d.dependencia} (NSS ${d.nss}, ${d.vencidos} vencidos)`).join("; ")}.`;
+  if (name === "search_mentions") return `Encontré **${result.encontradas}** menciones. ${result.menciones.map((m) => `"${m.texto.slice(0, 80)}"`).join(" ")}`;
+  if (name === "top_topics") return `Tema principal: **${result.temas[0]?.tema ?? "ninguno"}**.`;
+  return `Hubo **${result.actual.menciones}** menciones con NSS de ${result.actual.nss}.`;
+}
+
+function assistant(body, res) {
+  const last = body.messages[body.messages.length - 1];
+  const usage = { input_tokens: 800, output_tokens: 120, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
+  const start = ["message_start", { message: { id: `msg_mock_${Date.now()}`, type: "message", role: "assistant", model: body.model, content: [], stop_reason: null, stop_sequence: null, usage } }];
+  const toolResult = Array.isArray(last.content) && last.content.find((c) => c.type === "tool_result");
+  if (toolResult || !body.tools) {
+    let text = "No tengo datos para responder.";
+    if (toolResult) {
+      const prev = body.messages[body.messages.length - 2].content.find((c) => c.type === "tool_use");
+      text = toolResult.is_error ? `No pude consultar: ${toolResult.content}` : answerFrom(prev.name, JSON.parse(toolResult.content));
+    }
+    const chunks = text.match(/.{1,40}/gs) ?? [text];
+    return sse(res, [
+      start,
+      ["content_block_start", { index: 0, content_block: { type: "text", text: "" } }],
+      ...chunks.map((t) => ["content_block_delta", { index: 0, delta: { type: "text_delta", text: t } }]),
+      ["content_block_stop", { index: 0 }],
+      ["message_delta", { delta: { stop_reason: "end_turn", stop_sequence: null }, usage: { output_tokens: 120 } }],
+      ["message_stop", {}],
+    ]);
+  }
+  const question = typeof last.content === "string" ? last.content : "";
+  const [name, input] = pickTool(question);
+  return sse(res, [
+    start,
+    ["content_block_start", { index: 0, content_block: { type: "tool_use", id: `toolu_mock_${Date.now()}`, name, input: {} } }],
+    ["content_block_delta", { index: 0, delta: { type: "input_json_delta", partial_json: JSON.stringify(input) } }],
+    ["content_block_stop", { index: 0 }],
+    ["message_delta", { delta: { stop_reason: "tool_use", stop_sequence: null }, usage: { output_tokens: 40 } }],
+    ["message_stop", {}],
+  ]);
+}

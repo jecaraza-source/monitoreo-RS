@@ -11,8 +11,8 @@ describe("sectionsForRole", () => {
     assert.deepEqual(menu("comunicacion"), [
       "Dashboard", "Bandeja", "Mapa", "Alertas", "Reportes", "Asistente", "Configuración",
     ]);
-    assert.deepEqual(menu("dependencia"), ["Bandeja", "Alertas"]);
-    assert.deepEqual(menu("lectura"), ["Dashboard", "Mapa", "Alertas", "Reportes"]);
+    assert.deepEqual(menu("dependencia"), ["Bandeja", "Alertas", "Asistente"]);
+    assert.deepEqual(menu("lectura"), ["Dashboard", "Mapa", "Alertas", "Reportes", "Asistente"]);
   });
 });
 
@@ -36,7 +36,7 @@ describe("canAccessPath", () => {
   });
 
   it("blocks dependencia from executive sections", () => {
-    for (const path of ["/dashboard", "/mapa", "/reportes", "/asistente", "/configuracion"]) {
+    for (const path of ["/dashboard", "/mapa", "/reportes", "/configuracion"]) {
       assert.equal(canAccessPath("dependencia", path), false, path);
     }
     assert.equal(canAccessPath("dependencia", "/bandeja/123"), true);
@@ -44,7 +44,12 @@ describe("canAccessPath", () => {
 
   it("keeps lectura out of operational sections", () => {
     assert.equal(canAccessPath("lectura", "/bandeja"), false);
-    assert.equal(canAccessPath("lectura", "/asistente"), false);
+  });
+
+  it("opens the assistant to every role (RLS scopes its answers)", () => {
+    for (const role of ["admin", "comunicacion", "dependencia", "lectura"] as const) {
+      assert.equal(canAccessPath(role, "/asistente"), true, role);
+    }
   });
 });
 
