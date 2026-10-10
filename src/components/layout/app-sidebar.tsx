@@ -42,17 +42,18 @@ export function AppSidebar({
             <SidebarMenuButton
               size="lg"
               tooltip={orgName}
+              className="h-16 gap-3"
               render={
                 <Link href="/">
-                  <span className="flex aspect-square size-8 items-center justify-center">
+                  <span className="flex aspect-square size-11 shrink-0 items-center justify-center group-data-[collapsible=icon]:size-8">
                     {/* The menu button forces child svgs to size-4; the logo keeps its size. */}
-                    <SigmaShield className="h-8! w-7!" />
+                    <SigmaShield className="h-11! w-10! group-data-[collapsible=icon]:h-8! group-data-[collapsible=icon]:w-7!" />
                   </span>
-                  <span className="grid flex-1 text-left leading-tight">
-                    <span className="truncate font-semibold">
+                  <span className="grid flex-1 gap-0.5 text-left leading-tight">
+                    <span className="truncate text-lg font-semibold tracking-tight">
                       Sigma <span className="font-black italic">Pulso</span>
                     </span>
-                    <span className="truncate text-xs text-muted-foreground">{orgName}</span>
+                    <span className="truncate text-sm text-muted-foreground">{orgName}</span>
                   </span>
                 </Link>
               }
@@ -74,6 +75,8 @@ export function AppSidebar({
                       <SidebarMenuButton
                         isActive={active}
                         tooltip={section.label}
+                        // Larger than the kit default; the collapsed (icon-only) rail keeps 16 px icons.
+                        className="h-10 gap-3 text-base [&_svg]:size-5 group-data-[collapsible=icon]:[&_svg]:size-4"
                         render={
                           <Link href={section.href} aria-current={active ? "page" : undefined} onClick={closeOnMobile}>
                             <Icon aria-hidden />
