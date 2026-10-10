@@ -83,6 +83,10 @@ Supabase separados**, para que un preview nunca toque datos reales:
 | Production | `main` | proyecto de producción | reales | sí |
 | Preview | ramas y PRs | proyecto de preview | `supabase/seed.sql` (ficticio) | no |
 
+Proyectos actuales: producción `monitoreo-municipal` (`dayduaiginbfpohchujl`) y preview `monitoreo-preview`
+(`llxskobppithldckfrnj`). En el SQL Editor de Supabase un script largo no respeta `begin/commit`: para
+preparar un proyecto nuevo es más seguro `supabase db push` y luego el seed.
+
 1. **Supabase.** Crea los dos proyectos. En cada uno: `supabase link --project-ref <ref>` y
    `supabase db push`; en el de preview carga además `supabase/seed.sql` (SQL Editor). Configura Auth:
    - **URL Configuration:** Site URL = dominio con `https://` y sin `/` final; Redirect URLs =
