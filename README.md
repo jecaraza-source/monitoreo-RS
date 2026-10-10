@@ -153,7 +153,7 @@ Palancas: subir el umbral de escalamiento (`ESCALATE_BELOW_CONFIDENCE`), usar So
 - [x] **Monitoreo de errores:** `instrumentation.ts` (`onRequestError`) y los error boundaries guardan los
       errores en `app_errors` sin cabeceras ni secretos y avisan a `ERROR_WEBHOOK_URL`.
 - [x] **Pruebas e2e** con Playwright (login, bandeja, turnado y reporte) en cada PR contra el stack local.
-- [ ] **e2e en cada preview** de Vercel contra su propio Supabase: el job `e2e-preview` está listo; falta crear
+- [ ] **e2e en cada preview** de Vercel contra su propio Supabase: el job `e2e-preview` está listo (mientras falten los secretos, avisa y se omite); falta crear
       el proyecto de preview y los secretos del paso 4 de [Despliegue](#despliegue).
 - [x] **Crons sólo en producción** (Vercel + guardia `VERCEL_ENV` en cada ruta).
 - [ ] **Entornos separados:** falta crear el proyecto de Supabase de preview y cambiar las variables *Preview*
