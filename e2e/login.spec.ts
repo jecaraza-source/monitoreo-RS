@@ -8,6 +8,13 @@ test.describe("login", () => {
     await expect(page.getByRole("button", { name: /enlace/i })).toBeVisible();
   });
 
+  test("el aviso de privacidad es público", async ({ page }) => {
+    await page.goto("/privacidad");
+    await expect(page).toHaveURL(/\/privacidad$/);
+    await expect(page.getByRole("heading", { name: "Aviso de privacidad", level: 1 })).toBeVisible();
+    await expect(page.locator("#eliminacion")).toContainText("BAJA");
+  });
+
   test("el formulario no revela si un correo existe", async ({ page }) => {
     await page.goto("/login");
     await page.fill("#email", "nadie-registrado@ejemplo.test");
