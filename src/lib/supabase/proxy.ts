@@ -6,7 +6,8 @@ import { clientIp, hitRateLimit, policyFor } from "@/lib/rate-limit";
 // /api/cron/* authorizes itself with CRON_SECRET and must answer JSON, not redirect.
 // /api/demo/* serves fictitious public RSS feeds for demos; /api/errors takes client error reports.
 // /api/whatsapp/webhook is called by Meta and authorizes each request with its signature.
-const PUBLIC_PATHS = ["/login", "/auth/", "/dev/", "/api/cron/", "/api/demo/", "/api/errors", "/api/whatsapp/webhook"];
+// /privacidad is the public privacy notice.
+const PUBLIC_PATHS = ["/login", "/auth/", "/dev/", "/api/cron/", "/api/demo/", "/api/errors", "/api/whatsapp/webhook", "/privacidad"];
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p));
