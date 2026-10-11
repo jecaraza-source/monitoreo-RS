@@ -575,6 +575,7 @@ export function InboxView({
       <RouteDialog
         request={route}
         departments={catalogs.departments}
+        sla={catalogs.sla}
         onClose={() => setRoute(null)}
         onRouted={(ids) => {
           setChecked(new Set());

@@ -33,6 +33,8 @@ const ENTITIES: Record<string, string> = {
   tickets: "turno",
   classifications: "clasificación",
   mentions: "mención",
+  sla_policies: "SLA",
+  whatsapp_contacts: "WhatsApp de funcionario",
 };
 
 function summary(changes: Record<string, unknown>): string {

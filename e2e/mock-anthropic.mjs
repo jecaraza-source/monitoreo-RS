@@ -3,6 +3,8 @@
 // RESEND_BASE_URL=http://127.0.0.1:4010. It answers the report, daily-reading
 // and classifier tools with figures taken from the request itself, so the
 // app's validators accept them. Sent emails are listed at GET /emails.
+// WhatsApp Cloud API: WHATSAPP_API_URL=http://127.0.0.1:4010/whatsapp; sent
+// messages are listed at GET /whatsapp/sent.
 import { createServer } from "node:http";
 
 const port = Number(process.env.MOCK_ANTHROPIC_PORT ?? 4010);
@@ -73,6 +75,7 @@ function classify(body) {
 }
 
 const emails = [];
+const whatsapp = [];
 
 createServer((req, res) => {
   let raw = "";
@@ -87,6 +90,18 @@ createServer((req, res) => {
       emails.push(JSON.parse(raw));
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ id: `email_mock_${emails.length}` }));
+      return;
+    }
+    if (req.url === "/whatsapp/sent" && req.method === "GET") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify(whatsapp));
+      return;
+    }
+    if (req.method === "POST" && /^\/whatsapp\/[^/]+\/messages$/.test(req.url)) {
+      const id = `wamid.mock-${Date.now()}-${whatsapp.length + 1}`;
+      whatsapp.push({ id, ...JSON.parse(raw) });
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ messaging_product: "whatsapp", contacts: [{ wa_id: JSON.parse(raw).to }], messages: [{ id }] }));
       return;
     }
     if (req.method !== "POST" || !req.url.startsWith("/v1/messages")) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { AlarmClock, Archive, CheckCheck, ExternalLink, Pencil, RotateCcw, Send, UserCheck } from "lucide-react";
+import { AlarmClock, Archive, CheckCheck, ExternalLink, MessageCircle, Pencil, RotateCcw, Send, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -358,6 +358,11 @@ function Tickets({
                   {t.due_at ? `Fecha límite ${formatDateTime(t.due_at)} (${fromNow(t.due_at)})` : "Sin fecha límite"}
                   {t.resolved_at && ` · resuelto ${formatDateTime(t.resolved_at)}`}
                 </p>
+                {t.whatsapp_notified_at && (
+                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <MessageCircle className="size-3.5" aria-hidden /> Avisado por WhatsApp {formatDateTime(t.whatsapp_notified_at)}
+                  </p>
+                )}
               </li>
             );
           })}
@@ -391,8 +396,10 @@ function Notes({ mentionId, version }: { mentionId: string; version: number }) {
         <ol className="flex flex-col gap-2">
           {notes.map((n) => (
             <li key={n.id} className="rounded-lg bg-muted/60 px-3 py-2">
-              <p className="text-xs text-muted-foreground">
+              <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                {n.channel === "whatsapp" && <MessageCircle className="size-3.5" aria-label="Desde WhatsApp" />}
                 {n.author_name || "Usuario"} · {formatDateTime(n.created_at)}
+                {n.channel === "whatsapp" && " · por WhatsApp"}
               </p>
               <p className="whitespace-pre-wrap">{n.body}</p>
             </li>

@@ -5,7 +5,8 @@ import { clientIp, hitRateLimit, policyFor } from "@/lib/rate-limit";
 // Reachable without a session. Everything else requires one.
 // /api/cron/* authorizes itself with CRON_SECRET and must answer JSON, not redirect.
 // /api/demo/* serves fictitious public RSS feeds for demos; /api/errors takes client error reports.
-const PUBLIC_PATHS = ["/login", "/auth/", "/dev/", "/api/cron/", "/api/demo/", "/api/errors"];
+// /api/whatsapp/webhook is called by Meta and authorizes each request with its signature.
+const PUBLIC_PATHS = ["/login", "/auth/", "/dev/", "/api/cron/", "/api/demo/", "/api/errors", "/api/whatsapp/webhook"];
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p));

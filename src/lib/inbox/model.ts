@@ -120,11 +120,27 @@ export function dayEnd(day: string): string {
   return new Date(new Date(`${day}T00:00:00${MX_OFFSET}`).getTime() + 86_400_000).toISOString();
 }
 
-/** Default response time when routing, by priority (hours). */
-export const DUE_HOURS: Record<Priority, number> = { critical: 12, high: 24, medium: 72, low: 168 };
+/** Hours to attend a routed mention, by priority (the org's SLA, sla_policies). */
+export type SlaHours = Record<Priority, number>;
 
-export function defaultDueAt(priority: Priority | null | undefined, now = new Date()): Date {
-  return new Date(now.getTime() + DUE_HOURS[priority ?? "medium"] * 3_600_000);
+/** SLA used when an org has not set its own. */
+export const DUE_HOURS: SlaHours = { critical: 12, high: 24, medium: 72, low: 168 };
+
+/** The org's SLA rows over the defaults. */
+export function slaFromRows(rows: readonly { priority: Priority; hours: number }[]): SlaHours {
+  return { ...DUE_HOURS, ...Object.fromEntries(rows.map((r) => [r.priority, r.hours])) };
+}
+
+/** "12 h", "3 días", "1 día 12 h". */
+export function formatHours(hours: number): string {
+  if (hours < 48 && hours % 24 !== 0) return `${hours} h`;
+  const days = Math.floor(hours / 24);
+  const rest = hours % 24;
+  return `${days} ${days === 1 ? "día" : "días"}${rest ? ` ${rest} h` : ""}`;
+}
+
+export function defaultDueAt(priority: Priority | null | undefined, now = new Date(), sla: SlaHours = DUE_HOURS): Date {
+  return new Date(now.getTime() + sla[priority ?? "medium"] * 3_600_000);
 }
 
 export type TicketLike = { status: TicketStatus; due_at: string | null };
