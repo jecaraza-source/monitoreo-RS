@@ -27,6 +27,8 @@ export type InboxTicket = {
   due_at: string | null;
   resolved_at: string | null;
   created_at: string;
+  /** When the department's responsible was notified on WhatsApp. */
+  whatsapp_notified_at: string | null;
 };
 
 export type InboxClassification = {
@@ -69,7 +71,7 @@ export type InboxPage = { items: InboxItem[]; next: Cursor | null; total: number
 
 const CLASSIFICATION =
   "sentiment, confidence, emotion, topic, intent, priority, department_id, neighborhood_id, corrected_by, corrected_at, model";
-const TICKET = "id, department_id, status, due_at, resolved_at, created_at";
+const TICKET = "id, department_id, status, due_at, resolved_at, created_at, whatsapp_notified_at";
 const BASE = "id, text, url, published_at, status, triage, source_id, authors(display_name, handle, kind)";
 
 function selectFor(scope: InboxScope, filters: InboxFilters): string {
@@ -155,12 +157,12 @@ export async function countOverdue(supabase: Client, orgId: string): Promise<num
   return count ?? 0;
 }
 
-export type InboxNote = { id: string; author_name: string; body: string; created_at: string };
+export type InboxNote = { id: string; author_name: string; body: string; created_at: string; channel: string };
 
 export async function fetchNotes(supabase: Client, mentionId: string): Promise<InboxNote[]> {
   const { data } = await supabase
     .from("mention_notes")
-    .select("id, author_name, body, created_at")
+    .select("id, author_name, body, created_at, channel")
     .eq("mention_id", mentionId)
     .order("created_at");
   return data ?? [];

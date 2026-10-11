@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { requestBody, sendWhatsApp } from "./client.ts";
-import { decide, INVITE_ACCEPT, INVITE_DECLINE, keyword, replyText } from "./conversation.ts";
+import { decide, INVITE_ACCEPT, INVITE_DECLINE, keyword, parseTicketPayload, replyText, ticketPayload } from "./conversation.ts";
+import { actionText, detailText, folio, oneLine, turnNotice } from "./turn-message.ts";
 import { formatPhone, maskPhone, normalizePhone } from "./phone.ts";
 import { parseWebhook, previousStatuses, signBody, verifyChallenge, verifySignature } from "./webhook.ts";
 
@@ -150,5 +151,68 @@ describe("client", () => {
       fetch: (async () => new Response(JSON.stringify({ error: { message: "Template not approved" } }), { status: 400 })) as unknown as typeof fetch,
     });
     assert.deepEqual(rejected, { ok: false, error: "WhatsApp 400: Template not approved" });
+  });
+});
+
+describe("turns", () => {
+  const ticketId = "a1b2c3d4-0000-4000-8000-000000000001";
+  const turn = {
+    ticketId,
+    department: "Obras Públicas",
+    text: "Hay un socavón\n\nen la calle   Juárez,\tfrente a la escuela",
+    priority: "high" as const,
+    dueAt: "2026-10-12T20:00:00Z",
+  };
+
+  it("reads ticket buttons and only well-formed ones", () => {
+    assert.deepEqual(parseTicketPayload(ticketPayload(ticketId, "resolved")), { ticketId, action: "resolved" });
+    assert.equal(parseTicketPayload("ticket:not-a-uuid:resolved"), null);
+    assert.equal(parseTicketPayload(`ticket:${ticketId}:closed`), null);
+    assert.equal(parseTicketPayload(null), null);
+  });
+
+  it("routes buttons and replies of active officials", () => {
+    const active = { status: "active" as const, departments: ["Obras"] };
+    assert.deepEqual(decide(active, { text: "Resuelto", payload: ticketPayload(ticketId, "resolved") }, "u").reply, {
+      kind: "ticket_action",
+      ticketId,
+      action: "resolved",
+    });
+    assert.deepEqual(decide(active, { text: "Ya se atendió", payload: null, replyTo: "wamid.N" }, "u").reply, {
+      kind: "note",
+      replyTo: "wamid.N",
+      text: "Ya se atendió",
+    });
+    assert.equal(decide(active, { text: "Ya se atendió", payload: null }, "u").reply.kind, "help");
+    // A pending official cannot work tickets yet.
+    assert.equal(decide({ ...active, status: "pending" }, { text: "Resuelto", payload: ticketPayload(ticketId, "resolved") }, "u").reply.kind, "pending_help");
+  });
+
+  it("builds the notice with one-line parameters and three buttons", () => {
+    const notice = turnNotice(turn);
+    assert.equal(notice.kind, "template");
+    if (notice.kind !== "template") return;
+    assert.equal(notice.template, "sigma_turno");
+    assert.equal(notice.params[0], "Obras Públicas");
+    assert.equal(notice.params[1], "A1B2C3");
+    assert.equal(notice.params[2], "Hay un socavón en la calle Juárez, frente a la escuela");
+    assert.equal(notice.params[3], "Alta");
+    assert.match(notice.params[4], /lun 12 de oct, 02:00/);
+    assert.deepEqual(notice.buttons, ["in_progress", "resolved", "detail"].map((a) => `ticket:${ticketId}:${a}`));
+    assert.equal(oneLine("x".repeat(300), 10), "xxxxxxxxx…");
+  });
+
+  it("writes the detail and the answers to each action", () => {
+    const text = detailText(
+      { ...turn, status: "open", mentionId: "m1", source: "Facebook", publishedAt: "2026-10-11T15:00:00Z", neighborhood: "Centro", url: null },
+      "https://pulso.example",
+    );
+    assert.match(text, /^Turno A1B2C3 · Obras Públicas/);
+    assert.match(text, /Colonia: Centro/);
+    assert.match(text, /https:\/\/pulso\.example\/bandeja\?mention=m1/);
+    assert.equal(actionText(ticketId, { ok: true, status: "resolved" }, "status"), "Listo: el turno A1B2C3 quedó «Resuelto».");
+    assert.equal(actionText(ticketId, { ok: true, status: "open" }, "note"), "Nota agregada al turno A1B2C3.");
+    assert.match(actionText(ticketId, { ok: false, reason: "forbidden" }, "status"), /ya no está asignado/);
+    assert.equal(folio(ticketId), "A1B2C3");
   });
 });

@@ -387,6 +387,14 @@ Canal directo con los funcionarios de las dependencias (nunca con ciudadanos), c
   entregado, leído, falló), depurada con `RETENTION_MONTHS`. Altas, bajas y cambios de SLA quedan en la bitácora
   de auditoría.
 
+- **Turnos por WhatsApp:** al turnar, el responsable activo de la dependencia recibe la plantilla `sigma_turno`
+  (folio, extracto, prioridad y fecha límite; hasta 10 avisos por turnado, el resto queda en la bandeja) con
+  los botones **En proceso**, **Resuelto** y **Ver detalle**. Los botones cambian el estado del turno como si lo
+  hiciera el funcionario en la app (mismos permisos, bitácora a su nombre, `whatsapp_ticket_action()`), y
+  **responder** al aviso agrega una nota. En la bandeja, el turno muestra *Avisado por WhatsApp* y las notas
+  llevan la marca *por WhatsApp* (`mention_notes.channel`, la pone la base de datos). Un turno cerrado por
+  Comunicación ya no se cambia desde WhatsApp.
+
 Webhook: `GET/POST /api/whatsapp/webhook` (verificación con `WHATSAPP_VERIFY_TOKEN`, firma con
 `WHATSAPP_APP_SECRET`). En pruebas, `e2e/mock-anthropic.mjs` simula la Cloud API (`WHATSAPP_API_URL`).
 
@@ -409,6 +417,18 @@ Webhook: `GET/POST /api/whatsapp/webhook` (verificación con `WHATSAPP_VERIFY_TO
 
    Pie: *Escribe BAJA en cualquier momento para dejar de recibirlos.* Botones de respuesta rápida:
    **Acepto** · **No acepto**. Ejemplos: `Ana López`, `Ayuntamiento de Alvarado`, `Obras Públicas`.
+
+   **`sigma_turno`** — cuerpo:
+   > Nuevo turno para {{1}} (folio {{2}}):
+   >
+   > «{{3}}»
+   >
+   > Prioridad: {{4}}. Fecha límite: {{5}}.
+   >
+   > Responde a este mensaje para agregar una nota.
+
+   Botones de respuesta rápida: **En proceso** · **Resuelto** · **Ver detalle**. Ejemplos: `Obras Públicas`,
+   `A1B2C3`, `Hay un socavón en la calle Juárez frente a la escuela`, `Alta`, `lun 12 de oct, 02:00 p.m.`
 
 ## Alertas
 

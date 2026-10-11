@@ -8,8 +8,27 @@ export type ContactStatus = "pending" | "active" | "declined" | "opted_out";
 export const INVITE_ACCEPT = "invite:accept";
 export const INVITE_DECLINE = "invite:decline";
 
+/** Buttons of the turn notice (sigma_turno): "ticket:<id>:<action>". */
+export type TicketAction = "in_progress" | "resolved" | "detail";
+export const TICKET_ACTIONS: readonly TicketAction[] = ["in_progress", "resolved", "detail"];
+
+export function ticketPayload(ticketId: string, action: TicketAction): string {
+  return `ticket:${ticketId}:${action}`;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function parseTicketPayload(payload: string | null): { ticketId: string; action: TicketAction } | null {
+  const [kind, ticketId, action] = (payload ?? "").split(":");
+  if (kind !== "ticket" || !UUID.test(ticketId ?? "") || !TICKET_ACTIONS.includes(action as TicketAction)) return null;
+  return { ticketId, action: action as TicketAction };
+}
+
 export type Reply =
   | { kind: "unknown_number" }
+  | { kind: "ticket_action"; ticketId: string; action: TicketAction }
+  /** A reply to one of our messages: becomes a note on that message's ticket, if it has one. */
+  | { kind: "note"; replyTo: string; text: string }
   | { kind: "accepted"; departments: string[] }
   | { kind: "declined" }
   | { kind: "opted_out" }
@@ -37,7 +56,7 @@ const START = new Set(["alta", "start"]);
 
 export function decide(
   contact: { status: ContactStatus; departments: string[] } | null,
-  message: Pick<InboundMessage, "text" | "payload">,
+  message: Pick<InboundMessage, "text" | "payload"> & { replyTo?: string | null },
   appUrl: string,
 ): Decision {
   if (!contact) return { next: null, reply: { kind: "unknown_number" } };
@@ -60,10 +79,15 @@ export function decide(
     case "opted_out":
       if (START.has(word) || accept) return { next: "active", reply: { kind: "opted_in", departments: contact.departments } };
       return { next: null, reply: { kind: "none" } };
-    case "active":
-      // Turn actions arrive in phase 2; meanwhile, point to the app.
+    case "active": {
+      const ticket = parseTicketPayload(message.payload);
+      if (ticket) return { next: null, reply: { kind: "ticket_action", ...ticket } };
       if (accept) return { next: null, reply: { kind: "accepted", departments: contact.departments } };
+      if (message.replyTo && message.text && !message.payload) {
+        return { next: null, reply: { kind: "note", replyTo: message.replyTo, text: message.text } };
+      }
       return { next: null, reply: { kind: "help", url: appUrl } };
+    }
   }
 }
 
@@ -86,7 +110,9 @@ export function replyText(reply: Reply): string | null {
     case "pending_help":
       return "Para recibir los turnos de tu área por WhatsApp, responde ACEPTO. Si no quieres recibirlos, responde NO ACEPTO.";
     case "help":
-      return `Recibido. Para atender tus turnos entra a Sigma Pulso: ${reply.url}/bandeja\nEscribe BAJA para dejar de recibir mensajes.`;
+      return `Usa los botones de cada turno para marcarlo En proceso o Resuelto, o responde a su mensaje para agregar una nota. Tus turnos: ${reply.url}/bandeja\nEscribe BAJA para dejar de recibir mensajes.`;
+    case "ticket_action":
+    case "note":
     case "none":
       return null;
   }

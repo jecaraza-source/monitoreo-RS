@@ -1,8 +1,11 @@
 "use server";
 
+import { after } from "next/server";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth/session";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { notifyRoutedTickets } from "@/lib/whatsapp/turns";
 import { INTENTS, PRIORITIES, SENTIMENTS, TICKET_STATUSES, TRIAGES } from "./model";
 
 export type InboxActionResult = { ok: true; message: string } | { ok: false; message: string };
@@ -101,7 +104,44 @@ export async function routeMentions(input: unknown): Promise<InboxActionResult> 
     if (noteError) console.error("[inbox] route note:", noteError.code);
   }
   const n = routed ?? mentionIds.length;
-  return { ok: true, message: n === 1 ? `Turnada a ${department.name}.` : `${n} menciones turnadas a ${department.name}.` };
+  const whatsapp = await noticeRouted(m.orgId, departmentId, mentionIds);
+  const base = n === 1 ? `Turnada a ${department.name}.` : `${n} menciones turnadas a ${department.name}.`;
+  return { ok: true, message: whatsapp ? `${base} Se avisará al responsable por WhatsApp.` : base };
+}
+
+/**
+ * Sends the WhatsApp turn notice after the response, when the department's
+ * responsible has an active number. True when a notice is on its way.
+ */
+async function noticeRouted(orgId: string, departmentId: string, mentionIds: string[]): Promise<boolean> {
+  if (!process.env.WHATSAPP_TOKEN || !process.env.WHATSAPP_PHONE_NUMBER_ID) return false;
+  const admin = createAdminClient();
+  const { data: department } = await admin.from("departments").select("responsible_user_id").eq("id", departmentId).single();
+  if (!department?.responsible_user_id) return false;
+  const { data: contact } = await admin
+    .from("whatsapp_contacts")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("user_id", department.responsible_user_id)
+    .eq("status", "active")
+    .maybeSingle();
+  if (!contact) return false;
+  const { data: tickets } = await admin
+    .from("tickets")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("department_id", departmentId)
+    .in("mention_id", mentionIds);
+  const ids = (tickets ?? []).map((t) => t.id);
+  if (!ids.length) return false;
+  after(async () => {
+    try {
+      await notifyRoutedTickets(admin, ids);
+    } catch (error) {
+      console.error("[whatsapp] turn notice:", error instanceof Error ? error.message : error);
+    }
+  });
+  return true;
 }
 
 // ---------------------------------------------------------------------------

@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { INVITE_TEMPLATE } from "./client";
 import { INVITE_ACCEPT, INVITE_DECLINE } from "./conversation";
 import { formatPhone, normalizePhone } from "./phone";
-import { sendAndLog } from "./service";
+import { sendAndLog } from "./send";
 
 export type WhatsAppActionResult = { ok: true; message: string; warning?: string } | { ok: false; message: string };
 

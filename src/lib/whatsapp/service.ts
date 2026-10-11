@@ -2,38 +2,14 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { siteUrl } from "@/lib/site-url";
 import type { Database } from "@/lib/supabase/database.types";
-import { sendWhatsApp, type OutgoingMessage, type SendResult } from "./client";
 import { decide, replyText, type ContactStatus } from "./conversation";
+import { sendAndLog } from "./send";
+import { handleNoteReply, handleTicketButton } from "./turns";
 import { previousStatuses, type InboundMessage, type StatusUpdate, type WebhookEvents } from "./webhook";
 
 type Admin = SupabaseClient<Database>;
 
-/** Sends a message and records it in whatsapp_messages (also when it fails). */
-export async function sendAndLog(
-  admin: Admin,
-  target: { orgId: string | null; contactId: string | null; phone: string; ticketId?: string | null },
-  message: OutgoingMessage,
-): Promise<SendResult> {
-  const result = await sendWhatsApp(target.phone, message, { env: process.env, fetch });
-  if (result.ok || !result.notConfigured) {
-    const { error } = await admin.from("whatsapp_messages").insert({
-      org_id: target.orgId,
-      contact_id: target.contactId,
-      direction: "out",
-      wa_message_id: result.ok ? result.waId : null,
-      kind: message.kind,
-      template: message.kind === "template" ? message.template : null,
-      body: (message.kind === "template" ? message.summary : message.text).slice(0, 500),
-      status: result.ok ? "sent" : "failed",
-      error: result.ok ? null : result.error,
-      ticket_id: target.ticketId ?? null,
-    });
-    if (error) console.error("[whatsapp] log out:", error.code, error.message);
-  }
-  return result;
-}
-
-type ContactRow = { id: string; org_id: string; user_id: string; status: ContactStatus };
+type ContactRow = { id: string; org_id: string; user_id: string; phone: string; status: ContactStatus };
 
 /**
  * The official behind a number. A live (pending/active) number is unique; a
@@ -43,7 +19,7 @@ type ContactRow = { id: string; org_id: string; user_id: string; status: Contact
 async function contactFor(admin: Admin, phone: string): Promise<ContactRow | null> {
   const { data } = await admin
     .from("whatsapp_contacts")
-    .select("id, org_id, user_id, status, invited_at")
+    .select("id, org_id, user_id, phone, status, invited_at")
     .eq("phone", phone)
     .order("invited_at", { ascending: false, nullsFirst: false })
     .limit(10);
@@ -103,9 +79,20 @@ async function handleMessage(admin: Admin, message: InboundMessage) {
       if (updateError) throw new Error(`contact: ${updateError.message}`);
     }
 
-    const text = replyText(decision.reply);
+    let text = replyText(decision.reply);
+    let ticketId: string | null = null;
+    if (contact && decision.reply.kind === "ticket_action") {
+      ticketId = decision.reply.ticketId;
+      text = await handleTicketButton(admin, contact, ticketId, decision.reply.action);
+    } else if (contact && decision.reply.kind === "note") {
+      const note = await handleNoteReply(admin, contact, decision.reply.replyTo, decision.reply.text);
+      ticketId = note?.ticketId ?? null;
+      text = note?.reply ?? replyText({ kind: "help", url: siteUrl() });
+    }
+    if (ticketId) await admin.from("whatsapp_messages").update({ ticket_id: ticketId }).eq("id", logged[0].id);
+
     if (text) {
-      await sendAndLog(admin, { orgId: contact?.org_id ?? null, contactId: contact?.id ?? null, phone: message.from }, { kind: "text", text });
+      await sendAndLog(admin, { orgId: contact?.org_id ?? null, contactId: contact?.id ?? null, phone: message.from, ticketId }, { kind: "text", text });
     }
   } catch (cause) {
     // Let Meta retry the whole message.

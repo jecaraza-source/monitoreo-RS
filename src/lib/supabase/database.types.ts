@@ -307,14 +307,14 @@ isOneToOne: false
                   ]
                 },"mention_notes": {
                   Row: {
-                    "author_id": string,"author_name": string,"body": string,"created_at": string,"id": string,"mention_id": string,"org_id": string
+                    "author_id": string,"author_name": string,"body": string,"channel": string,"created_at": string,"id": string,"mention_id": string,"org_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "author_id"?: string,"author_name"?: string,"body": string,"created_at"?: string,"id"?: string,"mention_id": string,"org_id": string
+                    "author_id"?: string,"author_name"?: string,"body": string,"channel"?: string,"created_at"?: string,"id"?: string,"mention_id": string,"org_id": string
                   }
                   Update: {
-                    "author_id"?: string,"author_name"?: string,"body"?: string,"created_at"?: string,"id"?: string,"mention_id"?: string,"org_id"?: string
+                    "author_id"?: string,"author_name"?: string,"body"?: string,"channel"?: string,"created_at"?: string,"id"?: string,"mention_id"?: string,"org_id"?: string
                   }
                   Relationships: [
                     {
@@ -557,14 +557,14 @@ isOneToOne: false
                   ]
                 },"tickets": {
                   Row: {
-                    "assignee_id": string | null,"created_at": string,"created_by": string | null,"department_id": string,"due_at": string | null,"id": string,"mention_id": string,"org_id": string,"resolved_at": string | null,"status": Database["public"]['Enums']["ticket_status"]
+                    "assignee_id": string | null,"created_at": string,"created_by": string | null,"department_id": string,"due_at": string | null,"id": string,"mention_id": string,"org_id": string,"resolved_at": string | null,"status": Database["public"]['Enums']["ticket_status"],"whatsapp_notified_at": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "assignee_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_id": string,"due_at"?: string | null,"id"?: string,"mention_id": string,"org_id": string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"]
+                    "assignee_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_id": string,"due_at"?: string | null,"id"?: string,"mention_id": string,"org_id": string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"whatsapp_notified_at"?: string | null
                   }
                   Update: {
-                    "assignee_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_id"?: string,"due_at"?: string | null,"id"?: string,"mention_id"?: string,"org_id"?: string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"]
+                    "assignee_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_id"?: string,"due_at"?: string | null,"id"?: string,"mention_id"?: string,"org_id"?: string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"whatsapp_notified_at"?: string | null
                   }
                   Relationships: [
                     {
@@ -774,6 +774,9 @@ isOneToOne: false
 { Args: { "p_org_id": string }; Returns: {
               "id": string,"name": string,"type": Database["public"]['Enums']["source_type"]
             }[]
+                           },
+"whatsapp_ticket_action":
+{ Args: { "p_contact_id": string,"p_note"?: string,"p_status"?: Database["public"]['Enums']["ticket_status"],"p_ticket_id": string }; Returns: Json
                            }
           }
           Enums: {

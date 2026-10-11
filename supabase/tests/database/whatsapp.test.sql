@@ -1,6 +1,6 @@
 -- WhatsApp phase 1: SLA, responsible per department, officials' numbers and the message log.
 begin;
-select plan(20);
+select plan(29);
 
 create function pg_temp.login(p_user uuid) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object('sub', p_user, 'role', 'authenticated')::text, true);
@@ -74,6 +74,50 @@ set local role authenticated;
 select is((select count(*)::int from public.whatsapp_messages), 0, 'the message log is admin-only');
 select pg_temp.login('00000000-0000-4000-d000-000000000001');
 select is((select count(*)::int from public.whatsapp_messages), 1, 'admins read the message log');
+
+-- Turn actions from WhatsApp (phase 2) ---------------------------------------
+reset role;
+select set_config('request.jwt.claims', '', true);
+create temporary table obras_ticket as
+  select id, mention_id from public.tickets
+  where department_id = '00000000-0000-4000-b000-000000000001' and status = 'open' limit 1;
+create temporary table agua_ticket as
+  select id from public.tickets where department_id = '00000000-0000-4000-b000-000000000002' limit 1;
+create temporary table obras_contact as
+  select id from public.whatsapp_contacts where user_id = '00000000-0000-4000-d000-000000000003';
+
+select is(public.whatsapp_ticket_action((select id from obras_contact), (select id from obras_ticket), 'resolved') ->> 'reason',
+  'inactive', 'a pending number cannot act on tickets');
+update public.whatsapp_contacts set status = 'active' where id = (select id from obras_contact);
+
+select is(public.whatsapp_ticket_action((select id from obras_contact), (select id from obras_ticket), 'in_progress') ->> 'ok',
+  'true', 'the responsible moves their department''s ticket');
+select set_config('request.jwt.claims', '', true);
+select is((select status::text from public.tickets where id = (select id from obras_ticket)), 'in_progress', 'the ticket changes');
+select ok(exists (select 1 from public.audit_log where entity = 'tickets' and entity_id = (select id::text from obras_ticket)
+  and actor_id = '00000000-0000-4000-d000-000000000003'), 'the change is audited as the official');
+select is((select channel || '|' || author_name from public.mention_notes where mention_id = (select mention_id from obras_ticket)
+  order by created_at desc limit 1), 'whatsapp|Enlace Obras Públicas', 'a WhatsApp note records the change, signed by the official');
+
+select is(public.whatsapp_ticket_action((select id from obras_contact), (select id from obras_ticket), null, 'Cuadrilla en camino') ->> 'ok',
+  'true', 'a reply becomes a note');
+select set_config('request.jwt.claims', '', true);
+select is(public.whatsapp_ticket_action((select id from obras_contact), (select id from agua_ticket), 'resolved') ->> 'reason',
+  'forbidden', 'but never on another department''s ticket');
+select set_config('request.jwt.claims', '', true);
+
+select pg_temp.login('00000000-0000-4000-d000-000000000003');
+set local role authenticated;
+select throws_ok($$ select public.whatsapp_ticket_action(gen_random_uuid(), gen_random_uuid()) $$, '42501', null,
+  'only the server applies WhatsApp actions');
+reset role;
+grant select on obras_ticket to authenticated;
+select pg_temp.login('00000000-0000-4000-d000-000000000002');
+set local role authenticated;
+insert into public.mention_notes (org_id, mention_id, body)
+values ('00000000-0000-4000-a000-000000000001', (select mention_id from obras_ticket), 'Nota desde la app');
+reset role;
+select is((select channel from public.mention_notes where body = 'Nota desde la app'), 'app', 'notes written in the app are marked app');
 
 select * from finish();
 rollback;
