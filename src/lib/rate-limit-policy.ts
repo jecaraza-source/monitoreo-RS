@@ -12,6 +12,8 @@ export function policyFor(pathname: string): RateLimitPolicy | null {
   if (pathname.startsWith("/api/asistente")) return { name: "assistant", limit: 20, windowSeconds: 60, by: "user" };
   if (pathname.startsWith("/api/errors")) return { name: "errors", limit: 30, windowSeconds: 60, by: "ip" };
   if (pathname.startsWith("/api/cron/")) return { name: "cron", limit: 30, windowSeconds: 60, by: "ip" };
+  // Meta delivers from a few IPs and bursts on busy days; signatures do the gatekeeping.
+  if (pathname.startsWith("/api/whatsapp/")) return { name: "whatsapp", limit: 600, windowSeconds: 60, by: "ip" };
   if (pathname.startsWith("/api/demo/")) return { name: "demo", limit: 120, windowSeconds: 60, by: "ip" };
   return { name: "api", limit: 60, windowSeconds: 60, by: "ip" };
 }

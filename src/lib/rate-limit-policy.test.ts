@@ -10,6 +10,7 @@ describe("rate limit policies", () => {
     assert.equal(policyFor("/api/cron/ingest")?.name, "cron");
     assert.equal(policyFor("/api/demo/rss/x")?.name, "demo");
     assert.equal(policyFor("/api/errors")?.name, "errors");
+    assert.equal(policyFor("/api/whatsapp/webhook")?.name, "whatsapp");
     assert.equal(policyFor("/api/algo-nuevo")?.name, "api");
   });
 

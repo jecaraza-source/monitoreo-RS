@@ -10,7 +10,8 @@ const TIME_BUDGET_MS = 240_000;
 
 /**
  * Daily purge of mentions older than RETENTION_MONTHS (default 24) with their
- * classifications, tickets and notes. Each batch is recorded in audit_log.
+ * classifications, tickets and notes, and of the WhatsApp message log. Each
+ * mentions batch is recorded in audit_log.
  */
 export async function GET(request: NextRequest) {
   if (!isAuthorizedCron(request.headers.get("authorization"))) {
@@ -32,5 +33,7 @@ export async function GET(request: NextRequest) {
     if ((data ?? 0) < BATCH || Date.now() - started > TIME_BUDGET_MS) break;
   }
   if (deleted > 0) await refreshMentionStats(admin);
-  return NextResponse.json({ ok: true, months, deleted });
+  const whatsapp = await admin.rpc("purge_old_whatsapp_messages", { p_months: months });
+  if (whatsapp.error) return NextResponse.json({ ok: false, deleted, error: whatsapp.error.message }, { status: 500 });
+  return NextResponse.json({ ok: true, months, deleted, whatsappDeleted: whatsapp.data ?? 0 });
 }

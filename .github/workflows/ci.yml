@@ -67,8 +67,8 @@ jobs:
           git diff --exit-code src/lib/supabase/database.types.ts \
             || (echo "database.types.ts is stale: run npm run db:types and commit" && exit 1)
 
-  # Full app against the local Supabase stack with the seed; Claude and Resend
-  # are replaced by e2e/mock-anthropic.mjs, so no keys are needed.
+  # Full app against the local Supabase stack with the seed; Claude, Resend and
+  # the WhatsApp Cloud API are replaced by e2e/mock-anthropic.mjs, so no keys are needed.
   e2e:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -97,6 +97,13 @@ jobs:
             echo "CLAUDE_MODEL_FAST=claude-haiku-5-5"
             echo "CLAUDE_MODEL_SMART=claude-opus-5-5"
             echo "CRON_SECRET=e2e-cron-secret"
+            echo "WHATSAPP_TOKEN=mock"
+            echo "WHATSAPP_PHONE_NUMBER_ID=PN_E2E"
+            echo "WHATSAPP_API_URL=http://127.0.0.1:4010/whatsapp"
+            echo "WHATSAPP_APP_SECRET=e2e-whatsapp-secret"
+            echo "WHATSAPP_VERIFY_TOKEN=e2e-verify"
+            echo "E2E_WHATSAPP_APP_SECRET=e2e-whatsapp-secret"
+            echo "E2E_WHATSAPP_PHONE_NUMBER_ID=PN_E2E"
           } >> "$GITHUB_ENV"
       - run: npm run build
       - run: npx playwright install --with-deps chromium

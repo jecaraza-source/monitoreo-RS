@@ -5,6 +5,8 @@ import {
   dayEnd,
   dayStart,
   defaultDueAt,
+  formatHours,
+  slaFromRows,
   filtersToSearch,
   isOverdue,
   parseFilters,
@@ -65,6 +67,17 @@ describe("dates", () => {
     const now = new Date("2026-10-09T12:00:00Z");
     assert.equal(defaultDueAt("high", now).toISOString(), "2026-10-10T12:00:00.000Z");
     assert.equal(defaultDueAt(null, now).toISOString(), "2026-10-12T12:00:00.000Z");
+    const sla = slaFromRows([{ priority: "high", hours: 6 }]);
+    assert.deepEqual(sla, { critical: 12, high: 6, medium: 72, low: 168 });
+    assert.equal(defaultDueAt("high", now, sla).toISOString(), "2026-10-09T18:00:00.000Z");
+  });
+
+  it("writes SLA hours for people", () => {
+    assert.equal(formatHours(12), "12 h");
+    assert.equal(formatHours(24), "1 día");
+    assert.equal(formatHours(36), "36 h");
+    assert.equal(formatHours(72), "3 días");
+    assert.equal(formatHours(60), "2 días 12 h");
   });
 
   it("flags only open tickets past their due date", () => {

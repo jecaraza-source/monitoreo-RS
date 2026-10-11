@@ -110,8 +110,8 @@ select is((select string_agg(s.t, ', ' order by s.t) from seen s join everything
 select is((select string_agg(s.t, ', ' order by s.t) from seen s
            where s.role = 'obras' and s.n > 0
              and s.t not in ('mentions', 'classifications', 'tickets', 'authors', 'departments', 'neighborhoods',
-                             'organizations', 'memberships', 'mention_notes')), null,
-  'dependencia sees no reports, rules, sources, projects, costs or other org-wide tables');
+                             'organizations', 'memberships', 'mention_notes', 'sla_policies')), null,
+  'dependencia sees no reports, rules, sources, projects, costs or other org-wide tables (only its SLA)');
 select ok((select n from seen where role = 'obras' and t = 'mentions')
           = (select count(distinct mention_id) from public.tickets where department_id = '00000000-0000-4000-b000-000000000001'),
   'dependencia sees exactly the mentions routed to its department');
@@ -147,6 +147,8 @@ insert into auth.users (instance_id, id, aud, role, email, encrypted_password, r
 values ('00000000-0000-0000-0000-000000000000', '00000000-0000-4000-d000-000000000098', 'authenticated', 'authenticated',
         'admin@vecino2.test', '', '{}', '{}', now(), now());
 insert into public.memberships (org_id, user_id, role) values ('00000000-0000-4000-a000-000000000002', '00000000-0000-4000-d000-000000000098', 'admin');
+-- Its own default SLA would count as writable rows; only this org's rows matter here.
+delete from public.sla_policies where org_id = '00000000-0000-4000-a000-000000000002';
 
 select pg_temp.login('00000000-0000-4000-d000-000000000098');
 set local role authenticated;

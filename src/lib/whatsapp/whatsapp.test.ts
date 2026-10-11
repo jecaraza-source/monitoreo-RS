@@ -1,0 +1,154 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { requestBody, sendWhatsApp } from "./client.ts";
+import { decide, INVITE_ACCEPT, INVITE_DECLINE, keyword, replyText } from "./conversation.ts";
+import { formatPhone, maskPhone, normalizePhone } from "./phone.ts";
+import { parseWebhook, previousStatuses, signBody, verifyChallenge, verifySignature } from "./webhook.ts";
+
+describe("phone numbers", () => {
+  it("normalizes what people type and what Meta sends to one form", () => {
+    assert.equal(normalizePhone("+52 56 2133 9211"), "525621339211");
+    assert.equal(normalizePhone("(56) 2133-9211"), "525621339211");
+    assert.equal(normalizePhone("5621339211"), "525621339211");
+    assert.equal(normalizePhone("+5215621339211"), "525621339211");
+    assert.equal(normalizePhone("0052 56 2133 9211"), "525621339211");
+    assert.equal(normalizePhone("+1 415 555 0100"), "14155550100");
+    assert.equal(normalizePhone("12345"), null);
+    assert.equal(normalizePhone("55-ABC"), null);
+  });
+
+  it("formats and masks", () => {
+    assert.equal(formatPhone("525621339211"), "+52 56 2133 9211");
+    assert.equal(maskPhone("525621339211"), "+52 56 •••• 9211");
+  });
+});
+
+describe("webhook", () => {
+  const secret = "app-secret";
+
+  it("accepts only bodies signed with the app secret", () => {
+    const body = '{"object":"whatsapp_business_account"}';
+    assert.equal(verifySignature(body, signBody(body, secret), secret), true);
+    assert.equal(verifySignature(body + " ", signBody(body, secret), secret), false);
+    assert.equal(verifySignature(body, signBody(body, "other"), secret), false);
+    assert.equal(verifySignature(body, null, secret), false);
+    assert.equal(verifySignature(body, "sha256=zz", secret), false);
+  });
+
+  it("answers the subscription handshake only with the right token", () => {
+    const params = (token: string) => new URLSearchParams({ "hub.mode": "subscribe", "hub.verify_token": token, "hub.challenge": "42" });
+    assert.equal(verifyChallenge(params("tok"), "tok"), "42");
+    assert.equal(verifyChallenge(params("bad"), "tok"), null);
+    assert.equal(verifyChallenge(params("tok"), undefined), null);
+  });
+
+  it("extracts messages and statuses for our number only", () => {
+    const value = (phoneNumberId: string) => ({
+      metadata: { phone_number_id: phoneNumberId },
+      messages: [
+        { id: "wamid.1", from: "5215621339211", timestamp: "1760000000", type: "button", button: { payload: INVITE_ACCEPT, text: "Acepto" }, context: { id: "wamid.0" } },
+        { id: "wamid.2", from: "5215621339211", type: "text", text: { body: "  baja " } },
+        { id: "wamid.3", from: "5215621339211", type: "image" },
+      ],
+      statuses: [
+        { id: "wamid.0", status: "read", timestamp: "1760000001" },
+        { id: "wamid.9", status: "failed", errors: [{ code: 131026, title: "Message undeliverable" }] },
+        { id: "wamid.8", status: "deleted" },
+      ],
+    });
+    const body = {
+      object: "whatsapp_business_account",
+      entry: [{ changes: [{ field: "messages", value: value("PN1") }, { field: "messages", value: value("OTHER") }] }],
+    };
+    const events = parseWebhook(body, "PN1")!;
+    assert.equal(events.messages.length, 3);
+    assert.deepEqual(
+      { ...events.messages[0], at: events.messages[0].at.toISOString() },
+      { waId: "wamid.1", from: "525621339211", kind: "button", text: "Acepto", payload: INVITE_ACCEPT, replyTo: "wamid.0", at: "2025-10-09T08:53:20.000Z" },
+    );
+    assert.equal(events.messages[1].text, "baja");
+    assert.equal(events.messages[2].kind, "other");
+    assert.deepEqual(events.statuses.map((s) => [s.waId, s.status, s.error]), [
+      ["wamid.0", "read", null],
+      ["wamid.9", "failed", "131026 Message undeliverable"],
+    ]);
+    assert.equal(parseWebhook({ object: "page", entry: [] }, "PN1"), null);
+    assert.equal(parseWebhook("nonsense", "PN1"), null);
+  });
+
+  it("moves delivery statuses only forward", () => {
+    assert.deepEqual(previousStatuses("read"), ["sent", "delivered"]);
+    assert.deepEqual(previousStatuses("delivered"), ["sent"]);
+    assert.deepEqual(previousStatuses("sent"), []);
+  });
+});
+
+describe("conversation", () => {
+  const url = "https://pulso.example";
+  const contact = (status: "pending" | "active" | "declined" | "opted_out") => ({ status, departments: ["Obras Públicas"] });
+  const msg = (text: string, payload: string | null = null) => ({ text, payload });
+
+  it("activates on the Acepto button or text and declines on No acepto", () => {
+    assert.deepEqual(decide(contact("pending"), msg("Acepto", INVITE_ACCEPT), url), { next: "active", reply: { kind: "accepted", departments: ["Obras Públicas"] } });
+    assert.equal(decide(contact("pending"), msg("¡Sí, acepto!"), url).next, "active");
+    assert.equal(decide(contact("pending"), msg("No acepto", INVITE_DECLINE), url).next, "declined");
+    assert.equal(decide(contact("declined"), msg("acepto"), url).next, "active");
+    assert.deepEqual(decide(contact("pending"), msg("hola"), url), { next: null, reply: { kind: "pending_help" } });
+  });
+
+  it("honors BAJA from any state and ALTA after it", () => {
+    assert.equal(decide(contact("active"), msg("BAJA"), url).next, "opted_out");
+    assert.equal(decide(contact("pending"), msg("baja."), url).next, "opted_out");
+    assert.deepEqual(decide(contact("opted_out"), msg("baja"), url), { next: null, reply: { kind: "none" } });
+    assert.deepEqual(decide(contact("opted_out"), msg("hola"), url), { next: null, reply: { kind: "none" } });
+    assert.equal(decide(contact("opted_out"), msg("Alta"), url).next, "active");
+  });
+
+  it("never engages numbers of no official beyond a fixed notice", () => {
+    const d = decide(null, msg("Hay un bache en mi calle"), url);
+    assert.deepEqual(d, { next: null, reply: { kind: "unknown_number" } });
+    assert.match(replyText(d.reply)!, /exclusivo para funcionarios/);
+  });
+
+  it("points active officials to the app and writes replies in Spanish", () => {
+    const d = decide(contact("active"), msg("¿qué tengo pendiente?"), url);
+    assert.match(replyText(d.reply)!, /https:\/\/pulso\.example\/bandeja/);
+    assert.match(replyText({ kind: "accepted", departments: ["Obras", "Agua", "Limpia"] })!, /Obras, Agua y Limpia/);
+    assert.equal(replyText({ kind: "none" }), null);
+    assert.equal(keyword("¡Sí, ACEPTO!"), "si acepto");
+  });
+});
+
+describe("client", () => {
+  it("builds template requests with parameters and quick-reply payloads", () => {
+    const body = requestBody("525621339211", { kind: "template", template: "sigma_vinculacion", params: ["Ana", "Alvarado", "Obras"], buttons: [INVITE_ACCEPT, INVITE_DECLINE], summary: "" });
+    assert.deepEqual(body.template?.components, [
+      { type: "body", parameters: [{ type: "text", text: "Ana" }, { type: "text", text: "Alvarado" }, { type: "text", text: "Obras" }] },
+      { type: "button", sub_type: "quick_reply", index: "0", parameters: [{ type: "payload", payload: INVITE_ACCEPT }] },
+      { type: "button", sub_type: "quick_reply", index: "1", parameters: [{ type: "payload", payload: INVITE_DECLINE }] },
+    ]);
+    assert.equal(body.template?.language.code, "es_MX");
+  });
+
+  it("returns Meta's message id, or why it could not send", async () => {
+    let url = "";
+    const ok = await sendWhatsApp("525621339211", { kind: "text", text: "hola" }, {
+      env: { WHATSAPP_TOKEN: "t", WHATSAPP_PHONE_NUMBER_ID: "PN1", WHATSAPP_API_URL: "http://mock/whatsapp/" },
+      fetch: (async (u: string) => {
+        url = u;
+        return new Response(JSON.stringify({ messages: [{ id: "wamid.X" }] }));
+      }) as unknown as typeof fetch,
+    });
+    assert.deepEqual(ok, { ok: true, waId: "wamid.X" });
+    assert.equal(url, "http://mock/whatsapp/PN1/messages");
+
+    const missing = await sendWhatsApp("525621339211", { kind: "text", text: "hola" }, { env: {}, fetch });
+    assert.equal(missing.ok === false && missing.notConfigured, true);
+
+    const rejected = await sendWhatsApp("525621339211", { kind: "text", text: "hola" }, {
+      env: { WHATSAPP_TOKEN: "t", WHATSAPP_PHONE_NUMBER_ID: "PN1" },
+      fetch: (async () => new Response(JSON.stringify({ error: { message: "Template not approved" } }), { status: 400 })) as unknown as typeof fetch,
+    });
+    assert.deepEqual(rejected, { ok: false, error: "WhatsApp 400: Template not approved" });
+  });
+});

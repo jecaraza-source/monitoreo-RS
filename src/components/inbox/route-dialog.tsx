@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { routeMentions } from "@/lib/inbox/actions";
-import { DUE_HOURS, PRIORITY_LABELS, toLocalInput, type Priority } from "@/lib/inbox/model";
+import { defaultDueAt, formatHours, PRIORITY_LABELS, toLocalInput, type Priority, type SlaHours } from "@/lib/inbox/model";
 import { OptionSelect } from "./option-select";
 
 export type RouteRequest = {
@@ -23,11 +23,13 @@ export type RouteRequest = {
 export function RouteDialog({
   request,
   departments,
+  sla,
   onClose,
   onRouted,
 }: {
   request: RouteRequest | null;
   departments: { id: string; name: string }[];
+  sla: SlaHours;
   onClose: () => void;
   onRouted: (ids: string[]) => void;
 }) {
@@ -36,7 +38,7 @@ export function RouteDialog({
       <DialogContent>
         {/* Keyed so each request starts from its own defaults. */}
         {request && (
-          <RouteForm key={request.ids.join()} request={request} departments={departments} onClose={onClose} onRouted={onRouted} />
+          <RouteForm key={request.ids.join()} request={request} departments={departments} sla={sla} onClose={onClose} onRouted={onRouted} />
         )}
       </DialogContent>
     </Dialog>
@@ -46,17 +48,19 @@ export function RouteDialog({
 function RouteForm({
   request,
   departments,
+  sla,
   onClose,
   onRouted,
 }: {
   request: RouteRequest;
   departments: { id: string; name: string }[];
+  sla: SlaHours;
   onClose: () => void;
   onRouted: (ids: string[]) => void;
 }) {
   const priority = request.priority ?? "medium";
   const [departmentId, setDepartmentId] = useState<string | null>(request.departmentId);
-  const [due, setDue] = useState(() => toLocalInput(new Date(Date.now() + DUE_HOURS[priority] * 3_600_000)));
+  const [due, setDue] = useState(() => toLocalInput(defaultDueAt(priority, new Date(), sla)));
   const [note, setNote] = useState("");
   const [pending, startTransition] = useTransition();
   const n = request.ids.length;
@@ -85,8 +89,8 @@ function RouteForm({
       <DialogHeader>
         <DialogTitle>{n === 1 ? "Turnar mención" : `Turnar ${n} menciones`}</DialogTitle>
         <DialogDescription>
-          La dependencia la verá al instante en su bandeja. Plazo sugerido para prioridad {PRIORITY_LABELS[priority].toLowerCase()}:{" "}
-          {DUE_HOURS[priority] < 48 ? `${DUE_HOURS[priority]} h` : `${DUE_HOURS[priority] / 24} días`}.
+          La dependencia la verá al instante en su bandeja. Plazo (SLA) para prioridad {PRIORITY_LABELS[priority].toLowerCase()}:{" "}
+          {formatHours(sla[priority])}.
         </DialogDescription>
       </DialogHeader>
       <div className="flex flex-col gap-1.5">

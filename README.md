@@ -66,12 +66,15 @@ tipo *Sensitive*); el build de CI comprueba que ninguna aparezca en el bundle de
 | `ALERTS_FROM_EMAIL` · `REPORTS_FROM_EMAIL` | config | Remitentes (dominio verificado en Resend) |
 | `META_APP_SECRET` · `META_GRAPH_VERSION` | **secreto** · config | Conector de Facebook/Instagram |
 | `YOUTUBE_API_KEY` | **secreto** | Conector de YouTube |
-| `WHATSAPP_TOKEN` · `WHATSAPP_PHONE_NUMBER_ID` · `WHATSAPP_TEMPLATE` · `WHATSAPP_TEMPLATE_LANG` | **secreto** · config | Alertas por WhatsApp (opcional) |
+| `WHATSAPP_TOKEN` · `WHATSAPP_PHONE_NUMBER_ID` · `WHATSAPP_TEMPLATE_LANG` | **secreto** · config | Canal de WhatsApp con funcionarios (ver [WhatsApp](#whatsapp)) |
+| `WHATSAPP_APP_SECRET` · `WHATSAPP_VERIFY_TOKEN` | **secreto** | Firma y verificación del webhook de WhatsApp (por omisión la firma usa `META_APP_SECRET`) |
+| `WHATSAPP_DISPLAY_PHONE` · `WHATSAPP_TEMPLATE` | config | Número que se muestra (por omisión +52 56 2133 9211) · plantilla de alertas |
 | `RETENTION_MONTHS` | config | Meses que se conservan las menciones (por omisión 24) |
 | `ERROR_WEBHOOK_URL` | **secreto** | Webhook tipo Slack para avisar errores (opcional) |
 
-Sólo para pruebas: `ANTHROPIC_BASE_URL`, `RESEND_BASE_URL`, `E2E_BASE_URL`, `E2E_SUPABASE_URL`,
-`E2E_SUPABASE_SERVICE_ROLE_KEY`, `VERCEL_AUTOMATION_BYPASS_SECRET`, `PW_CHROMIUM_PATH`.
+Sólo para pruebas: `ANTHROPIC_BASE_URL`, `RESEND_BASE_URL`, `WHATSAPP_API_URL`, `E2E_BASE_URL`, `E2E_SUPABASE_URL`,
+`E2E_SUPABASE_SERVICE_ROLE_KEY`, `E2E_WHATSAPP_APP_SECRET`, `E2E_WHATSAPP_PHONE_NUMBER_ID`,
+`VERCEL_AUTOMATION_BYPASS_SECRET`, `PW_CHROMIUM_PATH`.
 
 ## Despliegue
 
@@ -145,8 +148,11 @@ Palancas: subir el umbral de escalamiento (`ESCALATE_BELOW_CONFIDENCE`), usar So
       `server-only`, prueba estática (`src/lib/security.test.ts`) y escaneo del bundle con valores canario en CI
       (`npm run check:bundle`).
 - [x] **Rate limit en `/api/*`** desde el proxy, compartido por todas las instancias (`rate_limit_hit` en
-      Postgres): asistente 20/min por usuario, errores 30/min, cron 30/min y demás 60/min por IP; responde 429
-      con `Retry-After`. El login además tiene el límite de Supabase Auth.
+      Postgres): asistente 20/min por usuario, errores 30/min, cron 30/min, webhook de WhatsApp 600/min y demás
+      60/min por IP; responde 429 con `Retry-After`. El login además tiene el límite de Supabase Auth.
+- [x] **Webhook de WhatsApp:** sólo acepta cuerpos firmados por Meta (`X-Hub-Signature-256`, comparación en tiempo
+      constante), procesa cada mensaje una sola vez (id único) y a números que no son de funcionarios sólo les
+      responde un aviso fijo, sin guardar su número ni su texto.
 - [x] **Validación zod en todas las Server Actions** y rutas que reciben datos; una prueba estática falla si
       una Server Action con parámetros no valida su entrada.
 - [x] **Bitácora de auditoría** (`audit_log`, Configuración → Bitácora, sólo admin): triggers registran quién
@@ -156,7 +162,8 @@ Palancas: subir el umbral de escalamiento (`ESCALATE_BELOW_CONFIDENCE`), usar So
       (y sus clasificaciones, turnos y notas) y deja constancia en la bitácora.
 - [x] **Monitoreo de errores:** `instrumentation.ts` (`onRequestError`) y los error boundaries guardan los
       errores en `app_errors` sin cabeceras ni secretos y avisan a `ERROR_WEBHOOK_URL`.
-- [x] **Pruebas e2e** con Playwright (login, bandeja, turnado, reporte y mapa) en cada PR contra el stack local.
+- [x] **Pruebas e2e** con Playwright (login, bandeja, turnado, reporte, mapa y WhatsApp) en cada PR contra el
+      stack local.
 - [x] **e2e en cada preview** de Vercel contra su propio Supabase (`monitoreo-preview`): el job `e2e-preview`
       corre al terminar cada despliegue de preview (9 de 9 en verde).
 - [x] **Crons sólo en producción** (Vercel + guardia `VERCEL_ENV` en cada ruta).
@@ -363,6 +370,45 @@ bandeja filtrada; el ranking se descarga en CSV. Datos: `map_stats()` (sobre `me
 `neighborhood_detail()`, ambas sólo para lectores de toda la organización. Las menciones no tienen
 coordenadas: el mapa es por colonia y nunca ubica personas. Las que no tienen colonia identificada se
 cuentan aparte.
+
+## WhatsApp
+
+Canal directo con los funcionarios de las dependencias (nunca con ciudadanos), con el número de SIGMA
+**+52 56 2133 9211**, compartido por todos los municipios. Configuración → **WhatsApp y SLA** (sólo admin):
+
+- **SLA por prioridad** (`sla_policies`): plazo común en horas para crítica, alta, media y baja. Define la fecha
+  límite sugerida al turnar (una prioridad mayor nunca tiene un plazo mayor).
+- **Responsable por dependencia** (`departments.responsible_user_id`): un usuario de esa dependencia, o de
+  Comunicación o administración. Si cambia de rol o deja el municipio, deja de ser responsable.
+- **Número y consentimiento** (`whatsapp_contacts`): el admin registra el número y se envía la plantilla de
+  invitación; queda *activo* sólo cuando el funcionario toca **Acepto**. **BAJA** lo da de baja en cualquier
+  momento y **ALTA** lo reactiva. Un número vivo pertenece a un solo funcionario.
+- **Bitácora de mensajes** (`whatsapp_messages`, sólo admin): cada envío y respuesta con su estado (enviado,
+  entregado, leído, falló), depurada con `RETENTION_MONTHS`. Altas, bajas y cambios de SLA quedan en la bitácora
+  de auditoría.
+
+Webhook: `GET/POST /api/whatsapp/webhook` (verificación con `WHATSAPP_VERIFY_TOKEN`, firma con
+`WHATSAPP_APP_SECRET`). En pruebas, `e2e/mock-anthropic.mjs` simula la Cloud API (`WHATSAPP_API_URL`).
+
+### Alta en Meta (una vez, cuenta de SIGMA)
+
+1. Business Manager de SIGMA verificado → crear la cuenta de WhatsApp Business y agregar el número
+   +52 56 2133 9211 (no debe estar en la app normal de WhatsApp). Nombre visible: *Sigma Pulso*.
+2. App de Meta (tipo Business) con el producto WhatsApp. Usuario del sistema con permisos
+   `whatsapp_business_messaging` y `whatsapp_business_management` → token permanente.
+3. En Vercel (*Production*): `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` (el id del número, no el número),
+   `WHATSAPP_APP_SECRET` (secreto de la app) y `WHATSAPP_VERIFY_TOKEN` (cadena aleatoria que tú eliges).
+   En *Preview* lo mismo con el número de prueba de Meta.
+4. Webhook en la app de Meta: URL `https://monitoreo.sigmainteligencia.com/api/whatsapp/webhook`, el mismo
+   verify token, y suscribirse al campo **messages**.
+5. Plantillas (categoría *Utilidad*, idioma `es_MX`):
+
+   **`sigma_vinculacion`** — cuerpo:
+   > Hola {{1}}. {{2}} te registró como responsable de {{3}} en Sigma Pulso para recibir y atender por este
+   > medio las menciones ciudadanas turnadas a tu área. ¿Aceptas recibir estos mensajes?
+
+   Pie: *Escribe BAJA en cualquier momento para dejar de recibirlos.* Botones de respuesta rápida:
+   **Acepto** · **No acepto**. Ejemplos: `Ana López`, `Ayuntamiento de Alvarado`, `Obras Públicas`.
 
 ## Alertas
 
