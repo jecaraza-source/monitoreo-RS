@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight, Megaphone, Newspaper } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Reveal, SentimentBadge } from "@/components/ui-kit";
+import { InfoTip, Reveal, SentimentBadge } from "@/components/ui-kit";
 import { inboxHref, type MediaRow, type TopMention } from "@/lib/dashboard/model";
 import type { Period } from "@/lib/dashboard/period";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,13 @@ export function TopMentions({ mentions, period, index }: { mentions: TopMention[
     <Reveal delay={index * 0.06} className="h-full">
       <Card className="h-full">
         <CardHeader>
-          <CardTitle as="h3">Mayor alcance</CardTitle>
+          <div className="flex items-center gap-1">
+            <CardTitle as="h3">Mayor alcance</CardTitle>
+            <InfoTip label="Mayor alcance">
+              Las 5 publicaciones del periodo con más interacciones (likes + compartidos + comentarios): lo que más gente vio y
+              comentó, sea positivo o negativo.
+            </InfoTip>
+          </div>
           <CardDescription>Menciones con más interacciones (likes, compartidos y comentarios).</CardDescription>
         </CardHeader>
         <CardContent>
@@ -56,7 +62,13 @@ export function TopMedia({ media, period, index }: { media: MediaRow[]; period: 
     <Reveal delay={index * 0.06} className="h-full">
       <Card className="h-full">
         <CardHeader>
-          <CardTitle as="h3">Medios y figuras públicas</CardTitle>
+          <div className="flex items-center gap-1">
+            <CardTitle as="h3">Medios y figuras públicas</CardTitle>
+            <InfoTip label="Medios y figuras públicas">
+              Los medios y figuras públicas que más publicaron sobre el municipio en el periodo, con el tono (NSS) de lo que
+              dijeron. Los ciudadanos nunca aparecen en esta lista.
+            </InfoTip>
+          </div>
           <CardDescription>Quién más habló del municipio y con qué tono (NSS).</CardDescription>
         </CardHeader>
         <CardContent>

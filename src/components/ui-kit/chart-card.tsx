@@ -1,11 +1,14 @@
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { InfoTip } from "./info-tip";
 import { Reveal } from "./reveal";
 
 export type ChartCardProps = {
   title: string;
   description?: string;
+  /** What the chart shows and how to read it, behind an (i) next to the title. */
+  info?: React.ReactNode;
   /** Top-right slot: period selector, export button… */
   action?: React.ReactNode;
   /** Shows a skeleton of the same height instead of the chart. */
@@ -22,6 +25,7 @@ export type ChartCardProps = {
 export function ChartCard({
   title,
   description,
+  info,
   action,
   loading = false,
   height = 260,
@@ -34,7 +38,10 @@ export function ChartCard({
     <Reveal delay={index * 0.06} className={cn("h-full", className)}>
       <Card className="h-full">
         <CardHeader>
-          <CardTitle as="h3">{title}</CardTitle>
+          <div className="flex items-center gap-1">
+            <CardTitle as="h3">{title}</CardTitle>
+            {info && <InfoTip label={title}>{info}</InfoTip>}
+          </div>
           {description && <CardDescription>{description}</CardDescription>}
           {action && <CardAction>{action}</CardAction>}
         </CardHeader>
