@@ -1,6 +1,7 @@
 import "server-only";
 import { notify } from "@/lib/notify";
 import { siteUrl } from "@/lib/site-url";
+import { sendAlertWhatsApp } from "@/lib/whatsapp/alerts";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import {
   decideDigest,
@@ -190,17 +191,20 @@ async function fire(admin: Admin, rule: RuleRow, kind: RuleKind, d: Decision): P
   if (error) throw new Error(error.message);
   if (!eventId) return null;
 
-  const notifications = await notify(
-    {
-      title: d.title,
-      summary: d.summary,
-      severity: d.severity,
-      ruleName: rule.name || RULE_KIND_LABELS[kind],
-      orgName: rule.organizations?.name ?? "",
-      url: `${siteUrl()}/alertas?alerta=${eventId}`,
-    },
-    parseChannels(rule.channels),
-  );
+  const message = {
+    title: d.title,
+    summary: d.summary,
+    severity: d.severity,
+    ruleName: rule.name || RULE_KIND_LABELS[kind],
+    orgName: rule.organizations?.name ?? "",
+    url: `${siteUrl()}/alertas?alerta=${eventId}`,
+  };
+  const channels = parseChannels(rule.channels);
+  const [delivered, whatsapp] = await Promise.all([
+    notify(message, { email: channels.email }),
+    sendAlertWhatsApp(admin, rule.org_id, channels.whatsapp, message),
+  ]);
+  const notifications = { ...delivered, whatsapp };
   const { error: updateError } = await admin.from("alert_events").update({ notifications: notifications as never }).eq("id", eventId);
   if (updateError) console.error("[alerts] notifications:", updateError.message);
   return { ruleId: rule.id, eventId, title: d.title, notifications };

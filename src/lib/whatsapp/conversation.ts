@@ -29,6 +29,10 @@ export type Reply =
   | { kind: "ticket_action"; ticketId: string; action: TicketAction }
   /** A reply to one of our messages: becomes a note on that message's ticket, if it has one. */
   | { kind: "note"; replyTo: string; text: string }
+  /** PENDIENTES: the official's open turns. */
+  | { kind: "pending_list" }
+  /** A folio (A1B2C3): that turn's detail with its buttons. */
+  | { kind: "ticket_lookup"; folio: string }
   | { kind: "accepted"; departments: string[] }
   | { kind: "declined" }
   | { kind: "opted_out" }
@@ -53,6 +57,9 @@ const ACCEPT = new Set(["acepto", "si", "si acepto", "aceptar"]);
 const DECLINE = new Set(["no acepto", "no"]);
 const STOP = new Set(["baja", "stop", "alto", "cancelar"]);
 const START = new Set(["alta", "start"]);
+const PENDING = new Set(["pendientes", "pendiente", "mis turnos", "turnos"]);
+/** The short reference of a turn (see folio() in turn-message.ts), optionally after "folio". */
+const FOLIO = /^(?:folio )?([0-9a-f]{6})$/;
 
 export function decide(
   contact: { status: ContactStatus; departments: string[] } | null,
@@ -82,6 +89,9 @@ export function decide(
     case "active": {
       const ticket = parseTicketPayload(message.payload);
       if (ticket) return { next: null, reply: { kind: "ticket_action", ...ticket } };
+      if (!message.payload && PENDING.has(word)) return { next: null, reply: { kind: "pending_list" } };
+      const folio = message.payload ? null : FOLIO.exec(word);
+      if (folio) return { next: null, reply: { kind: "ticket_lookup", folio: folio[1].toUpperCase() } };
       if (accept) return { next: null, reply: { kind: "accepted", departments: contact.departments } };
       if (message.replyTo && message.text && !message.payload) {
         return { next: null, reply: { kind: "note", replyTo: message.replyTo, text: message.text } };
@@ -110,9 +120,11 @@ export function replyText(reply: Reply): string | null {
     case "pending_help":
       return "Para recibir los turnos de tu área por WhatsApp, responde ACEPTO. Si no quieres recibirlos, responde NO ACEPTO.";
     case "help":
-      return `Usa los botones de cada turno para marcarlo En proceso o Resuelto, o responde a su mensaje para agregar una nota. Tus turnos: ${reply.url}/bandeja\nEscribe BAJA para dejar de recibir mensajes.`;
+      return `Escribe PENDIENTES para ver tus turnos abiertos, o el folio de uno (por ejemplo A1B2C3) para ver su detalle. Usa los botones de cada turno para marcarlo En proceso o Resuelto, o responde a su mensaje para agregar una nota. Tus turnos: ${reply.url}/bandeja\nEscribe BAJA para dejar de recibir mensajes.`;
     case "ticket_action":
     case "note":
+    case "pending_list":
+    case "ticket_lookup":
     case "none":
       return null;
   }

@@ -603,14 +603,14 @@ isOneToOne: false
                   ]
                 },"tickets": {
                   Row: {
-                    "assignee_id": string | null,"created_at": string,"created_by": string | null,"department_id": string,"due_at": string | null,"id": string,"mention_id": string,"org_id": string,"resolved_at": string | null,"status": Database["public"]['Enums']["ticket_status"],"whatsapp_notified_at": string | null
+                    "assigned_at": string,"assignee_id": string | null,"created_at": string,"created_by": string | null,"department_id": string,"due_at": string | null,"id": string,"mention_id": string,"org_id": string,"resolved_at": string | null,"status": Database["public"]['Enums']["ticket_status"],"whatsapp_escalated_at": string | null,"whatsapp_notified_at": string | null,"whatsapp_reminded_at": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "assignee_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_id": string,"due_at"?: string | null,"id"?: string,"mention_id": string,"org_id": string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"whatsapp_notified_at"?: string | null
+                    "assigned_at"?: string,"assignee_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_id": string,"due_at"?: string | null,"id"?: string,"mention_id": string,"org_id": string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"whatsapp_escalated_at"?: string | null,"whatsapp_notified_at"?: string | null,"whatsapp_reminded_at"?: string | null
                   }
                   Update: {
-                    "assignee_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_id"?: string,"due_at"?: string | null,"id"?: string,"mention_id"?: string,"org_id"?: string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"whatsapp_notified_at"?: string | null
+                    "assigned_at"?: string,"assignee_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_id"?: string,"due_at"?: string | null,"id"?: string,"mention_id"?: string,"org_id"?: string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"whatsapp_escalated_at"?: string | null,"whatsapp_notified_at"?: string | null,"whatsapp_reminded_at"?: string | null
                   }
                   Relationships: [
                     {
@@ -691,6 +691,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"whatsapp_settings": {
+                  Row: {
+                    "escalation_user_id": string | null,"org_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "escalation_user_id"?: string | null,"org_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "escalation_user_id"?: string | null,"org_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "whatsapp_settings_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: true
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
                 }
           }
           Views: {
@@ -731,6 +751,11 @@ isOneToOne: false
                            },
 "can_view_officials":
 { Args: { "p_org_id": string }; Returns: boolean
+                           },
+"claim_whatsapp_followups":
+{ Args: { "p_limit": number,"p_now": string }; Returns: {
+              "kind": string,"ticket_id": string
+            }[]
                            },
 "clear_source_secret":
 { Args: { "p_source_id": string }; Returns: undefined
@@ -830,6 +855,11 @@ isOneToOne: false
 "source_labels":
 { Args: { "p_org_id": string }; Returns: {
               "id": string,"name": string,"type": Database["public"]['Enums']["source_type"]
+            }[]
+                           },
+"whatsapp_recipients":
+{ Args: { "p_org_id": string }; Returns: {
+              "email": string,"status": Database["public"]['Enums']["whatsapp_contact_status"],"user_id": string
             }[]
                            },
 "whatsapp_ticket_action":

@@ -25,6 +25,8 @@ import {
 import { cn } from "@/lib/utils";
 
 type Department = { id: string; name: string };
+/** Members who can receive alerts by WhatsApp; only "active" ones (who accepted) actually get them. */
+export type WhatsAppRecipient = { id: string; label: string; active: boolean };
 
 function useAction() {
   const [pending, startTransition] = useTransition();
@@ -41,7 +43,17 @@ function useAction() {
 
 const cooldownLabel = (m: number) => (m % 1440 === 0 ? `${m / 1440} d` : m % 60 === 0 ? `${m / 60} h` : `${m} min`);
 
-export function RulesPanel({ rules, departments, canEdit }: { rules: AlertRule[]; departments: Department[]; canEdit: boolean }) {
+export function RulesPanel({
+  rules,
+  departments,
+  recipients,
+  canEdit,
+}: {
+  rules: AlertRule[];
+  departments: Department[];
+  recipients: WhatsAppRecipient[];
+  canEdit: boolean;
+}) {
   const { pending, run } = useAction();
   const [editing, setEditing] = useState<AlertRule | "new" | null>(null);
   const departmentName = new Map(departments.map((d) => [d.id, d.name]));
@@ -127,7 +139,7 @@ export function RulesPanel({ rules, departments, canEdit }: { rules: AlertRule[]
         </ul>
       )}
 
-      <RuleDialog editing={editing} departments={departments} onClose={() => setEditing(null)} />
+      <RuleDialog editing={editing} departments={departments} recipients={recipients} onClose={() => setEditing(null)} />
     </section>
   );
 }
@@ -135,16 +147,26 @@ export function RulesPanel({ rules, departments, canEdit }: { rules: AlertRule[]
 function RuleDialog({
   editing,
   departments,
+  recipients,
   onClose,
 }: {
   editing: AlertRule | "new" | null;
   departments: Department[];
+  recipients: WhatsAppRecipient[];
   onClose: () => void;
 }) {
   return (
     <Dialog open={editing !== null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
-        {editing && <RuleForm key={editing === "new" ? "new" : editing.id} rule={editing === "new" ? null : editing} departments={departments} onClose={onClose} />}
+        {editing && (
+          <RuleForm
+            key={editing === "new" ? "new" : editing.id}
+            rule={editing === "new" ? null : editing}
+            departments={departments}
+            recipients={recipients}
+            onClose={onClose}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -170,7 +192,17 @@ const FIELDS: Record<RuleKind, Field[]> = {
   daily_digest: [{ key: "hour", label: "Hora de envío (0–23, Ciudad de México)", min: 0, max: 23 }],
 };
 
-function RuleForm({ rule, departments, onClose }: { rule: AlertRule | null; departments: Department[]; onClose: () => void }) {
+function RuleForm({
+  rule,
+  departments,
+  recipients,
+  onClose,
+}: {
+  rule: AlertRule | null;
+  departments: Department[];
+  recipients: WhatsAppRecipient[];
+  onClose: () => void;
+}) {
   const { pending, run } = useAction();
   const [kind, setKind] = useState<RuleKind>(rule?.kind ?? "spike");
   const [name, setName] = useState(rule?.name ?? RULE_KIND_LABELS.spike);
@@ -179,7 +211,7 @@ function RuleForm({ rule, departments, onClose }: { rule: AlertRule | null; depa
   );
   const [cooldown, setCooldown] = useState(rule?.cooldownMinutes ?? DEFAULT_COOLDOWN.spike);
   const [emails, setEmails] = useState(rule?.channels.email.join("\n") ?? "");
-  const [whatsapp, setWhatsapp] = useState(rule?.channels.whatsapp.join("\n") ?? "");
+  const [whatsapp, setWhatsapp] = useState<string[]>(rule?.channels.whatsapp ?? []);
   const [departmentId, setDepartmentId] = useState<string | null>(rule?.departmentId ?? null);
 
   function changeKind(next: RuleKind) {
@@ -201,7 +233,7 @@ function RuleForm({ rule, departments, onClose }: { rule: AlertRule | null; depa
               name,
               kind,
               condition,
-              channels: { email: splitList(emails), whatsapp: splitList(whatsapp) },
+              channels: { email: splitList(emails), whatsapp: whatsapp.filter((id) => recipients.some((r) => r.id === id)) },
               departmentId,
               cooldownMinutes: cooldown,
               isActive: rule?.isActive ?? true,
@@ -283,11 +315,29 @@ function RuleForm({ rule, departments, onClose }: { rule: AlertRule | null; depa
           <Label htmlFor="rule-emails">Avisar por correo</Label>
           <Textarea id="rule-emails" rows={2} value={emails} onChange={(e) => setEmails(e.target.value)} placeholder="prensa@municipio.gob.mx, …" />
         </div>
-        <div className="flex flex-col gap-1.5 sm:col-span-2">
-          <Label htmlFor="rule-whatsapp">Avisar por WhatsApp</Label>
-          <Textarea id="rule-whatsapp" rows={2} value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="+5212291234567" />
-          <span className="text-xs text-muted-foreground">Se enviará cuando el canal de WhatsApp esté configurado.</span>
-        </div>
+        <fieldset className="flex flex-col gap-1.5 sm:col-span-2">
+          <legend className="mb-1.5 text-sm font-medium">Avisar por WhatsApp</legend>
+          {recipients.length ? (
+            <ul className="flex max-h-40 flex-col gap-1 overflow-y-auto">
+              {recipients.map((r) => (
+                <li key={r.id}>
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={whatsapp.includes(r.id)}
+                      onChange={(e) => setWhatsapp(e.target.checked ? [...whatsapp, r.id] : whatsapp.filter((id) => id !== r.id))}
+                    />
+                    {r.label}
+                    {!r.active && <span className="text-xs text-muted-foreground">(aún no acepta)</span>}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <span className="text-xs text-muted-foreground">
+            Sólo funcionarios con WhatsApp registrado en Configuración → WhatsApp y SLA; reciben la alerta cuando aceptan.
+          </span>
+        </fieldset>
       </div>
 
       <DialogFooter>

@@ -74,17 +74,20 @@ export function isRuleKind(value: unknown): value is RuleKind {
   return typeof value === "string" && (RULE_KINDS as readonly string[]).includes(value);
 }
 
+/** Email addresses, and the members (user ids) to notify by WhatsApp: only those who accepted it receive it. */
 export const channelsSchema = z.object({
   email: z.array(z.email("Correo inválido.")).max(20).default([]),
-  whatsapp: z
-    .array(z.string().regex(/^\+\d{10,15}$/, "WhatsApp en formato +52…"))
-    .max(20)
-    .default([]),
+  whatsapp: z.array(z.guid("Destinatario de WhatsApp inválido.")).max(20).default([]),
 });
 export type Channels = z.infer<typeof channelsSchema>;
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Reads stored channels; WhatsApp entries that are not member ids (phone numbers from before) are dropped. */
 export function parseChannels(raw: unknown): Channels {
-  const parsed = channelsSchema.safeParse(raw ?? {});
+  const r = (raw ?? {}) as { whatsapp?: unknown };
+  const whatsapp = Array.isArray(r.whatsapp) ? r.whatsapp.filter((x): x is string => typeof x === "string" && UUID.test(x)) : [];
+  const parsed = channelsSchema.safeParse({ ...(raw as object), whatsapp });
   return parsed.success ? parsed.data : { email: [], whatsapp: [] };
 }
 
