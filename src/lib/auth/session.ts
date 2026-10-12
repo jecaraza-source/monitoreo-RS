@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { canAccessPath, canViewOfficials, homeForRole, isRole, type Access, type Role } from "./roles";
+import { canAccessPath, homeForRole, isRole, type Access, type Role } from "./roles";
 
 export type Member = {
   userId: string;
@@ -39,7 +39,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
   // until an org switcher exists.
   const { data: membership } = await supabase
     .from("memberships")
-    .select("org_id, role, department_id, can_view_officials, organizations(name), departments(name)")
+    .select("org_id, role, department_id, organizations(name), departments(name)")
     .eq("user_id", claims.sub)
     .order("created_at")
     .limit(1)
@@ -47,6 +47,14 @@ export const getSession = cache(async (): Promise<Session | null> => {
 
   if (!membership || !isRole(membership.role)) {
     return { userId: claims.sub, email, member: null };
+  }
+
+  // The officials module needs an explicit grant (admins always have it). Read
+  // through its own RPC so a database without that migration only hides the module.
+  let officials = membership.role === "admin";
+  if (membership.role === "comunicacion" || membership.role === "lectura") {
+    const { data: granted } = await supabase.rpc("can_view_officials", { p_org_id: membership.org_id });
+    officials = granted === true;
   }
 
   return {
@@ -60,7 +68,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
       role: membership.role,
       departmentId: membership.department_id,
       departmentName: membership.departments?.name ?? null,
-      access: { officials: canViewOfficials(membership.role, membership.can_view_officials) },
+      access: { officials },
     },
   };
 });

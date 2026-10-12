@@ -37,10 +37,10 @@ test.describe("Percepción de funcionarios", () => {
 
     await context.clearCookies();
     await login(page, USERS.lectura, "/funcionarios?periodo=30d");
-    await expect(page.getByText(/Acceso restringido/)).toBeVisible();
+    await expect(page.getByText(/Acceso restringido/).first()).toBeVisible();
     const card = page.getByRole("link", { name: new RegExp(NAME) });
     await card.first().click();
-    await expect(page.getByRole("heading", { name: new RegExp(NAME) })).toBeVisible();
+    await expect(page.getByRole("heading", { name: new RegExp(NAME) }).first()).toBeVisible();
     // Mentions of the alias are listed; citizens are never named.
     await expect(page.getByText(/policía municipal/i).first()).toBeVisible();
     await expect(page.getByText("Ciudadano").first()).toBeVisible();
