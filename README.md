@@ -68,7 +68,7 @@ tipo *Sensitive*); el build de CI comprueba que ninguna aparezca en el bundle de
 | `YOUTUBE_API_KEY` | **secreto** | Conector de YouTube |
 | `WHATSAPP_TOKEN` · `WHATSAPP_PHONE_NUMBER_ID` · `WHATSAPP_TEMPLATE_LANG` | **secreto** · config | Canal de WhatsApp con funcionarios (ver [WhatsApp](#whatsapp)) |
 | `WHATSAPP_APP_SECRET` · `WHATSAPP_VERIFY_TOKEN` | **secreto** | Firma y verificación del webhook de WhatsApp (por omisión la firma usa `META_APP_SECRET`) |
-| `WHATSAPP_DISPLAY_PHONE` · `WHATSAPP_TEMPLATE` | config | Número que se muestra (por omisión +52 56 2133 9211) · plantilla de alertas |
+| `WHATSAPP_DISPLAY_PHONE` · `WHATSAPP_QUIET_HOURS` | config | Número que se muestra (por omisión +52 56 2133 9211) · horario sin recordatorios ni escalamientos (por omisión `22-7`, hora de CDMX; `off` los envía a cualquier hora) |
 | `RETENTION_MONTHS` | config | Meses que se conservan las menciones (por omisión 24) |
 | `ERROR_WEBHOOK_URL` | **secreto** | Webhook tipo Slack para avisar errores (opcional) |
 
@@ -414,6 +414,20 @@ Canal directo con los funcionarios de las dependencias (nunca con ciudadanos), c
   **responder** al aviso agrega una nota. En la bandeja, el turno muestra *Avisado por WhatsApp* y las notas
   llevan la marca *por WhatsApp* (`mention_notes.channel`, la pone la base de datos). Un turno cerrado por
   Comunicación ya no se cambia desde WhatsApp.
+- **Seguimiento** (`/api/cron/whatsapp`, cada 15 min): al **75 % del plazo** el responsable recibe
+  `sigma_recordatorio`; al **vencer**, el mismo aviso como turno vencido y `sigma_escalamiento` a la persona de
+  **escalamiento** (`whatsapp_settings.escalation_user_id`: Comunicación o admin, con su WhatsApp aceptado).
+  `claim_whatsapp_followups()` marca cada turno antes de enviar (`tickets.whatsapp_reminded_at` /
+  `whatsapp_escalated_at`), así que nada se envía dos veces; turnar de nuevo reinicia el plazo
+  (`tickets.assigned_at`). No se envía de noche (`WHATSAPP_QUIET_HOURS`); los turnos vencidos hace más de 3 días
+  ya no se escalan, y los que ya iban tarde al instalar esta fase tampoco.
+- **Comandos:** **PENDIENTES** responde con los turnos abiertos del funcionario (los de sus dependencias y, si
+  es la persona de escalamiento, todos los vencidos), del más urgente al menos; escribir un **folio**
+  (`A1B2C3`) responde con su detalle y botones **En proceso** / **Resuelto** (mensaje interactivo, válido dentro
+  de las 24 h de su último mensaje).
+- **Alertas por WhatsApp:** en cada regla de `/alertas` se eligen funcionarios con WhatsApp registrado; reciben
+  `sigma_alerta` sólo si aceptaron. Comunicación ve quién tiene WhatsApp, nunca el número
+  (`whatsapp_recipients()`).
 
 Webhook: `GET/POST /api/whatsapp/webhook` (verificación con `WHATSAPP_VERIFY_TOKEN`, firma con
 `WHATSAPP_APP_SECRET`). En pruebas, `e2e/mock-anthropic.mjs` simula la Cloud API (`WHATSAPP_API_URL`).
@@ -450,6 +464,37 @@ Webhook: `GET/POST /api/whatsapp/webhook` (verificación con `WHATSAPP_VERIFY_TO
    Botones de respuesta rápida: **En proceso** · **Resuelto** · **Ver detalle**. Ejemplos: `Obras Públicas`,
    `A1B2C3`, `Hay un socavón en la calle Juárez frente a la escuela`, `Alta`, `lun 12 de oct, 02:00 p.m.`
 
+   **`sigma_recordatorio`** — cuerpo:
+   > Recordatorio del turno {{1}} de {{2}}: {{3}}. Fecha límite: {{4}}.
+   >
+   > «{{5}}»
+   >
+   > Usa los botones para actualizarlo o responde a este mensaje para agregar una nota.
+
+   Botones de respuesta rápida: **En proceso** · **Resuelto** · **Ver detalle**. Ejemplos: `A1B2C3`,
+   `Obras Públicas`, `sigue abierto y está por vencer`, `lun 12 de oct, 02:00 p.m.`,
+   `Hay un socavón en la calle Juárez frente a la escuela`.
+
+   **`sigma_escalamiento`** — cuerpo:
+   > Turno vencido: {{1}} no ha resuelto el turno {{2}} (prioridad {{3}}), que venció el {{4}}.
+   >
+   > «{{5}}»
+   >
+   > Toca Ver detalle o responde a este mensaje para agregar una nota.
+
+   Botón de respuesta rápida: **Ver detalle**. Ejemplos: `Obras Públicas`, `A1B2C3`, `alta`,
+   `lun 12 de oct, 02:00 p.m.`, `Hay un socavón en la calle Juárez frente a la escuela`.
+
+   **`sigma_alerta`** — cuerpo:
+   > Alerta de Sigma Pulso para {{1}}: {{2}}.
+   >
+   > Detalle: {{3}}
+   >
+   > Prioridad {{4}}. Consúltala en {{5}} con tu usuario.
+
+   Sin botones. Ejemplos: `Ayuntamiento de Alvarado`, `Pico de menciones: 50 en 1 hora`,
+   `Lo normal son 5 menciones por hora`, `alta`, `https://monitoreo.sigmainteligencia.com/alertas`.
+
 ## Alertas
 
 `/alertas` lista las alertas de los últimos 30 días y las reglas (admin y comunicación las editan; las
@@ -467,10 +512,10 @@ dependencias ven sólo las alertas de su área). Tipos de regla (`alert_rules.ki
 - Se evalúan al final de cada corrida de `/api/cron/classify` (cada 5 min) con `src/lib/alerts/evaluate.ts`.
 - `fire_alert()` aplica el enfriamiento por regla y huella con un candado, así que corridas simultáneas no
   duplican alertas.
-- Notificación: en la app (campana con contador y aviso en tiempo real) y por correo con Resend
-  (`RESEND_API_KEY`, `ALERTS_FROM_EMAIL`). WhatsApp está detrás del adaptador `src/lib/notify` y se activa con
-  `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` y `WHATSAPP_TEMPLATE` (plantilla aprobada por Meta con dos
-  parámetros: título y enlace). El resultado de cada canal queda en `alert_events.notifications`.
+- Notificación: en la app (campana con contador y aviso en tiempo real), por correo con Resend
+  (`RESEND_API_KEY`, `ALERTS_FROM_EMAIL`) y por WhatsApp (plantilla `sigma_alerta`) a los funcionarios elegidos
+  en la regla que aceptaron el canal (ver [WhatsApp](#whatsapp)). El resultado de cada canal queda en
+  `alert_events.notifications`.
 - Cada alerta tiene **Útil / Falsa alarma**; la lista de reglas muestra el conteo para afinar umbrales.
 
 **Sala de crisis** (`/alertas/crisis`, admin, comunicación y lectura): volumen por minuto por sentimiento,

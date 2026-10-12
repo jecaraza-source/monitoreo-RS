@@ -16,7 +16,7 @@ export async function sendAndLog(
       contact_id: target.contactId,
       direction: "out",
       wa_message_id: result.ok ? result.waId : null,
-      kind: message.kind,
+      kind: message.kind === "buttons" ? "interactive" : message.kind,
       template: message.kind === "template" ? message.template : null,
       body: (message.kind === "template" ? message.summary : message.text).slice(0, 500),
       status: result.ok ? "sent" : "failed",

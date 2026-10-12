@@ -19,7 +19,9 @@ export type OutgoingMessage =
       /** Text kept in the message log (the template with its parameters). */
       summary: string;
     }
-  | { kind: "text"; text: string };
+  | { kind: "text"; text: string }
+  /** Free-form text with up to 3 reply buttons (only within 24 h of the official's last message). */
+  | { kind: "buttons"; text: string; buttons: { id: string; title: string }[] };
 
 export type SendResult = { ok: true; waId: string } | { ok: false; error: string; notConfigured?: boolean };
 
@@ -30,6 +32,20 @@ export function whatsappConfigured(env: NotifyEnv): boolean {
 export function requestBody(to: string, message: OutgoingMessage, lang = "es_MX") {
   if (message.kind === "text") {
     return { messaging_product: "whatsapp", to, type: "text", text: { body: message.text.slice(0, 4096), preview_url: false } };
+  }
+  if (message.kind === "buttons") {
+    return {
+      messaging_product: "whatsapp",
+      to,
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: { text: message.text.slice(0, 1024) },
+        action: {
+          buttons: message.buttons.slice(0, 3).map((b) => ({ type: "reply", reply: { id: b.id.slice(0, 256), title: b.title.slice(0, 20) } })),
+        },
+      },
+    };
   }
   const components: Record<string, unknown>[] = [];
   if (message.params.length) {

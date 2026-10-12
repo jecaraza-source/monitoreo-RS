@@ -18,6 +18,6 @@ export type NotifyEnv = Record<string, string | undefined>;
 export type Fetch = typeof fetch;
 
 export interface Notifier {
-  channel: "email" | "whatsapp";
+  channel: "email";
   send(message: AlertMessage, recipients: string[], deps: { env: NotifyEnv; fetch: Fetch }): Promise<DeliveryResult>;
 }

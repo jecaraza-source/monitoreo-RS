@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { Siren } from "lucide-react";
 import { AlertsFeed } from "@/components/alerts/alerts-feed";
-import { RulesPanel } from "@/components/alerts/rules-panel";
+import { RulesPanel, type WhatsAppRecipient } from "@/components/alerts/rules-panel";
 import { PageHeader } from "@/components/layout/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,11 +26,12 @@ async function Alerts({ searchParams }: { searchParams: PageProps<"/alertas">["s
   const member = await requireSection("/alertas");
   const highlight = (await searchParams).alerta;
   const supabase = await createClient();
-  const [{ rules, events }, departments] = await Promise.all([
+  const canEdit = member.role === "admin" || member.role === "comunicacion";
+  const [{ rules, events }, departments, recipients] = await Promise.all([
     getAlerts(member),
     supabase.from("departments").select("id, name").eq("org_id", member.orgId).order("name"),
+    canEdit ? whatsappRecipients(supabase, member.orgId) : Promise.resolve([]),
   ]);
-  const canEdit = member.role === "admin" || member.role === "comunicacion";
 
   return (
     <>
@@ -52,10 +53,18 @@ async function Alerts({ searchParams }: { searchParams: PageProps<"/alertas">["s
           canRate={member.role !== "lectura"}
           highlightId={typeof highlight === "string" ? highlight : null}
         />
-        {member.role !== "dependencia" && <RulesPanel rules={rules} departments={departments.data ?? []} canEdit={canEdit} />}
+        {member.role !== "dependencia" && <RulesPanel rules={rules} departments={departments.data ?? []} recipients={recipients} canEdit={canEdit} />}
       </div>
     </>
   );
+}
+
+/** Members with a WhatsApp number that can still receive messages (pending or active). */
+async function whatsappRecipients(supabase: Awaited<ReturnType<typeof createClient>>, orgId: string): Promise<WhatsAppRecipient[]> {
+  const { data } = await supabase.rpc("whatsapp_recipients", { p_org_id: orgId });
+  return (data ?? [])
+    .filter((c) => c.status === "active" || c.status === "pending")
+    .map((c) => ({ id: c.user_id, label: c.email, active: c.status === "active" }));
 }
 
 function AlertsSkeleton() {

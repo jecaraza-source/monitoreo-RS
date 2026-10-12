@@ -98,8 +98,6 @@ export async function inviteResponsible(input: unknown): Promise<WhatsAppActionR
   if (!m) return FORBIDDEN;
   const parsed = inviteSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
-  const phone = normalizePhone(parsed.data.phone);
-  if (!phone) return { ok: false, message: "Número inválido. Usa 10 dígitos o el formato +52 55 1234 5678." };
 
   const supabase = await createClient();
   const { data: department } = await supabase
@@ -110,18 +108,33 @@ export async function inviteResponsible(input: unknown): Promise<WhatsAppActionR
     .maybeSingle();
   if (!department) return { ok: false, message: "Dependencia no encontrada." };
   if (!department.responsible_user_id) return { ok: false, message: "Primero elige al responsable de la dependencia." };
+  return invite(m, department.responsible_user_id, parsed.data.phone, department.name);
+}
 
-  const { data: contactId, error } = await supabase.rpc("invite_whatsapp_contact", {
-    p_org_id: m.orgId,
-    p_user_id: department.responsible_user_id,
-    p_phone: phone,
-  });
+/** The escalation contact's number: same invitation, for "seguimiento de turnos vencidos". */
+export async function inviteEscalation(input: unknown): Promise<WhatsAppActionResult> {
+  const m = await admin();
+  if (!m) return FORBIDDEN;
+  const parsed = z.object({ phone: inviteSchema.shape.phone }).safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const supabase = await createClient();
+  const { data: settings } = await supabase.from("whatsapp_settings").select("escalation_user_id").eq("org_id", m.orgId).maybeSingle();
+  if (!settings?.escalation_user_id) return { ok: false, message: "Primero elige a quién escalar los turnos vencidos." };
+  return invite(m, settings.escalation_user_id, parsed.data.phone, "seguimiento de turnos vencidos");
+}
+
+async function invite(m: { orgId: string; orgName: string }, userId: string, rawPhone: string, responsibility: string): Promise<WhatsAppActionResult> {
+  const phone = normalizePhone(rawPhone);
+  if (!phone) return { ok: false, message: "Número inválido. Usa 10 dígitos o el formato +52 55 1234 5678." };
+
+  const supabase = await createClient();
+  const { data: contactId, error } = await supabase.rpc("invite_whatsapp_contact", { p_org_id: m.orgId, p_user_id: userId, p_phone: phone });
   if (error) return fail(error, "registrar el número");
 
   const service = createAdminClient();
-  const { data: user } = await service.auth.admin.getUserById(department.responsible_user_id);
+  const { data: user } = await service.auth.admin.getUserById(userId);
   const name = (user.user?.user_metadata?.full_name as string | undefined)?.trim() || user.user?.email?.split("@")[0] || "";
-  const params = [name, m.orgName, department.name];
+  const params = [name, m.orgName, responsibility];
   const sent = await sendAndLog(
     service,
     { orgId: m.orgId, contactId, phone },
@@ -130,7 +143,7 @@ export async function inviteResponsible(input: unknown): Promise<WhatsAppActionR
       template: INVITE_TEMPLATE,
       params,
       buttons: [INVITE_ACCEPT, INVITE_DECLINE],
-      summary: `Invitación: ${name} · ${department.name} · ${m.orgName}`,
+      summary: `Invitación: ${name} · ${responsibility} · ${m.orgName}`,
     },
   );
   revalidatePath(PATH);
@@ -140,6 +153,29 @@ export async function inviteResponsible(input: unknown): Promise<WhatsAppActionR
     return { ok: true, message: `Número ${shown} registrado.`, warning: "WhatsApp aún no está conectado: la invitación se podrá reenviar al configurarlo." };
   }
   return { ok: true, message: `Número ${shown} registrado.`, warning: `No se pudo enviar la invitación (${sent.error}). Intenta reenviarla.` };
+}
+
+// ---------------------------------------------------------------------------
+// Escalation of expired turns
+// ---------------------------------------------------------------------------
+
+const escalationSchema = z.object({ userId: id.nullable() });
+
+export async function setEscalation(input: unknown): Promise<WhatsAppActionResult> {
+  const m = await admin();
+  if (!m) return FORBIDDEN;
+  const parsed = escalationSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("whatsapp_settings")
+    .upsert({ org_id: m.orgId, escalation_user_id: parsed.data.userId, updated_at: new Date().toISOString() }, { onConflict: "org_id" });
+  if (error) {
+    if (error.code === "23514") return { ok: false, message: "Debe ser un usuario de Comunicación o administrador." };
+    return fail(error, "guardar el escalamiento");
+  }
+  revalidatePath(PATH);
+  return { ok: true, message: parsed.data.userId ? "Los turnos vencidos se escalarán a esta persona." : "Los turnos vencidos ya no se escalan." };
 }
 
 const removeSchema = z.object({ userId: id });

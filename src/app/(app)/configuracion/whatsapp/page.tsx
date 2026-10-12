@@ -3,6 +3,7 @@ import { CheckCircle2, MessageCircle, XCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui-kit";
+import { EscalationForm } from "@/components/whatsapp/escalation-form";
 import { ResponsiblesTable, type ContactStatus } from "@/components/whatsapp/responsibles-table";
 import { SlaForm } from "@/components/whatsapp/sla-form";
 import { requireSection } from "@/lib/auth/session";
@@ -26,7 +27,7 @@ const MESSAGE_STATUS: Record<string, string> = {
 export default async function WhatsAppSettingsPage() {
   const member = await requireSection("/configuracion/whatsapp");
   const supabase = await createClient();
-  const [sla, departments, members, contacts, messages, site] = await Promise.all([
+  const [sla, departments, members, contacts, messages, settings, site] = await Promise.all([
     supabase.from("sla_policies").select("priority, hours").eq("org_id", member.orgId),
     supabase.from("departments").select("id, name, responsible_user_id").eq("org_id", member.orgId).order("name"),
     supabase.rpc("org_members", { p_org_id: member.orgId }),
@@ -37,6 +38,7 @@ export default async function WhatsAppSettingsPage() {
       .eq("org_id", member.orgId)
       .order("created_at", { ascending: false })
       .limit(25),
+    supabase.from("whatsapp_settings").select("escalation_user_id").eq("org_id", member.orgId).maybeSingle(),
     getSiteUrl(),
   ]);
 
@@ -56,6 +58,12 @@ export default async function WhatsAppSettingsPage() {
       contact: contact ? { phone: formatPhone(contact.phone), status: contact.status as ContactStatus } : null,
     };
   });
+
+  const escalationId = settings.data?.escalation_user_id ?? null;
+  const escalationContact = escalationId ? contactByUser.get(escalationId) : undefined;
+  const escalationCandidates = memberList
+    .filter((m) => m.role === "admin" || m.role === "comunicacion")
+    .map((m) => ({ id: m.user_id, label: `${m.email} (${m.role === "admin" ? "Admin" : "Comunicación"})` }));
 
   const env = process.env;
   const checks = [
@@ -121,6 +129,25 @@ export default async function WhatsAppSettingsPage() {
           ) : (
             <EmptyState title="Sin dependencias" description="Agrégalas en Catálogos." />
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="xl:col-span-2">
+        <CardHeader>
+          <CardTitle as="h2">Seguimiento de turnos</CardTitle>
+          <CardDescription>
+            Al 75% del plazo, el responsable recibe un recordatorio; al vencer, un aviso de turno vencido y se escala a la
+            persona que elijas aquí. No se envían entre 22:00 y 7:00. Por WhatsApp, cada responsable puede escribir
+            PENDIENTES para ver sus turnos abiertos o el folio de uno para ver su detalle.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <EscalationForm
+            key={escalationId ?? "none"}
+            userId={escalationId}
+            candidates={escalationCandidates}
+            contact={escalationContact ? { phone: formatPhone(escalationContact.phone), status: escalationContact.status as ContactStatus } : null}
+          />
         </CardContent>
       </Card>
 

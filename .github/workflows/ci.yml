@@ -102,6 +102,7 @@ jobs:
             echo "WHATSAPP_API_URL=http://127.0.0.1:4010/whatsapp"
             echo "WHATSAPP_APP_SECRET=e2e-whatsapp-secret"
             echo "WHATSAPP_VERIFY_TOKEN=e2e-verify"
+            echo "WHATSAPP_QUIET_HOURS=off"
             echo "E2E_WHATSAPP_APP_SECRET=e2e-whatsapp-secret"
             echo "E2E_WHATSAPP_PHONE_NUMBER_ID=PN_E2E"
           } >> "$GITHUB_ENV"

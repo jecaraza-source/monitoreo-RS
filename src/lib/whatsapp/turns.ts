@@ -2,10 +2,20 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { siteUrl } from "@/lib/site-url";
 import type { Database } from "@/lib/supabase/database.types";
-import { whatsappConfigured } from "./client";
+import { whatsappConfigured, type OutgoingMessage } from "./client";
 import type { TicketAction } from "./conversation";
 import { sendAndLog } from "./send";
-import { actionText, detailText, turnNotice, type ActionResult, type TurnDetail } from "./turn-message";
+import {
+  actionText,
+  detailMessage,
+  escalationNotice,
+  isQuietHour,
+  pendingText,
+  reminderNotice,
+  turnNotice,
+  type ActionResult,
+  type TurnDetail,
+} from "./turn-message";
 
 type Admin = SupabaseClient<Database>;
 
@@ -103,17 +113,164 @@ export async function notifyRoutedTickets(admin: Admin, ticketIds: string[]): Pr
   return sent;
 }
 
-type Contact = { id: string; org_id: string; phone: string };
+type Contact = { id: string; org_id: string; user_id: string; phone: string };
 
-/** A status button or "Ver detalle" from the turn notice. */
-export async function handleTicketButton(admin: Admin, contact: Contact, ticketId: string, action: TicketAction): Promise<string> {
+const text = (t: string): OutgoingMessage => ({ kind: "text", text: t });
+
+/** A status button or "Ver detalle" from a turn notice, reminder or detail. */
+export async function handleTicketButton(admin: Admin, contact: Contact, ticketId: string, action: TicketAction): Promise<OutgoingMessage> {
   if (action === "detail") {
     const [detail] = await turnDetails(admin, [ticketId]);
-    if (!detail || detail.orgId !== contact.org_id) return actionText(ticketId, { ok: false, reason: "not_found" }, "status");
-    return detailText(detail, siteUrl());
+    if (!detail || detail.orgId !== contact.org_id) return text(actionText(ticketId, { ok: false, reason: "not_found" }, "status"));
+    return detailMessage(detail, siteUrl());
   }
   const result = await applyAction(admin, contact.id, ticketId, { p_status: action });
-  return actionText(ticketId, result, "status");
+  return text(actionText(ticketId, result, "status"));
+}
+
+// ---------------------------------------------------------------------------
+// PENDIENTES and folio lookup
+// ---------------------------------------------------------------------------
+
+const OPEN: ("open" | "in_progress")[] = ["open", "in_progress"];
+const PENDING_SHOWN = 8;
+
+/** What an official follows: the departments they are responsible for, and every expired turn if they are the escalation contact. */
+async function scopeOf(admin: Admin, contact: Contact) {
+  const [departments, settings, membership] = await Promise.all([
+    admin.from("departments").select("id").eq("org_id", contact.org_id).eq("responsible_user_id", contact.user_id),
+    admin.from("whatsapp_settings").select("escalation_user_id").eq("org_id", contact.org_id).maybeSingle(),
+    admin.from("memberships").select("role, department_id").eq("org_id", contact.org_id).eq("user_id", contact.user_id).maybeSingle(),
+  ]);
+  return {
+    departmentIds: (departments.data ?? []).map((d) => d.id),
+    escalation: settings.data?.escalation_user_id === contact.user_id,
+    role: membership.data?.role ?? null,
+    ownDepartment: membership.data?.department_id ?? null,
+  };
+}
+
+/** Reply to PENDIENTES. */
+export async function handlePendingList(admin: Admin, contact: Contact, now = new Date()): Promise<string> {
+  const scope = await scopeOf(admin, contact);
+  const queries = [];
+  if (scope.departmentIds.length) {
+    queries.push(
+      admin
+        .from("tickets")
+        .select("id, due_at", { count: "exact" })
+        .eq("org_id", contact.org_id)
+        .in("status", OPEN)
+        .in("department_id", scope.departmentIds)
+        .order("due_at", { ascending: true, nullsFirst: false })
+        .limit(PENDING_SHOWN),
+    );
+  }
+  if (scope.escalation) {
+    let overdue = admin
+      .from("tickets")
+      .select("id, due_at", { count: "exact" })
+      .eq("org_id", contact.org_id)
+      .in("status", OPEN)
+      .lte("due_at", now.toISOString())
+      .order("due_at", { ascending: true })
+      .limit(PENDING_SHOWN);
+    if (scope.departmentIds.length) overdue = overdue.not("department_id", "in", `(${scope.departmentIds.join(",")})`);
+    queries.push(overdue);
+  }
+  const results = await Promise.all(queries);
+  const rows = results.flatMap((r) => r.data ?? []);
+  const total = results.reduce((sum, r) => sum + (r.count ?? 0), 0);
+  const ids = rows
+    .sort((a, b) => (a.due_at ?? "9999").localeCompare(b.due_at ?? "9999"))
+    .slice(0, PENDING_SHOWN)
+    .map((r) => r.id);
+  const details = await turnDetails(admin, ids);
+  const byId = new Map(details.map((d) => [d.ticketId, d]));
+  const turns = ids.flatMap((id) => byId.get(id) ?? []);
+  return pendingText(turns, total, siteUrl(), now);
+}
+
+/** A folio (first 6 characters of the ticket id): its detail, if the official may act on it. */
+export async function handleTicketLookup(admin: Admin, contact: Contact, folio: string): Promise<{ ticketId: string | null; message: OutgoingMessage }> {
+  const f = folio.toLowerCase();
+  const [{ data: tickets }, scope] = await Promise.all([
+    admin
+      .from("tickets")
+      .select("id, department_id")
+      .eq("org_id", contact.org_id)
+      .gte("id", `${f}00-0000-0000-0000-000000000000`)
+      .lte("id", `${f}ff-ffff-ffff-ffff-ffffffffffff`)
+      .limit(5),
+    scopeOf(admin, contact),
+  ]);
+  const ticket = (tickets ?? []).find(
+    (t) =>
+      scope.role === "admin" ||
+      scope.role === "comunicacion" ||
+      t.department_id === scope.ownDepartment ||
+      scope.departmentIds.includes(t.department_id),
+  );
+  const [detail] = ticket ? await turnDetails(admin, [ticket.id]) : [];
+  if (!detail) {
+    return { ticketId: null, message: text(`No encontramos el turno ${folio} entre los tuyos. Escribe PENDIENTES para ver tus turnos abiertos.`) };
+  }
+  return { ticketId: detail.ticketId, message: detailMessage(detail, siteUrl()) };
+}
+
+// ---------------------------------------------------------------------------
+// Reminders (75% of the deadline) and escalation (expired), from the cron
+// ---------------------------------------------------------------------------
+
+export type FollowUpSummary = { skipped?: string; claimed: number; reminders: number; overdue: number; escalations: number; failed: number };
+
+/** Follow-ups claimed per run; the rest go in the next one (every 15 minutes). */
+const FOLLOW_UPS_PER_RUN = 25;
+
+export async function sendFollowUps(admin: Admin, now = new Date()): Promise<FollowUpSummary> {
+  const summary: FollowUpSummary = { claimed: 0, reminders: 0, overdue: 0, escalations: 0, failed: 0 };
+  if (!whatsappConfigured(process.env)) return { ...summary, skipped: "WhatsApp no está configurado." };
+  const quiet = process.env.WHATSAPP_QUIET_HOURS ?? "22-7";
+  if (isQuietHour(now, quiet)) return { ...summary, skipped: `Horario silencioso (${quiet} h).` };
+
+  const { data: claimed, error } = await admin.rpc("claim_whatsapp_followups", { p_now: now.toISOString(), p_limit: FOLLOW_UPS_PER_RUN });
+  if (error) throw new Error(`claim: ${error.message}`);
+  summary.claimed = claimed?.length ?? 0;
+  if (!claimed?.length) return summary;
+
+  const kindById = new Map(claimed.map((c) => [c.ticket_id, c.kind]));
+  const details = await turnDetails(admin, claimed.map((c) => c.ticket_id));
+  const orgIds = [...new Set(details.map((d) => d.orgId))];
+  const [departments, settings] = await Promise.all([
+    admin.from("departments").select("id, responsible_user_id").in("id", [...new Set(details.map((d) => d.departmentId))]),
+    admin.from("whatsapp_settings").select("org_id, escalation_user_id").in("org_id", orgIds),
+  ]);
+  const responsible = new Map((departments.data ?? []).map((d) => [d.id, d.responsible_user_id]));
+  const escalation = new Map((settings.data ?? []).map((s) => [s.org_id, s.escalation_user_id]));
+  const userIds = [...new Set([...responsible.values(), ...escalation.values()].filter((x): x is string => Boolean(x)))];
+  const { data: contacts } = userIds.length
+    ? await admin.from("whatsapp_contacts").select("id, org_id, user_id, phone").in("user_id", userIds).in("org_id", orgIds).eq("status", "active")
+    : { data: [] };
+  const contactOf = (orgId: string, userId: string | null | undefined) =>
+    userId ? (contacts ?? []).find((c) => c.org_id === orgId && c.user_id === userId) : undefined;
+
+  for (const d of details) {
+    const overdue = kindById.get(d.ticketId) === "overdue";
+    const owner = contactOf(d.orgId, responsible.get(d.departmentId));
+    if (owner) {
+      const sent = await sendAndLog(admin, { orgId: d.orgId, contactId: owner.id, phone: owner.phone, ticketId: d.ticketId }, reminderNotice(d, overdue));
+      if (!sent.ok) summary.failed++;
+      else if (overdue) summary.overdue++;
+      else summary.reminders++;
+    }
+    const escalate = overdue ? contactOf(d.orgId, escalation.get(d.orgId)) : undefined;
+    if (escalate && escalate.id !== owner?.id) {
+      const sent = await sendAndLog(admin, { orgId: d.orgId, contactId: escalate.id, phone: escalate.phone, ticketId: d.ticketId }, escalationNotice(d));
+      if (sent.ok) summary.escalations++;
+      else summary.failed++;
+    }
+  }
+  return summary;
 }
 
 /** A reply to one of our messages about a ticket becomes a note on it. Null: the message was not about a ticket. */

@@ -21,7 +21,7 @@ export type ResponsibleRow = {
   contact: { phone: string; status: ContactStatus } | null;
 };
 
-const STATUS: Record<ContactStatus | "none", { label: string; className: string }> = {
+export const CONTACT_STATUS: Record<ContactStatus | "none", { label: string; className: string }> = {
   none: { label: "Sin WhatsApp", className: "bg-muted text-muted-foreground" },
   pending: { label: "Invitación enviada", className: "bg-amber-500/15 text-amber-700 dark:text-amber-400" },
   active: { label: "Activo", className: "bg-positive/15 text-positive" },
@@ -52,7 +52,7 @@ export function ResponsiblesTable({ rows }: { rows: ResponsibleRow[] }) {
 function Row({ row }: { row: ResponsibleRow }) {
   const { pending, run } = useWhatsAppAction();
   const [phone, setPhone] = useState(row.contact?.phone ?? "");
-  const status = STATUS[row.contact?.status ?? "none"];
+  const status = CONTACT_STATUS[row.contact?.status ?? "none"];
   const resend = row.contact && phone === row.contact.phone;
 
   return (

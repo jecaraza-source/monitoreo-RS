@@ -1,14 +1,14 @@
 // lib/notify: sends an alert through every configured channel. In-app
-// delivery is the alert_events row itself (Realtime pushes it to the bell).
+// delivery is the alert_events row itself (Realtime pushes it to the bell);
+// WhatsApp goes only to officials who accepted it (lib/whatsapp/alerts.ts).
 import { emailNotifier } from "./email.ts";
 import type { AlertMessage, DeliveryResult, Fetch, Notifier, NotifyEnv } from "./types.ts";
-import { whatsappNotifier } from "./whatsapp.ts";
 
 export type { AlertMessage, DeliveryResult } from "./types.ts";
 
-export const NOTIFIERS: Notifier[] = [emailNotifier, whatsappNotifier];
+export const NOTIFIERS: Notifier[] = [emailNotifier];
 
-export type Recipients = { email: string[]; whatsapp: string[] };
+export type Recipients = { email: string[] };
 
 export async function notify(
   message: AlertMessage,

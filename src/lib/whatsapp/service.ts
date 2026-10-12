@@ -2,9 +2,10 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { siteUrl } from "@/lib/site-url";
 import type { Database } from "@/lib/supabase/database.types";
+import type { OutgoingMessage } from "./client";
 import { decide, replyText, type ContactStatus } from "./conversation";
 import { sendAndLog } from "./send";
-import { handleNoteReply, handleTicketButton } from "./turns";
+import { handleNoteReply, handlePendingList, handleTicketButton, handleTicketLookup } from "./turns";
 import { previousStatuses, type InboundMessage, type StatusUpdate, type WebhookEvents } from "./webhook";
 
 type Admin = SupabaseClient<Database>;
@@ -27,14 +28,14 @@ async function contactFor(admin: Admin, phone: string): Promise<ContactRow | nul
   return rows.find((c) => c.status === "pending" || c.status === "active") ?? rows[0] ?? null;
 }
 
+/** What the official is responsible for, as named in the replies. */
 async function departmentsOf(admin: Admin, contact: ContactRow): Promise<string[]> {
-  const { data } = await admin
-    .from("departments")
-    .select("name")
-    .eq("org_id", contact.org_id)
-    .eq("responsible_user_id", contact.user_id)
-    .order("name");
-  return (data ?? []).map((d) => d.name);
+  const [{ data }, { data: settings }] = await Promise.all([
+    admin.from("departments").select("name").eq("org_id", contact.org_id).eq("responsible_user_id", contact.user_id).order("name"),
+    admin.from("whatsapp_settings").select("escalation_user_id").eq("org_id", contact.org_id).maybeSingle(),
+  ]);
+  const names = (data ?? []).map((d) => d.name);
+  return settings?.escalation_user_id === contact.user_id ? [...names, "seguimiento de turnos vencidos"] : names;
 }
 
 const STAMP: Partial<Record<ContactStatus, "confirmed_at" | "opted_out_at">> = { active: "confirmed_at", opted_out: "opted_out_at" };
@@ -79,20 +80,27 @@ async function handleMessage(admin: Admin, message: InboundMessage) {
       if (updateError) throw new Error(`contact: ${updateError.message}`);
     }
 
-    let text = replyText(decision.reply);
+    const text = replyText(decision.reply);
+    let reply: OutgoingMessage | null = text ? { kind: "text", text } : null;
     let ticketId: string | null = null;
     if (contact && decision.reply.kind === "ticket_action") {
       ticketId = decision.reply.ticketId;
-      text = await handleTicketButton(admin, contact, ticketId, decision.reply.action);
+      reply = await handleTicketButton(admin, contact, ticketId, decision.reply.action);
     } else if (contact && decision.reply.kind === "note") {
       const note = await handleNoteReply(admin, contact, decision.reply.replyTo, decision.reply.text);
       ticketId = note?.ticketId ?? null;
-      text = note?.reply ?? replyText({ kind: "help", url: siteUrl() });
+      reply = { kind: "text", text: note?.reply ?? replyText({ kind: "help", url: siteUrl() })! };
+    } else if (contact && decision.reply.kind === "pending_list") {
+      reply = { kind: "text", text: await handlePendingList(admin, contact) };
+    } else if (contact && decision.reply.kind === "ticket_lookup") {
+      const lookup = await handleTicketLookup(admin, contact, decision.reply.folio);
+      ticketId = lookup.ticketId;
+      reply = lookup.message;
     }
     if (ticketId) await admin.from("whatsapp_messages").update({ ticket_id: ticketId }).eq("id", logged[0].id);
 
-    if (text) {
-      await sendAndLog(admin, { orgId: contact?.org_id ?? null, contactId: contact?.id ?? null, phone: message.from, ticketId }, { kind: "text", text });
+    if (reply) {
+      await sendAndLog(admin, { orgId: contact?.org_id ?? null, contactId: contact?.id ?? null, phone: message.from, ticketId }, reply);
     }
   } catch (cause) {
     // Let Meta retry the whole message.

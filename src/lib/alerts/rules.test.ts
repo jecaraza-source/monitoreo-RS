@@ -115,6 +115,9 @@ describe("parsing", () => {
     assert.deepEqual(parseCondition("spike", {}), { window_minutes: 60, baseline_days: 14, k: 3, min_mentions: 10 });
     assert.equal(parseCondition("spike", { k: 50 }), null);
     assert.deepEqual(parseChannels({ email: ["a@b.mx"] }), { email: ["a@b.mx"], whatsapp: [] });
+    // WhatsApp recipients are members; old phone numbers are dropped, not the whole rule.
+    const member = "00000000-0000-4000-d000-000000000001";
+    assert.deepEqual(parseChannels({ email: ["a@b.mx"], whatsapp: ["+5212291234567", member] }), { email: ["a@b.mx"], whatsapp: [member] });
     assert.deepEqual(splitList("a@b.mx, c@d.mx\n a@b.mx"), ["a@b.mx", "c@d.mx"]);
     assert.equal(defaultRules().length, 5);
   });

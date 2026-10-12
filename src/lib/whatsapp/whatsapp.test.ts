@@ -2,7 +2,19 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { requestBody, sendWhatsApp } from "./client.ts";
 import { decide, INVITE_ACCEPT, INVITE_DECLINE, keyword, parseTicketPayload, replyText, ticketPayload } from "./conversation.ts";
-import { actionText, detailText, folio, oneLine, turnNotice } from "./turn-message.ts";
+import { alertNotice } from "./alert-message.ts";
+import {
+  actionText,
+  detailMessage,
+  detailText,
+  escalationNotice,
+  folio,
+  isQuietHour,
+  oneLine,
+  pendingText,
+  reminderNotice,
+  turnNotice,
+} from "./turn-message.ts";
 import { formatPhone, maskPhone, normalizePhone } from "./phone.ts";
 import { parseWebhook, previousStatuses, signBody, verifyChallenge, verifySignature } from "./webhook.ts";
 
@@ -214,5 +226,86 @@ describe("turns", () => {
     assert.equal(actionText(ticketId, { ok: true, status: "open" }, "note"), "Nota agregada al turno A1B2C3.");
     assert.match(actionText(ticketId, { ok: false, reason: "forbidden" }, "status"), /ya no está asignado/);
     assert.equal(folio(ticketId), "A1B2C3");
+  });
+
+  it("answers PENDIENTES and folios of active officials only", () => {
+    const active = { status: "active" as const, departments: ["Obras"] };
+    assert.deepEqual(decide(active, { text: "Pendientes", payload: null }, "u").reply, { kind: "pending_list" });
+    assert.deepEqual(decide(active, { text: "mis turnos", payload: null }, "u").reply, { kind: "pending_list" });
+    assert.deepEqual(decide(active, { text: "a1b2c3", payload: null }, "u").reply, { kind: "ticket_lookup", folio: "A1B2C3" });
+    assert.deepEqual(decide(active, { text: "Folio A1B2C3", payload: null }, "u").reply, { kind: "ticket_lookup", folio: "A1B2C3" });
+    assert.equal(decide(active, { text: "A1B2C3 ya quedó", payload: null }, "u").reply.kind, "help");
+    assert.equal(decide({ ...active, status: "pending" }, { text: "pendientes", payload: null }, "u").reply.kind, "pending_help");
+    assert.match(replyText({ kind: "help", url: "https://pulso.example" })!, /PENDIENTES/);
+  });
+
+  it("builds reminders, expired notices and escalations", () => {
+    const reminder = reminderNotice({ ...turn, status: "in_progress" }, false);
+    assert.equal(reminder.kind, "template");
+    if (reminder.kind !== "template") return;
+    assert.equal(reminder.template, "sigma_recordatorio");
+    assert.equal(reminder.params[0], "A1B2C3");
+    assert.equal(reminder.params[1], "Obras Públicas");
+    assert.equal(reminder.params[2], "sigue en proceso y está por vencer");
+    assert.match(reminder.params[3], /^lun 12 de oct/);
+    assert.equal(reminder.buttons?.length, 3);
+    assert.ok(reminder.params.every((p) => !p.includes("\n")));
+
+    const expired = reminderNotice({ ...turn, status: "open" }, true);
+    assert.ok(expired.kind === "template" && expired.params[2] === "sigue abierto y ya venció" && expired.summary.startsWith("Turno vencido"));
+
+    const escalation = escalationNotice({ ...turn, status: "open" });
+    assert.ok(escalation.kind === "template");
+    if (escalation.kind !== "template") return;
+    assert.equal(escalation.template, "sigma_escalamiento");
+    assert.deepEqual(escalation.params.slice(0, 3), ["Obras Públicas", "A1B2C3", "alta"]);
+    assert.deepEqual(escalation.buttons, [`ticket:${ticketId}:detail`]);
+  });
+
+  it("lists pending turns and sends details with buttons", () => {
+    const now = new Date("2026-10-12T21:00:00Z");
+    const text = pendingText([{ ...turn, status: "open" }], 3, "https://pulso.example", now);
+    assert.match(text, /^Tienes 3 turnos pendientes \(los 1 más urgentes\):/);
+    assert.match(text, /1\. A1B2C3 · Obras Públicas · Alta · Abierto/);
+    assert.match(text, /⚠️ vencido/);
+    assert.match(pendingText([], 0, "https://pulso.example", now), /No tienes turnos pendientes/);
+
+    const base = { ...turn, mentionId: "m1", source: null, publishedAt: "2026-10-11T15:00:00Z", neighborhood: null, url: null };
+    const open = detailMessage({ ...base, status: "open" }, "https://pulso.example");
+    assert.equal(open.kind, "buttons");
+    if (open.kind !== "buttons") return;
+    assert.deepEqual(open.buttons.map((b) => b.title), ["En proceso", "Resuelto"]);
+    assert.ok(open.text.length <= 1024);
+    assert.equal(detailMessage({ ...base, status: "resolved" }, "u").kind, "text");
+
+    const body = requestBody("525621339211", open) as { type: string; interactive: { action: { buttons: { reply: { id: string } }[] } } };
+    assert.equal(body.type, "interactive");
+    assert.equal(body.interactive.action.buttons[1].reply.id, `ticket:${ticketId}:resolved`);
+  });
+
+  it("keeps reminders out of the night in Mexico City", () => {
+    assert.equal(isQuietHour(new Date("2026-10-12T04:30:00Z")), true); // 22:30
+    assert.equal(isQuietHour(new Date("2026-10-12T12:59:00Z")), true); // 06:59
+    assert.equal(isQuietHour(new Date("2026-10-12T13:00:00Z")), false); // 07:00
+    assert.equal(isQuietHour(new Date("2026-10-12T21:00:00Z")), false); // 15:00
+    assert.equal(isQuietHour(new Date("2026-10-12T04:30:00Z"), "off"), false);
+    assert.equal(isQuietHour(new Date("2026-10-12T20:00:00Z"), "14-16"), true); // 14:00
+  });
+});
+
+describe("WhatsApp alerts", () => {
+  it("fills the alert template in one line per parameter", () => {
+    const notice = alertNotice({
+      title: "Pico de menciones: 50 en 1 hora",
+      summary: "Lo normal es 5.\nRevisa el tablero.",
+      severity: "critical",
+      ruleName: "Pico",
+      orgName: "Alvarado",
+      url: "https://pulso.example/alertas?alerta=1",
+    });
+    assert.ok(notice.kind === "template");
+    if (notice.kind !== "template") return;
+    assert.equal(notice.template, "sigma_alerta");
+    assert.deepEqual(notice.params, ["Alvarado", "Pico de menciones: 50 en 1 hora", "Lo normal es 5. Revisa el tablero.", "crítica", "https://pulso.example/alertas?alerta=1"]);
   });
 });

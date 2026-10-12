@@ -34,15 +34,31 @@ function fromMeta(request: APIRequestContext, message: Record<string, unknown>) 
   return request.post("/api/whatsapp/webhook", { data: body, headers: { "content-type": "application/json", "x-hub-signature-256": signature } });
 }
 
-type Sent = { id: string; to: string; type: string; text?: { body: string }; template?: { name: string; components: { parameters: { payload?: string }[] }[] } };
-const sentTo = async (request: APIRequestContext): Promise<Sent[]> =>
-  ((await (await request.get(MOCK)).json()) as Sent[]).filter((m) => m.to === PHONE);
+type Sent = {
+  id: string;
+  to: string;
+  type: string;
+  text?: { body: string };
+  template?: { name: string; components: { parameters: { payload?: string; text?: string }[] }[] };
+  interactive?: { body: { text: string }; action: { buttons: { reply: { id: string; title: string } }[] } };
+};
+const sentTo = async (request: APIRequestContext, phone = PHONE): Promise<Sent[]> =>
+  ((await (await request.get(MOCK)).json()) as Sent[]).filter((m) => m.to === phone);
 
 const live = (page: import("@playwright/test").Page) => page.getByText("En vivo", { exact: true }).waitFor({ timeout: 20_000 });
+
+const COMUNICACION_USER = "00000000-0000-4000-d000-000000000002";
+const ESCALATION_PHONE = "525500000002";
 
 async function cleanUp() {
   const db = admin();
   await db.from("departments").update({ responsible_user_id: null }).eq("id", OBRAS);
+  await db.from("whatsapp_settings").delete().not("org_id", "is", null);
+  const { data: escalation } = await db.from("whatsapp_contacts").select("id").eq("user_id", COMUNICACION_USER).maybeSingle();
+  if (escalation) {
+    await db.from("whatsapp_messages").delete().eq("contact_id", escalation.id);
+    await db.from("whatsapp_contacts").delete().eq("id", escalation.id);
+  }
   const { data: contact } = await db.from("whatsapp_contacts").select("id").eq("user_id", OBRAS_USER).maybeSingle();
   if (contact) {
     await db.from("whatsapp_messages").delete().eq("contact_id", contact.id);
@@ -183,6 +199,78 @@ test.describe("WhatsApp y SLA", () => {
       await db.from("tickets").delete().eq("mention_id", target).eq("department_id", OBRAS);
       await db.from("mention_notes").delete().eq("mention_id", target).eq("channel", "whatsapp");
       if (before) await db.from("mentions").update({ triage: before.triage }).eq("id", target);
+    }
+  });
+
+  test("an expired turn reminds the responsible and escalates; PENDIENTES and folios answer on WhatsApp", async ({ request }) => {
+    test.skip(!SECRET || !process.env.CRON_SECRET, "Sólo con el simulador de WhatsApp y CRON_SECRET.");
+    const db = admin();
+    const { data: dept } = await db.from("departments").select("org_id").eq("id", OBRAS).single();
+    const orgId = dept!.org_id;
+    await db.from("departments").update({ responsible_user_id: OBRAS_USER }).eq("id", OBRAS);
+    const confirmed = new Date().toISOString();
+    await db.from("whatsapp_contacts").insert([
+      { org_id: orgId, user_id: OBRAS_USER, phone: PHONE, status: "active", confirmed_at: confirmed },
+      { org_id: orgId, user_id: COMUNICACION_USER, phone: ESCALATION_PHONE, status: "active", confirmed_at: confirmed },
+    ]);
+    await db.from("whatsapp_settings").upsert({ org_id: orgId, escalation_user_id: COMUNICACION_USER });
+
+    // A mention without an Obras turn gets one that expired an hour ago.
+    const { data: routed } = await db.from("tickets").select("mention_id").eq("department_id", OBRAS);
+    const taken = new Set((routed ?? []).map((t) => t.mention_id));
+    const { data: mentions } = await db.from("mentions").select("id").eq("org_id", orgId).limit(50);
+    const mentionId = mentions!.find((m) => !taken.has(m.id))!.id;
+    const hour = 3_600_000;
+    // Only this turn is due: everything else counts as already followed up.
+    const stamp = new Date().toISOString();
+    await db.from("tickets").update({ whatsapp_reminded_at: stamp, whatsapp_escalated_at: stamp }).in("status", ["open", "in_progress"]);
+    const { data: ticket } = await db
+      .from("tickets")
+      .insert({
+        org_id: orgId,
+        mention_id: mentionId,
+        department_id: OBRAS,
+        status: "open",
+        assigned_at: new Date(Date.now() - 10 * hour).toISOString(),
+        due_at: new Date(Date.now() - hour).toISOString(),
+      })
+      .select("id")
+      .single();
+    const folio = ticket!.id.replace(/-/g, "").slice(0, 6).toUpperCase();
+    try {
+      const cron = await request.get("/api/cron/whatsapp", { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } });
+      expect(await cron.json()).toMatchObject({ ok: true, claimed: 1, overdue: 1, escalations: 1 });
+
+      const expired = (await sentTo(request)).findLast((m) => m.template?.name === "sigma_recordatorio");
+      expect(expired!.template!.components[0].parameters[0].text).toBe(folio);
+      expect(expired!.template!.components[0].parameters[2].text).toBe("sigue abierto y ya venció");
+      const escalated = (await sentTo(request, ESCALATION_PHONE)).findLast((m) => m.template?.name === "sigma_escalamiento");
+      expect(escalated!.template!.components[0].parameters[1].text).toBe(folio);
+
+      // Nothing is sent twice.
+      const again = await request.get("/api/cron/whatsapp", { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } });
+      expect(await again.json()).toMatchObject({ ok: true, claimed: 0 });
+
+      // PENDIENTES lists it; its folio answers with the detail and two buttons.
+      expect((await fromMeta(request, { type: "text", text: { body: "Pendientes" } })).status()).toBe(200);
+      const list = (await sentTo(request)).at(-1)!;
+      expect(list.text!.body).toContain(folio);
+      expect(list.text!.body).toContain("vencido");
+
+      await fromMeta(request, { type: "text", text: { body: folio.toLowerCase() } });
+      const detail = (await sentTo(request)).at(-1)!;
+      expect(detail.type).toBe("interactive");
+      expect(detail.interactive!.body.text).toContain(`Turno ${folio}`);
+      expect(detail.interactive!.action.buttons.map((b) => b.reply.title)).toEqual(["En proceso", "Resuelto"]);
+
+      // Its "En proceso" button works like the notice's.
+      await fromMeta(request, { type: "interactive", interactive: { button_reply: { id: `ticket:${ticket!.id}:in_progress`, title: "En proceso" } } });
+      const { data: after } = await db.from("tickets").select("status").eq("id", ticket!.id).single();
+      expect(after!.status).toBe("in_progress");
+    } finally {
+      await db.from("whatsapp_messages").delete().eq("ticket_id", ticket!.id);
+      await db.from("mention_notes").delete().eq("mention_id", mentionId).eq("channel", "whatsapp");
+      await db.from("tickets").delete().eq("id", ticket!.id);
     }
   });
 });
