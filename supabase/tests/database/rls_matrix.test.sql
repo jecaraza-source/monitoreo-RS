@@ -102,10 +102,12 @@ insert into seen select 'obras', t, pg_temp.visible(t) from tabs;
 reset role;
 
 select is((select string_agg(s.t, ', ' order by s.t) from seen s join everything e using (t)
-           where s.role = 'comunicacion' and s.n <> e.n and s.t not in ('memberships', 'audit_log', 'app_errors')), null,
-  'comunicacion reads every row of its org (not other memberships, the audit log or errors: admin only)');
+           where s.role = 'comunicacion' and s.n <> e.n
+             and s.t not in ('memberships', 'audit_log', 'app_errors', 'officials', 'official_mentions')), null,
+  'comunicacion reads every row of its org (not other memberships, the audit log or errors: admin only; officials: officials.test.sql)');
 select is((select string_agg(s.t, ', ' order by s.t) from seen s join everything e using (t)
-           where s.role = 'lectura' and s.n <> e.n and s.t not in ('memberships', 'ai_usage', 'audit_log', 'app_errors')), null,
+           where s.role = 'lectura' and s.n <> e.n
+             and s.t not in ('memberships', 'ai_usage', 'audit_log', 'app_errors', 'officials', 'official_mentions')), null,
   'lectura reads everything except AI costs and other memberships');
 select is((select string_agg(s.t, ', ' order by s.t) from seen s
            where s.role = 'obras' and s.n > 0

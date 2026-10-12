@@ -1,4 +1,4 @@
-import { Bell, Bot, FileText, Inbox, LayoutDashboard, Map, Settings, type LucideIcon } from "lucide-react";
+import { Bell, Bot, FileText, Inbox, Landmark, LayoutDashboard, Map, Settings, type LucideIcon } from "lucide-react";
 import type { SectionKey } from "@/lib/auth/roles";
 
 export const SECTION_ICONS: Record<SectionKey, LucideIcon> = {
@@ -8,5 +8,6 @@ export const SECTION_ICONS: Record<SectionKey, LucideIcon> = {
   alerts: Bell,
   reports: FileText,
   assistant: Bot,
+  officials: Landmark,
   settings: Settings,
 };

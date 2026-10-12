@@ -21,6 +21,7 @@ export type SectionKey =
   | "alerts"
   | "reports"
   | "assistant"
+  | "officials"
   | "settings";
 
 export type Section = {
@@ -28,7 +29,13 @@ export type Section = {
   href: string;
   label: string;
   roles: readonly Role[];
+  /** Also needs an explicit per-user grant (memberships.can_view_officials). */
+  restricted?: boolean;
 };
+
+/** Per-user grants on top of the role. */
+export type Access = { officials: boolean };
+const NO_GRANTS: Access = { officials: false };
 
 // Order here is the sidebar order.
 export const SECTIONS: readonly Section[] = [
@@ -38,6 +45,8 @@ export const SECTIONS: readonly Section[] = [
   { key: "alerts", href: "/alertas", label: "Alertas", roles: ["admin", "comunicacion", "dependencia", "lectura"] },
   { key: "reports", href: "/reportes", label: "Reportes", roles: ["admin", "comunicacion", "lectura"] },
   { key: "assistant", href: "/asistente", label: "Asistente", roles: ["admin", "comunicacion", "dependencia", "lectura"] },
+  // Perception of officials: restricted to members an admin authorizes.
+  { key: "officials", href: "/funcionarios", label: "Funcionarios", roles: ["admin", "comunicacion", "lectura"], restricted: true },
   { key: "settings", href: "/configuracion", label: "Configuración", roles: ["admin", "comunicacion"] },
 ];
 
@@ -62,8 +71,13 @@ export function isRole(value: unknown): value is Role {
   return typeof value === "string" && (ROLES as readonly string[]).includes(value);
 }
 
-export function sectionsForRole(role: Role): Section[] {
-  return SECTIONS.filter((section) => section.roles.includes(role));
+export function sectionsForRole(role: Role, access: Access = NO_GRANTS): Section[] {
+  return SECTIONS.filter((section) => section.roles.includes(role) && (!section.restricted || access.officials));
+}
+
+/** Whether the member may open the officials module: admins always, others when granted. */
+export function canViewOfficials(role: Role, granted: boolean): boolean {
+  return role === "admin" || (granted && (role === "comunicacion" || role === "lectura"));
 }
 
 /** Section that owns a pathname (exact match or nested route), if any. */
@@ -72,9 +86,10 @@ export function sectionForPath(pathname: string): Section | undefined {
 }
 
 /** Paths outside every section (e.g. /sin-acceso) are not role-gated here. */
-export function canAccessPath(role: Role, pathname: string): boolean {
+export function canAccessPath(role: Role, pathname: string, access: Access = NO_GRANTS): boolean {
   const section = sectionForPath(pathname);
   if (section && !section.roles.includes(role)) return false;
+  if (section?.restricted && !access.officials) return false;
   const subsection = SUBSECTIONS.find((sub) => isUnder(pathname, sub.href));
   return !subsection || subsection.roles.includes(role);
 }

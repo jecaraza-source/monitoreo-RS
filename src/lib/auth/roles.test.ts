@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { ROLES, canAccessPath, homeForRole, sectionForPath, sectionsForRole, subsectionsForRole } from "./roles.ts";
+import { ROLES, canAccessPath, canViewOfficials, homeForRole, sectionForPath, sectionsForRole, subsectionsForRole } from "./roles.ts";
 
 describe("sectionsForRole", () => {
   it("gives each role exactly its menu", () => {
@@ -13,6 +13,19 @@ describe("sectionsForRole", () => {
     ]);
     assert.deepEqual(menu("dependencia"), ["Bandeja", "Alertas", "Asistente"]);
     assert.deepEqual(menu("lectura"), ["Dashboard", "Mapa", "Alertas", "Reportes", "Asistente"]);
+  });
+
+  it("shows Funcionarios only with the explicit grant", () => {
+    const granted = { officials: true };
+    assert.ok(sectionsForRole("comunicacion", granted).some((s) => s.key === "officials"));
+    assert.ok(sectionsForRole("lectura", granted).some((s) => s.key === "officials"));
+    assert.ok(!sectionsForRole("dependencia", granted).some((s) => s.key === "officials"));
+    assert.equal(canAccessPath("lectura", "/funcionarios"), false);
+    assert.equal(canAccessPath("lectura", "/funcionarios", granted), true);
+    assert.equal(canAccessPath("dependencia", "/funcionarios", granted), false);
+    assert.equal(canViewOfficials("admin", false), true);
+    assert.equal(canViewOfficials("comunicacion", false), false);
+    assert.equal(canViewOfficials("dependencia", true), false);
   });
 });
 

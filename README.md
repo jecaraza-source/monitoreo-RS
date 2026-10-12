@@ -371,6 +371,23 @@ bandeja filtrada; el ranking se descarga en CSV. Datos: `map_stats()` (sobre `me
 coordenadas: el mapa es por colonia y nunca ubica personas. Las que no tienen colonia identificada se
 cuentan aparte.
 
+## Percepción de funcionarios
+
+`/funcionarios`: lo que la ciudadanía dice de la gestión del presidente municipal y los funcionarios (no sólo de
+los servicios). **Acceso restringido:** admin siempre; Comunicación y Consulta sólo si un admin lo autoriza en
+Configuración → Usuarios (`memberships.can_view_officials`); dependencias nunca.
+
+- **Catálogo** (Configuración → Catálogos → Funcionarios): nombre, cargo y alias (cómo los mencionan: *la
+  alcaldesa*, *el director de obras*, su usuario). Sólo servidores públicos.
+- **Detección:** una mención se asocia a un funcionario si su nombre o un alias aparece como frase en el texto
+  (sin distinguir acentos ni mayúsculas). Se calcula con triggers al llegar cada mención y al editar el catálogo,
+  también sobre el histórico (`official_mentions`).
+- **Tablero:** menciones, sentimiento neto, % negativo e interacciones contra el periodo anterior; NSS por
+  funcionario; por funcionario, menciones por día, temas, emociones y lo que se dice, con filtro por sentimiento.
+- **Salvaguardas:** los ciudadanos aparecen como «Ciudadano», sin nombre, usuario ni enlace (sólo se nombra a
+  medios y figuras públicas); no hay rankings de autores ni exportación; cada consulta queda en la bitácora
+  (`audit_log`, acción `view`). Datos sólo por `officials_stats()` y `official_mentions_list()`.
+
 ## WhatsApp
 
 Canal directo con los funcionarios de las dependencias (nunca con ciudadanos), con el número de SIGMA

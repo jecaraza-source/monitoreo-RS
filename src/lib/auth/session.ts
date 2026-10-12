@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { canAccessPath, homeForRole, isRole, type Role } from "./roles";
+import { canAccessPath, canViewOfficials, homeForRole, isRole, type Access, type Role } from "./roles";
 
 export type Member = {
   userId: string;
@@ -12,6 +12,8 @@ export type Member = {
   role: Role;
   departmentId: string | null;
   departmentName: string | null;
+  /** Per-user grants on top of the role (e.g. the officials module). */
+  access: Access;
 };
 
 export type Session = {
@@ -37,7 +39,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
   // until an org switcher exists.
   const { data: membership } = await supabase
     .from("memberships")
-    .select("org_id, role, department_id, organizations(name), departments(name)")
+    .select("org_id, role, department_id, can_view_officials, organizations(name), departments(name)")
     .eq("user_id", claims.sub)
     .order("created_at")
     .limit(1)
@@ -58,6 +60,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
       role: membership.role,
       departmentId: membership.department_id,
       departmentName: membership.departments?.name ?? null,
+      access: { officials: canViewOfficials(membership.role, membership.can_view_officials) },
     },
   };
 });
@@ -76,7 +79,7 @@ export async function requireMember(): Promise<Member> {
  */
 export async function requireSection(pathname: string): Promise<Member> {
   const member = await requireMember();
-  if (!canAccessPath(member.role, pathname)) redirect(homeForRole(member.role));
+  if (!canAccessPath(member.role, pathname, member.access)) redirect(homeForRole(member.role));
   return member;
 }
 

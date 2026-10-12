@@ -94,7 +94,7 @@ reset role;
 select pg_temp.login('00000000-0000-4000-d000-000000000002');
 set local role authenticated;
 
-select is((select count(*) from public.mentions), 200::bigint, 'comunicacion sees every mention of its org');
+select is((select count(*) from public.mentions), 208::bigint, 'comunicacion sees every mention of its org');
 select ok((select count(*) from public.mention_stats(
   '00000000-0000-4000-a000-000000000001', now() - interval '30 days', now() + interval '1 day')) > 0,
   'comunicacion gets org-wide stats');
@@ -103,7 +103,7 @@ reset role;
 select pg_temp.login('00000000-0000-4000-d000-000000000005');
 set local role authenticated;
 
-select is((select count(*) from public.mentions), 200::bigint, 'lectura sees every mention of its org');
+select is((select count(*) from public.mentions), 208::bigint, 'lectura sees every mention of its org');
 select throws_ok(
   $$ insert into public.projects (org_id, name) values ('00000000-0000-4000-a000-000000000001', 'x') $$,
   '42501', null, 'lectura cannot write');

@@ -281,14 +281,14 @@ isOneToOne: false
                   ]
                 },"memberships": {
                   Row: {
-                    "created_at": string,"department_id": string | null,"id": string,"org_id": string,"role": Database["public"]['Enums']["membership_role"],"user_id": string
+                    "can_view_officials": boolean,"created_at": string,"department_id": string | null,"id": string,"org_id": string,"role": Database["public"]['Enums']["membership_role"],"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"department_id"?: string | null,"id"?: string,"org_id": string,"role": Database["public"]['Enums']["membership_role"],"user_id": string
+                    "can_view_officials"?: boolean,"created_at"?: string,"department_id"?: string | null,"id"?: string,"org_id": string,"role": Database["public"]['Enums']["membership_role"],"user_id": string
                   }
                   Update: {
-                    "created_at"?: string,"department_id"?: string | null,"id"?: string,"org_id"?: string,"role"?: Database["public"]['Enums']["membership_role"],"user_id"?: string
+                    "can_view_officials"?: boolean,"created_at"?: string,"department_id"?: string | null,"id"?: string,"org_id"?: string,"role"?: Database["public"]['Enums']["membership_role"],"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -383,6 +383,52 @@ isOneToOne: false
                   Relationships: [
                     {
       foreignKeyName: "neighborhoods_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"official_mentions": {
+                  Row: {
+                    "mention_id": string,"official_id": string,"org_id": string,"published_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "mention_id": string,"official_id": string,"org_id": string,"published_at": string
+                  }
+                  Update: {
+                    "mention_id"?: string,"official_id"?: string,"org_id"?: string,"published_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "official_mentions_org_id_mention_id_fkey"
+      columns: ["org_id","mention_id"]
+isOneToOne: false
+      referencedRelation: "mentions"
+      referencedColumns: ["org_id","id"]
+    },{
+      foreignKeyName: "official_mentions_org_id_official_id_fkey"
+      columns: ["org_id","official_id"]
+isOneToOne: false
+      referencedRelation: "officials"
+      referencedColumns: ["org_id","id"]
+    }
+                  ]
+                },"officials": {
+                  Row: {
+                    "aliases": (string)[],"created_at": string,"id": string,"is_active": boolean,"name": string,"org_id": string,"position": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "aliases"?: (string)[],"created_at"?: string,"id"?: string,"is_active"?: boolean,"name": string,"org_id": string,"position": string
+                  }
+                  Update: {
+                    "aliases"?: (string)[],"created_at"?: string,"id"?: string,"is_active"?: boolean,"name"?: string,"org_id"?: string,"position"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "officials_org_id_fkey"
       columns: ["org_id"]
 isOneToOne: false
       referencedRelation: "organizations"
@@ -683,6 +729,9 @@ isOneToOne: false
               "baseline_mean": number,"baseline_stddev": number,"baseline_windows": number,"current_count": number
             }[]
                            },
+"can_view_officials":
+{ Args: { "p_org_id": string }; Returns: boolean
+                           },
 "clear_source_secret":
 { Args: { "p_source_id": string }; Returns: undefined
                            },
@@ -714,6 +763,14 @@ isOneToOne: false
                            },
 "neighborhood_detail":
 { Args: { "p_from": string,"p_neighborhood_id": string,"p_org_id": string,"p_to": string }; Returns: Json
+                           },
+"official_mentions_list":
+{ Args: { "p_from": string,"p_limit"?: number,"p_official_id": string,"p_org_id": string,"p_sentiment"?: Database["public"]['Enums']["sentiment"],"p_to": string }; Returns: {
+              "author": string,"emotion": string,"interactions": number,"mention_id": string,"published_at": string,"sentiment": Database["public"]['Enums']["sentiment"],"source": string,"text": string,"topic": string,"url": string
+            }[]
+                           },
+"officials_stats":
+{ Args: { "p_from": string,"p_org_id": string,"p_prev_from": string,"p_to": string }; Returns: Json
                            },
 "org_members":
 { Args: { "p_org_id": string }; Returns: {

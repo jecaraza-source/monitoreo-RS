@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth/session";
 import { parseNeighborhoodsGeoJson, type NeighborhoodGeometry } from "@/lib/geo/neighborhoods-geojson";
 import { approximateZones, OVERPASS_URL, overpassQuery, parseOverpass, type OsmZone } from "@/lib/geo/osm";
+import { parseAliases } from "@/lib/officials/model";
 import { normalizeText } from "@/lib/query/normalize";
 import { createClient } from "@/lib/supabase/server";
 
@@ -241,4 +242,46 @@ export async function deleteRiskTerm(termId: string): Promise<CatalogResult> {
   if (error) return dbError(error.code, "este término");
   revalidatePath(CATALOG_PATH);
   return { ok: true, message: "Término eliminado." };
+}
+
+// ---------------------------------------------------------------------------
+// Officials (Percepción de funcionarios): public officials in their public role
+// ---------------------------------------------------------------------------
+
+const officialSchema = z.object({
+  id: id.optional(),
+  name: z.string().trim().min(3, "Escribe el nombre completo.").max(120),
+  position: z.string().trim().min(2, "Escribe el cargo.").max(120),
+  aliases: z.string().max(2000).default(""),
+  isActive: z.boolean().default(true),
+});
+
+/** Saving recomputes which mentions talk about the official (database trigger). */
+export async function saveOfficial(input: unknown): Promise<CatalogResult> {
+  const orgId = await adminOrg();
+  if (!orgId) return FORBIDDEN;
+  const parsed = officialSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const { id: officialId, name: fullName, position, aliases, isActive } = parsed.data;
+  const row = { name: fullName, position, aliases: parseAliases(aliases), is_active: isActive };
+  const supabase = await createClient();
+  const { error } = officialId
+    ? await supabase.from("officials").update(row).eq("id", officialId).eq("org_id", orgId)
+    : await supabase.from("officials").insert({ ...row, org_id: orgId });
+  if (error) return dbError(error.code, "un funcionario");
+  revalidatePath(CATALOG_PATH);
+  revalidatePath("/funcionarios");
+  return { ok: true, message: officialId ? "Funcionario actualizado." : "Funcionario agregado." };
+}
+
+export async function deleteOfficial(officialId: string): Promise<CatalogResult> {
+  const orgId = await adminOrg();
+  if (!orgId) return FORBIDDEN;
+  if (!id.safeParse(officialId).success) return { ok: false, message: "Funcionario inválido." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("officials").delete().eq("id", officialId).eq("org_id", orgId);
+  if (error) return dbError(error.code, "este funcionario");
+  revalidatePath(CATALOG_PATH);
+  revalidatePath("/funcionarios");
+  return { ok: true, message: "Funcionario eliminado." };
 }

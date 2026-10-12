@@ -41,7 +41,7 @@ async function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider defaultOpen={sidebarOpen}>
-      <AppSidebar role={member.role} orgName={member.orgName} departmentName={member.departmentName} />
+      <AppSidebar role={member.role} access={member.access} orgName={member.orgName} departmentName={member.departmentName} />
       <SidebarInset>
         <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur">
           <SidebarTrigger className="-ml-1" aria-label="Mostrar u ocultar menú" />
