@@ -486,13 +486,13 @@ Webhook: `GET/POST /api/whatsapp/webhook` (verificación con `WHATSAPP_VERIFY_TO
    `lun 12 de oct, 02:00 p.m.`, `Hay un socavón en la calle Juárez frente a la escuela`.
 
    **`sigma_alerta`** — cuerpo:
-   > Alerta de Sigma Pulso para {{1}}: {{2}}.
+   > Se activó una alerta de monitoreo en tu cuenta de {{1}}: {{2}}.
    >
    > Detalle: {{3}}
    >
-   > Prioridad {{4}}. Consúltala en {{5}} con tu usuario.
+   > Prioridad {{4}}. Puedes revisarla en {{5}} y darle seguimiento desde la plataforma.
 
-   Sin botones. Ejemplos: `Ayuntamiento de Alvarado`, `Pico de menciones: 50 en 1 hora`,
+   Sin botones (Meta no acepta una variable al inicio o al final del cuerpo). Ejemplos: `Ayuntamiento de Alvarado`, `Pico de menciones: 50 en 1 hora`,
    `Lo normal son 5 menciones por hora`, `alta`, `https://monitoreo.sigmainteligencia.com/alertas`.
 
 ## Alertas
