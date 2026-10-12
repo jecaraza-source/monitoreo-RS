@@ -130,10 +130,15 @@ export function MentionCard({
               "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5",
               overdue ? "bg-negative/15 font-medium text-negative" : "bg-muted text-muted-foreground",
             )}
-            title={scope === "editor" ? `Turnada a ${lookups.departments.get(ticket.department_id) ?? "dependencia"}` : undefined}
+            title={
+              scope === "editor"
+                ? `Turnada a ${item.tickets.map((t) => lookups.departments.get(t.department_id) ?? "dependencia").join(", ")}`
+                : undefined
+            }
           >
             {overdue ? <AlarmClock className="size-3" aria-hidden /> : <Building2 className="size-3" aria-hidden />}
             {scope === "editor" ? lookups.departments.get(ticket.department_id) : TICKET_LABELS[ticket.status]}
+            {scope === "editor" && item.tickets.length > 1 && <span>+{item.tickets.length - 1}</span>}
             {ticket.due_at && ticket.status !== "resolved" && ticket.status !== "closed" && (
               <span suppressHydrationWarning>· {overdue ? "venció" : "vence"} {fromNow(ticket.due_at)}</span>
             )}

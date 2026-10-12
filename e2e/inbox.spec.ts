@@ -20,7 +20,7 @@ test.describe("bandeja y turnado", () => {
     await expect(aside.getByText(/negativ/i).first()).toBeVisible();
   });
 
-  test("comunicación turna a Obras Públicas y la dependencia la recibe en vivo", async ({ browser }) => {
+  test("comunicación turna a Agua con apoyo de Obras Públicas y Obras la recibe en vivo", async ({ browser }) => {
     const com = await browser.newPage();
     const obras = await browser.newPage();
     await login(obras, USERS.obras, "/bandeja");
@@ -41,20 +41,30 @@ test.describe("bandeja y turnado", () => {
       await com.locator("body").press("t");
       const dialog = com.getByRole("dialog");
       await expect(dialog.getByText("Turnar mención")).toBeVisible();
-      await dialog.getByRole("combobox", { name: "Dependencia" }).click();
-      await com.getByRole("option", { name: "Obras Públicas" }).click();
+      await dialog.getByRole("combobox", { name: "Dependencia principal" }).click();
+      await com.getByRole("option", { name: /^Agua Potable/ }).click();
+      await dialog.getByRole("checkbox", { name: "Obras Públicas" }).check();
       await dialog.getByLabel("Nota para la dependencia (opcional)").fill(NOTE);
       await dialog.getByRole("button", { name: "Turnar" }).click();
-      await expect(toast(com, /Turnad/)).toBeVisible();
+      await expect(toast(com, /Turnada a Agua Potable.* \(principal\), con apoyo de Obras Públicas/)).toBeVisible();
 
-      // The department sees it without reloading, with the note.
+      // The supporting department sees it without reloading, with the note.
       const routed = obras.locator(`article[data-mention-id="${target}"]`);
       await expect(routed).toBeVisible({ timeout: 20_000 });
       await routed.click();
-      await expect(obras.locator('aside[aria-label="Detalle de la mención"]').getByText(NOTE)).toBeVisible();
+      const aside = obras.locator('aside[aria-label="Detalle de la mención"]');
+      await expect(aside.getByText(NOTE)).toBeVisible();
+      await expect(aside.getByText("Apoyo", { exact: true })).toBeVisible();
+
+      // Comunicación sees both, the leader first (it left the "new" list).
+      await com.goto(`/bandeja?mention=${target}&status=all`);
+      await live(com);
+      await com.locator(`article[data-mention-id="${target}"]`).first().click();
+      const detail = com.locator('aside[aria-label="Detalle de la mención"]');
+      await expect(detail.getByText("Principal", { exact: true })).toBeVisible();
+      await expect(detail.getByText("Apoyo", { exact: true })).toBeVisible();
     } finally {
-      const { data: obrasDept } = await db.from("departments").select("id").eq("name", "Obras Públicas").single();
-      if (obrasDept) await db.from("tickets").delete().eq("mention_id", target).eq("department_id", obrasDept.id);
+      await db.from("tickets").delete().eq("mention_id", target);
       await db.from("mention_notes").delete().eq("mention_id", target).eq("body", NOTE);
       if (before) await db.from("mentions").update({ triage: before.triage }).eq("id", target);
       await com.close();

@@ -12,10 +12,15 @@ import { routeMentions } from "@/lib/inbox/actions";
 import { defaultDueAt, formatHours, PRIORITY_LABELS, toLocalInput, type Priority, type SlaHours } from "@/lib/inbox/model";
 import { OptionSelect } from "./option-select";
 
+/** Same limit as the server action. */
+const MAX_SUPPORT = 4;
+
 export type RouteRequest = {
   ids: string[];
-  /** Department suggested by the classifier when every mention agrees. */
+  /** Department suggested by the classifier when every mention agrees (or the current leader). */
   departmentId: string | null;
+  /** Departments a single mention is already routed to: they keep their tickets. */
+  routed: string[];
   /** Highest priority among the mentions, for the default due date. */
   priority: Priority | null;
 };
@@ -60,6 +65,7 @@ function RouteForm({
 }) {
   const priority = request.priority ?? "medium";
   const [departmentId, setDepartmentId] = useState<string | null>(request.departmentId);
+  const [supportIds, setSupportIds] = useState<string[]>([]);
   const [due, setDue] = useState(() => toLocalInput(defaultDueAt(priority, new Date(), sla)));
   const [note, setNote] = useState("");
   const [pending, startTransition] = useTransition();
@@ -74,6 +80,7 @@ function RouteForm({
       const result = await routeMentions({
         ids: request.ids,
         departmentId,
+        supportIds: supportIds.filter((d) => d !== departmentId),
         dueAt: dueAt.toISOString(),
         note: note.trim() || undefined,
       });
@@ -89,14 +96,14 @@ function RouteForm({
       <DialogHeader>
         <DialogTitle>{n === 1 ? "Turnar mención" : `Turnar ${n} menciones`}</DialogTitle>
         <DialogDescription>
-          La dependencia la verá al instante en su bandeja. Plazo (SLA) para prioridad {PRIORITY_LABELS[priority].toLowerCase()}:{" "}
+          Cada dependencia la verá al instante en su bandeja y lleva su propio estado. Plazo (SLA) para prioridad {PRIORITY_LABELS[priority].toLowerCase()}:{" "}
           {formatHours(sla[priority])}.
         </DialogDescription>
       </DialogHeader>
       <div className="flex flex-col gap-1.5">
-        <Label>Dependencia</Label>
+        <Label>Dependencia principal</Label>
         <OptionSelect
-          label="Dependencia"
+          label="Dependencia principal"
           size="default"
           value={departmentId}
           onChange={setDepartmentId}
@@ -104,6 +111,36 @@ function RouteForm({
           className="w-full"
         />
       </div>
+      <fieldset className="flex flex-col gap-1.5">
+        <legend className="mb-1 text-sm font-medium">Dependencias de apoyo (opcional)</legend>
+        <ul className="grid gap-1 sm:grid-cols-2">
+          {departments
+            .filter((d) => d.id !== departmentId)
+            .map((d) => (
+              <li key={d.id}>
+                {request.routed.includes(d.id) ? (
+                  <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                    <input type="checkbox" checked disabled aria-label={`${d.name} ya participa`} />
+                    {d.name} (ya participa)
+                  </span>
+                ) : (
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={supportIds.includes(d.id)}
+                      disabled={!supportIds.includes(d.id) && supportIds.filter((x) => x !== departmentId).length >= MAX_SUPPORT}
+                      onChange={(e) => setSupportIds(e.target.checked ? [...supportIds, d.id] : supportIds.filter((x) => x !== d.id))}
+                    />
+                    {d.name}
+                  </label>
+                )}
+              </li>
+            ))}
+        </ul>
+        <span className="text-xs text-muted-foreground">
+          Participan en la atención, por ejemplo Obras Públicas en una fuga de agua. La principal la encabeza.
+        </span>
+      </fieldset>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="route-due">Fecha límite</Label>
         <Input

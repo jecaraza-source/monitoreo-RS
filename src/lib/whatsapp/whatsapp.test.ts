@@ -283,6 +283,18 @@ describe("turns", () => {
     assert.equal(body.interactive.action.buttons[1].reply.id, `ticket:${ticketId}:resolved`);
   });
 
+  it("tells a supporting department which one leads", () => {
+    const support = { ...turn, department: "Obras Públicas", supportOf: "Agua Potable y Saneamiento" };
+    const notice = turnNotice(support);
+    assert.ok(notice.kind === "template" && notice.params[0] === "Obras Públicas, como apoyo a Agua Potable y Saneamiento");
+    const text = detailText(
+      { ...support, status: "open", mentionId: "m1", source: null, publishedAt: "2026-10-11T15:00:00Z", neighborhood: null, url: null },
+      "u",
+    );
+    assert.match(text, /Como apoyo a Agua Potable y Saneamiento, que lo encabeza\./);
+    assert.match(pendingText([{ ...support, status: "open" }], 1, "u", new Date("2026-10-12T00:00:00Z")), /Obras Públicas \(apoyo\)/);
+  });
+
   it("keeps reminders out of the night in Mexico City", () => {
     assert.equal(isQuietHour(new Date("2026-10-12T04:30:00Z")), true); // 22:30
     assert.equal(isQuietHour(new Date("2026-10-12T12:59:00Z")), true); // 06:59

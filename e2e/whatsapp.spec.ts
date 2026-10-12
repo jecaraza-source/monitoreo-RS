@@ -162,7 +162,7 @@ test.describe("WhatsApp y SLA", () => {
       await first.click();
       await page.locator("body").press("t");
       const dialog = page.getByRole("dialog");
-      await dialog.getByRole("combobox", { name: "Dependencia" }).click();
+      await dialog.getByRole("combobox", { name: "Dependencia principal" }).click();
       await page.getByRole("option", { name: "Obras Públicas" }).click();
       await dialog.getByRole("button", { name: "Turnar" }).click();
       await expect(toast(page, "Se avisará al responsable por WhatsApp")).toBeVisible();
