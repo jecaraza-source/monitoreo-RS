@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { canAccessPath, homeForRole, isRole, type Role } from "./roles";
+import { canAccessPath, homeForRole, isRole, type Access, type Role } from "./roles";
 
 export type Member = {
   userId: string;
@@ -12,6 +12,8 @@ export type Member = {
   role: Role;
   departmentId: string | null;
   departmentName: string | null;
+  /** Per-user grants on top of the role (e.g. the officials module). */
+  access: Access;
 };
 
 export type Session = {
@@ -47,6 +49,14 @@ export const getSession = cache(async (): Promise<Session | null> => {
     return { userId: claims.sub, email, member: null };
   }
 
+  // The officials module needs an explicit grant (admins always have it). Read
+  // through its own RPC so a database without that migration only hides the module.
+  let officials = membership.role === "admin";
+  if (membership.role === "comunicacion" || membership.role === "lectura") {
+    const { data: granted } = await supabase.rpc("can_view_officials", { p_org_id: membership.org_id });
+    officials = granted === true;
+  }
+
   return {
     userId: claims.sub,
     email,
@@ -58,6 +68,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
       role: membership.role,
       departmentId: membership.department_id,
       departmentName: membership.departments?.name ?? null,
+      access: { officials },
     },
   };
 });
@@ -76,7 +87,7 @@ export async function requireMember(): Promise<Member> {
  */
 export async function requireSection(pathname: string): Promise<Member> {
   const member = await requireMember();
-  if (!canAccessPath(member.role, pathname)) redirect(homeForRole(member.role));
+  if (!canAccessPath(member.role, pathname, member.access)) redirect(homeForRole(member.role));
   return member;
 }
 

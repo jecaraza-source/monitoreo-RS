@@ -19,7 +19,17 @@ const clock = new Intl.DateTimeFormat("es-MX", { hour: "2-digit", minute: "2-dig
  * stays, dimmed, instead of flashing skeletons) and the boardroom mode puts
  * the whole dashboard in full screen and refreshes it every 60 s.
  */
-export function DashboardFrame({ toolbar, children }: { toolbar: React.ReactNode; children: React.ReactNode }) {
+export function DashboardFrame({
+  toolbar,
+  children,
+  title = "Dashboard",
+  description = "Resumen ejecutivo comparado con el periodo anterior.",
+}: {
+  toolbar: React.ReactNode;
+  children: React.ReactNode;
+  title?: string;
+  description?: string;
+}) {
   const router = useRouter();
   const ref = useRef<HTMLDivElement>(null);
   const [pending, startTransition] = useTransition();
@@ -67,11 +77,11 @@ export function DashboardFrame({ toolbar, children }: { toolbar: React.ReactNode
       >
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
             <p className="text-sm text-muted-foreground">
               {presenting && updatedAt
                 ? `Se actualiza cada minuto · última actualización ${clock.format(updatedAt)}`
-                : "Resumen ejecutivo comparado con el periodo anterior."}
+                : description}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">

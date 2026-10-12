@@ -108,3 +108,36 @@ async function removeOrphanUser(service: ReturnType<typeof createAdminClient>, u
     .eq("user_id", userId);
   if (count === 0) await service.auth.admin.deleteUser(userId);
 }
+
+// ---------------------------------------------------------------------------
+// Access to the officials module (Percepción de funcionarios)
+// ---------------------------------------------------------------------------
+
+const accessSchema = z.object({ userId: z.guid("Usuario inválido."), allowed: z.boolean() });
+
+/** Grants or revokes the officials module; the change is audited like any membership change. */
+export async function setOfficialsAccess(input: unknown): Promise<{ ok: boolean; message: string }> {
+  let admin;
+  try {
+    admin = await requireRole(["admin"]);
+  } catch {
+    return { ok: false, message: "Sólo un administrador puede dar este acceso." };
+  }
+  const parsed = accessSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("memberships")
+    .update({ can_view_officials: parsed.data.allowed })
+    .eq("org_id", admin.orgId)
+    .eq("user_id", parsed.data.userId)
+    .in("role", ["comunicacion", "lectura"])
+    .select("user_id");
+  if (error) {
+    console.error("[usuarios] officials access:", error.code);
+    return { ok: false, message: "No se pudo cambiar el acceso." };
+  }
+  if (!data?.length) return { ok: false, message: "Sólo Comunicación y Consulta pueden recibir este acceso." };
+  revalidatePath("/configuracion/usuarios");
+  return { ok: true, message: parsed.data.allowed ? "Acceso a Funcionarios otorgado." : "Acceso a Funcionarios retirado." };
+}

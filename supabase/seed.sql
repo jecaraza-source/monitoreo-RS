@@ -354,4 +354,57 @@ insert into public.reports (org_id, period, period_start, period_end, content) v
   ('00000000-0000-4000-a000-000000000001', 'weekly', current_date - 7, current_date - 1,
    '{"title":"Reporte semanal de escucha ciudadana","summary":"Reporte de ejemplo generado por el seed.","highlights":[]}');
 
+-- ---------------------------------------------------------------------------
+-- Officials (Percepción de funcionarios): catalog and comments on their own
+-- performance. Matches are filled by triggers (official_mentions).
+-- ---------------------------------------------------------------------------
+
+-- Comunicación is authorized; lectura is not (admins always are).
+update public.memberships set can_view_officials = true where user_id = '00000000-0000-4000-d000-000000000002';
+
+insert into public.officials (id, org_id, name, position, aliases) values
+  ('00000000-0000-4000-e500-000000000001', '00000000-0000-4000-a000-000000000001', 'Ana Lucía Torres', 'Presidenta municipal',
+   array['presidenta municipal', 'presidente municipal', 'alcaldesa']),
+  ('00000000-0000-4000-e500-000000000002', '00000000-0000-4000-a000-000000000001', 'Raúl Méndez', 'Director de Obras Públicas',
+   array['director de obras']);
+
+insert into public.mentions (id, org_id, source_id, external_id, url, text, published_at, author_id, metrics, query_id, status)
+select
+  ('00000000-0000-4000-f100-' || lpad(v.n::text, 12, '0'))::uuid,
+  '00000000-0000-4000-a000-000000000001',
+  src.id, 'seed-official-' || v.n, 'https://example.com/o/' || v.n, v.body,
+  now() - (v.n * interval '19 hours'),
+  a.id,
+  jsonb_build_object('likes', 20 + v.n * 7, 'shares', v.n * 2, 'comments', v.n * 3),
+  '00000000-0000-4000-e100-000000000001',
+  'classified'
+from (values
+  (1, 'La alcaldesa prometió resolver lo del agua en campaña y seguimos igual. Puro discurso.'),
+  (2, 'La presidenta municipal no da la cara, nunca contesta a los vecinos. Muy mala gestión.'),
+  (3, 'Bien por la presidenta municipal, por fin alguien que recorre las colonias y escucha.'),
+  (4, 'El director de obras dice que la calle quedará en dos semanas, ya van tres meses.'),
+  (5, '¿Cuándo va a rendir cuentas la alcaldesa sobre el presupuesto de seguridad?'),
+  (6, 'Reconozco al director de obras, atendió el socavón el mismo día.'),
+  (7, 'La alcaldesa anunció más patrullas para la zona centro.'),
+  (8, 'Ninguna respuesta de la presidenta municipal a los comerciantes del mercado. Decepcionante.')
+) as v(n, body)
+cross join lateral (
+  select au.id, au.platform from public.authors au where au.kind = 'citizen' order by md5(au.handle || v.n) limit 1
+) a
+join public.sources src on src.type = a.platform;
+
+insert into public.classifications (org_id, mention_id, sentiment, confidence, emotion, topic, intent, priority, department_id, neighborhood_id, model)
+select '00000000-0000-4000-a000-000000000001', ('00000000-0000-4000-f100-' || lpad(v.n::text, 12, '0'))::uuid,
+       v.sentiment::public.sentiment, 0.9, v.emotion, v.topic, v.intent, v.priority::public.priority, null, null, 'seed'
+from (values
+  (1, 'negative', 'frustración', 'gestión del gobierno', 'queja',    'medium'),
+  (2, 'negative', 'enojo',       'gestión del gobierno', 'queja',    'medium'),
+  (3, 'positive', 'gratitud',    'gestión del gobierno', 'elogio',   'low'),
+  (4, 'negative', 'frustración', 'obra pública',         'queja',    'medium'),
+  (5, 'neutral',  'neutral',     'gestión del gobierno', 'pregunta', 'low'),
+  (6, 'positive', 'gratitud',    'obra pública',         'elogio',   'low'),
+  (7, 'neutral',  'neutral',     'seguridad pública',    'otro',     'low'),
+  (8, 'negative', 'enojo',       'gestión del gobierno', 'queja',    'medium')
+) as v(n, sentiment, emotion, topic, intent, priority);
+
 refresh materialized view public.mention_stats_hourly;

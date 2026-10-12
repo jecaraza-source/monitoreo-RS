@@ -16,21 +16,23 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { ROLE_LABELS, sectionsForRole, type Role } from "@/lib/auth/roles";
+import { ROLE_LABELS, sectionsForRole, type Access, type Role } from "@/lib/auth/roles";
 import { SECTION_ICONS } from "./nav-icons";
 
 export function AppSidebar({
   role,
+  access,
   orgName,
   departmentName,
 }: {
   role: Role;
+  access: Access;
   orgName: string;
   departmentName: string | null;
 }) {
   const pathname = usePathname();
   const { isMobile, setOpenMobile } = useSidebar();
-  const sections = sectionsForRole(role);
+  const sections = sectionsForRole(role, access);
   // On mobile the menu is a sheet: close it once a section is chosen.
   const closeOnMobile = () => isMobile && setOpenMobile(false);
 

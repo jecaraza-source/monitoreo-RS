@@ -17,6 +17,7 @@ const ACTIONS: Record<string, string> = {
   export: "Exportó",
   send: "Envió",
   purge: "Depuró",
+  view: "Consultó",
 };
 const ENTITIES: Record<string, string> = {
   memberships: "usuario",
@@ -35,6 +36,7 @@ const ENTITIES: Record<string, string> = {
   mentions: "mención",
   sla_policies: "SLA",
   whatsapp_contacts: "WhatsApp de funcionario",
+  officials: "percepción de funcionarios",
 };
 
 function summary(changes: Record<string, unknown>): string {
