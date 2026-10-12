@@ -603,14 +603,14 @@ isOneToOne: false
                   ]
                 },"tickets": {
                   Row: {
-                    "assigned_at": string,"assignee_id": string | null,"created_at": string,"created_by": string | null,"department_id": string,"due_at": string | null,"id": string,"mention_id": string,"org_id": string,"resolved_at": string | null,"status": Database["public"]['Enums']["ticket_status"],"whatsapp_escalated_at": string | null,"whatsapp_notified_at": string | null,"whatsapp_reminded_at": string | null
+                    "assigned_at": string,"assignee_id": string | null,"created_at": string,"created_by": string | null,"department_id": string,"due_at": string | null,"id": string,"is_primary": boolean,"mention_id": string,"org_id": string,"resolved_at": string | null,"status": Database["public"]['Enums']["ticket_status"],"whatsapp_escalated_at": string | null,"whatsapp_notified_at": string | null,"whatsapp_reminded_at": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "assigned_at"?: string,"assignee_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_id": string,"due_at"?: string | null,"id"?: string,"mention_id": string,"org_id": string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"whatsapp_escalated_at"?: string | null,"whatsapp_notified_at"?: string | null,"whatsapp_reminded_at"?: string | null
+                    "assigned_at"?: string,"assignee_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_id": string,"due_at"?: string | null,"id"?: string,"is_primary"?: boolean,"mention_id": string,"org_id": string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"whatsapp_escalated_at"?: string | null,"whatsapp_notified_at"?: string | null,"whatsapp_reminded_at"?: string | null
                   }
                   Update: {
-                    "assigned_at"?: string,"assignee_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_id"?: string,"due_at"?: string | null,"id"?: string,"mention_id"?: string,"org_id"?: string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"whatsapp_escalated_at"?: string | null,"whatsapp_notified_at"?: string | null,"whatsapp_reminded_at"?: string | null
+                    "assigned_at"?: string,"assignee_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_id"?: string,"due_at"?: string | null,"id"?: string,"is_primary"?: boolean,"mention_id"?: string,"org_id"?: string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"whatsapp_escalated_at"?: string | null,"whatsapp_notified_at"?: string | null,"whatsapp_reminded_at"?: string | null
                   }
                   Relationships: [
                     {
@@ -826,7 +826,7 @@ isOneToOne: false
 { Args: { "p_bucket"?: string,"p_from": string,"p_org_id": string,"p_peaks"?: (string)[],"p_to": string }; Returns: Json
                            },
 "route_mentions":
-{ Args: { "p_department_id": string,"p_due_at": string,"p_mention_ids": (string)[] }; Returns: number
+{ Args: { "p_department_id": string,"p_due_at": string,"p_mention_ids": (string)[],"p_support_ids"?: (string)[] }; Returns: number
                            },
 "save_query_version":
 { Args: { "p_builder"?: Json,"p_expression": string,"p_lineage_id"?: string,"p_name": string,"p_project_id": string }; Returns: {

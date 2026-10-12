@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Users } from "lucide-react";
 import { InviteUserForm } from "@/components/settings/invite-user-form";
+import { MemberActions } from "@/components/settings/member-actions";
 import { OfficialsAccessToggle } from "@/components/settings/officials-access-toggle";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -52,6 +53,7 @@ export default async function SettingsPage() {
                   <TableHead>Dependencia</TableHead>
                   <TableHead>Último acceso</TableHead>
                   <TableHead title="Módulo restringido de percepción de funcionarios">Funcionarios</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -71,6 +73,13 @@ export default async function SettingsPage() {
                       ) : (
                         <OfficialsAccessToggle userId={m.user_id} email={m.email} allowed={officialsAccess.get(m.user_id) ?? false} />
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <MemberActions
+                        member={{ userId: m.user_id, email: m.email, role: m.role, departmentId: m.department_id }}
+                        departments={departments ?? []}
+                        isSelf={m.user_id === member.userId}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

@@ -60,14 +60,21 @@ const turnButtons = (ticketId: string) => [
 export type TurnInfo = {
   ticketId: string;
   department: string;
+  /** For a supporting department: the department that leads the mention. */
+  supportOf?: string | null;
   text: string;
   priority: Priority;
   dueAt: string | null;
 };
 
+/** "Obras Públicas" or "Obras Públicas, como apoyo a Agua Potable". */
+export function departmentLabel(t: Pick<TurnInfo, "department" | "supportOf">): string {
+  return t.supportOf ? `${t.department}, como apoyo a ${t.supportOf}` : t.department;
+}
+
 /** sigma_turno: {{1}} department, {{2}} folio, {{3}} excerpt, {{4}} priority, {{5}} due date; three quick replies. */
 export function turnNotice(t: TurnInfo): OutgoingMessage {
-  const params = [oneLine(t.department, 60), folio(t.ticketId), oneLine(t.text, 280), PRIORITY[t.priority], formatDue(t.dueAt)];
+  const params = [oneLine(departmentLabel(t), 140), folio(t.ticketId), oneLine(t.text, 280), PRIORITY[t.priority], formatDue(t.dueAt)];
   return {
     kind: "template",
     template: TURN_TEMPLATE,
@@ -87,7 +94,7 @@ export type FollowUpInfo = TurnInfo & { status: TicketStatus };
 export function reminderNotice(t: FollowUpInfo, overdue: boolean): OutgoingMessage {
   const params = [
     folio(t.ticketId),
-    oneLine(t.department, 60),
+    oneLine(departmentLabel(t), 140),
     `sigue ${STATUS[t.status].toLowerCase()} y ${overdue ? "ya venció" : "está por vencer"}`,
     formatDue(t.dueAt),
     oneLine(t.text, 280),
@@ -103,7 +110,7 @@ export function reminderNotice(t: FollowUpInfo, overdue: boolean): OutgoingMessa
 
 /** sigma_escalamiento, to the escalation contact: {{1}} department, {{2}} folio, {{3}} priority, {{4}} due date, {{5}} excerpt; "Ver detalle". */
 export function escalationNotice(t: FollowUpInfo): OutgoingMessage {
-  const params = [oneLine(t.department, 60), folio(t.ticketId), PRIORITY[t.priority].toLowerCase(), formatDue(t.dueAt), oneLine(t.text, 280)];
+  const params = [oneLine(departmentLabel(t), 140), folio(t.ticketId), PRIORITY[t.priority].toLowerCase(), formatDue(t.dueAt), oneLine(t.text, 280)];
   return {
     kind: "template",
     template: ESCALATION_TEMPLATE,
@@ -119,7 +126,7 @@ export function pendingText(turns: FollowUpInfo[], total: number, appUrl: string
   const lines = turns.map((t, i) => {
     const late = t.dueAt && new Date(t.dueAt) <= now ? " ⚠️ vencido" : "";
     return [
-      `${i + 1}. ${folio(t.ticketId)} · ${t.department} · ${PRIORITY[t.priority]} · ${STATUS[t.status]}`,
+      `${i + 1}. ${folio(t.ticketId)} · ${t.department}${t.supportOf ? " (apoyo)" : ""} · ${PRIORITY[t.priority]} · ${STATUS[t.status]}`,
       `   Vence: ${formatDue(t.dueAt)}${late}`,
       `   «${oneLine(t.text, 90)}»`,
     ].join("\n");
@@ -141,6 +148,7 @@ export function detailText(d: TurnDetail, appUrl: string): string {
   const text = d.text.length > 900 ? `${d.text.slice(0, 899).trimEnd()}…` : d.text;
   return [
     `Turno ${folio(d.ticketId)} · ${d.department}`,
+    d.supportOf ? `Como apoyo a ${d.supportOf}, que lo encabeza.` : null,
     `Estado: ${STATUS[d.status]} · Prioridad ${PRIORITY[d.priority].toLowerCase()} · Vence: ${formatDue(d.dueAt)}`,
     d.neighborhood ? `Colonia: ${d.neighborhood}` : null,
     `Publicado: ${dateTime.format(new Date(d.publishedAt))}${d.source ? ` en ${d.source}` : ""}`,

@@ -325,7 +325,7 @@ function Tickets({
         scope === "editor" &&
         item.tickets.length > 0 && (
           <Button size="xs" variant="ghost" onClick={onRoute}>
-            <Send aria-hidden /> Turnar a otra
+            <Send aria-hidden /> Agregar o cambiar
           </Button>
         )
       }
@@ -339,7 +339,12 @@ function Tickets({
             return (
               <li key={t.id} className={cn("flex flex-col gap-2 rounded-lg border p-3", overdue && "border-negative/40 bg-negative/5")}>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{lookups.departments.get(t.department_id) ?? "Dependencia"}</span>
+                  <span className="flex min-w-0 flex-col">
+                    <span className="font-medium">{lookups.departments.get(t.department_id) ?? "Dependencia"}</span>
+                    {(item.tickets.length > 1 || !t.is_primary) && (
+                      <span className="text-xs text-muted-foreground">{t.is_primary ? "Principal" : "Apoyo"}</span>
+                    )}
+                  </span>
                   <OptionSelect
                     label="Estado del ticket"
                     value={t.status}

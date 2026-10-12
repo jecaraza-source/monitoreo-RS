@@ -325,6 +325,11 @@ Funciones:
 - Panel de detalle: corrección de la clasificación (la base registra `corrected_by` y `corrected_at`),
   turnar con fecha límite sugerida por prioridad (crítica 12 h, alta 24 h, media 72 h, baja 7 días),
   estado del ticket y notas compartidas entre Comunicación y la dependencia.
+- **Varias dependencias:** al turnar se elige la **principal** y, opcionalmente, hasta 4 de **apoyo** (por ejemplo,
+  una fuga de agua: Agua Potable encabeza y Obras Públicas repara el pavimento). Cada una tiene su propio
+  ticket, estado y avisos por WhatsApp (a la de apoyo le dice a quién apoya); una mención tiene una sola
+  principal (`tickets.is_primary`, índice único) y sólo Comunicación o admin la cambian. Turnar de nuevo con
+  otra principal deja a la anterior como apoyo.
 - Acciones masivas: turnar, marcar revisadas y descartar (con deshacer).
 - Atajos: `j`/`k` navegar, `Enter` abrir, `x` seleccionar, `t` turnar, `d` descartar, `r` revisada,
   `/` buscar, `?` ayuda.
@@ -332,7 +337,7 @@ Funciones:
   publicación `supabase_realtime`): cada cambio llega filtrado por RLS, la tarjeta entra animada y a la
   dependencia le aparece el ticket recién turnado con un aviso.
 
-Turnar usa `route_mentions()` (crea los tickets y marca las menciones como turnadas en una transacción,
+Turnar usa `route_mentions(menciones, principal, fecha, apoyo[])` (crea los tickets y marca las menciones como turnadas en una transacción,
 con los permisos de quien llama). En Supabase hospedado, la publicación `supabase_realtime` ya existe; la
 migración le agrega las tablas.
 

@@ -66,34 +66,42 @@ export async function setTriage(input: unknown): Promise<InboxActionResult> {
 // Routing (comunicación)
 // ---------------------------------------------------------------------------
 
-const routeSchema = z.object({
-  ids,
-  departmentId: id,
-  dueAt: z.iso.datetime({ offset: true, message: "Fecha límite inválida." }),
-  note: z.string().trim().max(2000).optional(),
-});
+const routeSchema = z
+  .object({
+    ids,
+    departmentId: id,
+    /** Departments that support the leading one (e.g. Obras Públicas on a water leak). */
+    supportIds: z.array(id).max(4, "Máximo 4 dependencias de apoyo.").default([]),
+    dueAt: z.iso.datetime({ offset: true, message: "Fecha límite inválida." }),
+    note: z.string().trim().max(2000).optional(),
+  })
+  .transform((r) => ({ ...r, supportIds: [...new Set(r.supportIds)].filter((d) => d !== r.departmentId) }));
+
+/** "A", "A y B", "A, B y C". */
+const joinNames = (names: string[]) => (names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} y ${names.at(-1)}`);
 
 export async function routeMentions(input: unknown): Promise<InboxActionResult> {
   const m = await member(EDITORS);
   if (!m) return FORBIDDEN;
   const parsed = routeSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
-  const { ids: mentionIds, departmentId, dueAt, note } = parsed.data;
+  const { ids: mentionIds, departmentId, supportIds, dueAt, note } = parsed.data;
   if (new Date(dueAt).getTime() < Date.now() - 60_000) return { ok: false, message: "La fecha límite ya pasó." };
 
   const supabase = await createClient();
-  const { data: department } = await supabase
+  const { data: departments } = await supabase
     .from("departments")
-    .select("name")
+    .select("id, name")
     .eq("org_id", m.orgId)
-    .eq("id", departmentId)
-    .maybeSingle();
-  if (!department) return { ok: false, message: "Dependencia no encontrada." };
+    .in("id", [departmentId, ...supportIds]);
+  const name = new Map((departments ?? []).map((d) => [d.id, d.name]));
+  if (!name.has(departmentId) || supportIds.some((d) => !name.has(d))) return { ok: false, message: "Dependencia no encontrada." };
 
   const { data: routed, error } = await supabase.rpc("route_mentions", {
     p_mention_ids: mentionIds,
     p_department_id: departmentId,
     p_due_at: dueAt,
+    p_support_ids: supportIds,
   });
   if (error) return fail(error, "turnar");
 
@@ -103,37 +111,45 @@ export async function routeMentions(input: unknown): Promise<InboxActionResult> 
       .insert(mentionIds.map((mentionId) => ({ org_id: m.orgId, mention_id: mentionId, body: note })));
     if (noteError) console.error("[inbox] route note:", noteError.code);
   }
-  const n = routed ?? mentionIds.length;
-  const whatsapp = await noticeRouted(m.orgId, departmentId, mentionIds);
-  const base = n === 1 ? `Turnada a ${department.name}.` : `${n} menciones turnadas a ${department.name}.`;
-  return { ok: true, message: whatsapp ? `${base} Se avisará al responsable por WhatsApp.` : base };
+  const n = mentionIds.length;
+  if (!routed) return { ok: false, message: "No se turnó ninguna mención." };
+  const whatsapp = await noticeRouted(m.orgId, [departmentId, ...supportIds], mentionIds);
+  const target = supportIds.length
+    ? `${name.get(departmentId)} (principal), con apoyo de ${joinNames(supportIds.map((d) => name.get(d)!))}`
+    : name.get(departmentId);
+  const base = n === 1 ? `Turnada a ${target}.` : `${n} menciones turnadas a ${target}.`;
+  if (!whatsapp) return { ok: true, message: base };
+  return { ok: true, message: `${base} Se avisará ${whatsapp === 1 ? "al responsable" : "a los responsables"} por WhatsApp.` };
 }
 
 /**
- * Sends the WhatsApp turn notice after the response, when the department's
- * responsible has an active number. True when a notice is on its way.
+ * Sends the WhatsApp turn notices after the response, to the responsible of
+ * each department with an active number. Returns how many departments will
+ * be notified.
  */
-async function noticeRouted(orgId: string, departmentId: string, mentionIds: string[]): Promise<boolean> {
-  if (!process.env.WHATSAPP_TOKEN || !process.env.WHATSAPP_PHONE_NUMBER_ID) return false;
+async function noticeRouted(orgId: string, departmentIds: string[], mentionIds: string[]): Promise<number> {
+  if (!process.env.WHATSAPP_TOKEN || !process.env.WHATSAPP_PHONE_NUMBER_ID) return 0;
   const admin = createAdminClient();
-  const { data: department } = await admin.from("departments").select("responsible_user_id").eq("id", departmentId).single();
-  if (!department?.responsible_user_id) return false;
-  const { data: contact } = await admin
+  const { data: departments } = await admin.from("departments").select("id, responsible_user_id").in("id", departmentIds);
+  const userIds = (departments ?? []).map((d) => d.responsible_user_id).filter((x): x is string => Boolean(x));
+  if (!userIds.length) return 0;
+  const { data: contacts } = await admin
     .from("whatsapp_contacts")
-    .select("id")
+    .select("user_id")
     .eq("org_id", orgId)
-    .eq("user_id", department.responsible_user_id)
-    .eq("status", "active")
-    .maybeSingle();
-  if (!contact) return false;
+    .in("user_id", userIds)
+    .eq("status", "active");
+  const reachable = new Set((contacts ?? []).map((c) => c.user_id));
+  const notified = (departments ?? []).filter((d) => d.responsible_user_id && reachable.has(d.responsible_user_id)).map((d) => d.id);
+  if (!notified.length) return 0;
   const { data: tickets } = await admin
     .from("tickets")
     .select("id")
     .eq("org_id", orgId)
-    .eq("department_id", departmentId)
+    .in("department_id", notified)
     .in("mention_id", mentionIds);
   const ids = (tickets ?? []).map((t) => t.id);
-  if (!ids.length) return false;
+  if (!ids.length) return 0;
   after(async () => {
     try {
       await notifyRoutedTickets(admin, ids);
@@ -141,7 +157,7 @@ async function noticeRouted(orgId: string, departmentId: string, mentionIds: str
       console.error("[whatsapp] turn notice:", error instanceof Error ? error.message : error);
     }
   });
-  return true;
+  return notified.length;
 }
 
 // ---------------------------------------------------------------------------

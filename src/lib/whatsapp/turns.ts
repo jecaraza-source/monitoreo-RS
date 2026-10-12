@@ -26,14 +26,20 @@ async function turnDetails(admin: Admin, ticketIds: string[]): Promise<(TurnDeta
   if (!ticketIds.length) return [];
   const { data: tickets } = await admin
     .from("tickets")
-    .select("id, org_id, mention_id, department_id, status, due_at")
+    .select("id, org_id, mention_id, department_id, status, due_at, is_primary")
     .in("id", ticketIds);
   if (!tickets?.length) return [];
   const mentionIds = tickets.map((t) => t.mention_id);
+  // Supporting departments are told which department leads.
+  const supportMentions = tickets.filter((t) => !t.is_primary).map((t) => t.mention_id);
+  const { data: leaders } = supportMentions.length
+    ? await admin.from("tickets").select("mention_id, department_id").in("mention_id", supportMentions).eq("is_primary", true)
+    : { data: [] };
+  const leaderOf = new Map((leaders ?? []).map((l) => [l.mention_id, l.department_id]));
   const [mentions, classifications, departments] = await Promise.all([
     admin.from("mentions").select("id, text, url, published_at, source_id").in("id", mentionIds),
     admin.from("classifications").select("mention_id, priority, neighborhood_id").in("mention_id", mentionIds),
-    admin.from("departments").select("id, name").in("id", [...new Set(tickets.map((t) => t.department_id))]),
+    admin.from("departments").select("id, name").in("id", [...new Set([...tickets.map((t) => t.department_id), ...leaderOf.values()])]),
   ]);
   const mentionById = new Map((mentions.data ?? []).map((m) => [m.id, m]));
   const classByMention = new Map((classifications.data ?? []).map((c) => [c.mention_id, c]));
@@ -58,6 +64,7 @@ async function turnDetails(admin: Admin, ticketIds: string[]): Promise<(TurnDeta
         orgId: t.org_id,
         departmentId: t.department_id,
         department: deptName.get(t.department_id) ?? "tu dependencia",
+        supportOf: t.is_primary ? null : (deptName.get(leaderOf.get(t.mention_id) ?? "") ?? null),
         text: m.text,
         priority: c?.priority ?? "medium",
         dueAt: t.due_at,

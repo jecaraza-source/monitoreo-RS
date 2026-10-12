@@ -341,9 +341,13 @@ export function InboxView({
       .map((i) => i.classifications?.priority)
       .filter((p): p is Priority => Boolean(p))
       .sort((a, b) => PRIORITY_RANK[b] - PRIORITY_RANK[a])[0];
+    // One mention already routed: start from its leading department.
+    const routed = list.length === 1 ? list[0].tickets : [];
+    const leader = routed.find((t) => t.is_primary)?.department_id ?? null;
     setRoute({
       ids: list.map((i) => i.id),
-      departmentId: departments.size === 1 ? [...departments][0] : null,
+      departmentId: leader ?? (departments.size === 1 ? [...departments][0] : null),
+      routed: routed.map((t) => t.department_id),
       priority: priority ?? null,
     });
   }
