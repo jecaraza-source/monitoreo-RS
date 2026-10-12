@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { ArrowLeft, Maximize2, Megaphone, Newspaper, Radio, Send, Users } from "lucide-react";
+import { ArrowLeft, Clock, Maximize2, Megaphone, Newspaper, Radio, Send, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { AnimatedNumber } from "@/components/ui-kit";
+import { AnimatedNumber, InfoTip } from "@/components/ui-kit";
 import { addCrisisEntry } from "@/lib/alerts/actions";
 import type { AlertEvent } from "@/lib/alerts/data-shared";
 import { alertHref, SEVERITY_LABELS } from "@/lib/alerts/rules";
@@ -31,7 +31,41 @@ type Snapshot = {
 
 export type LogEntry = { id: string; author_name: string; body: string; created_at: string };
 
-const WINDOWS = [30, 60, 180] as const;
+// The sources are read every hour, so the longer windows are the useful ones
+// outside of a live event.
+const WINDOWS = [60, 180, 360, 1440] as const;
+/** Minutes per bar, so a long window still reads as bars (≤ ~100). */
+const BUCKET: Record<(typeof WINDOWS)[number], number> = { 60: 1, 180: 2, 360: 5, 1440: 15 };
+
+function bucketed(points: MinutePoint[], size: number): MinutePoint[] {
+  if (size === 1) return points;
+  const out: MinutePoint[] = [];
+  for (let i = 0; i < points.length; i += size) {
+    const group = points.slice(i, i + size);
+    out.push(
+      group.reduce(
+        (acc, p) => ({
+          ...acc,
+          positive: acc.positive + p.positive,
+          neutral: acc.neutral + p.neutral,
+          negative: acc.negative + p.negative,
+          pending: acc.pending + p.pending,
+        }),
+        { minute: group[0].minute, positive: 0, neutral: 0, negative: 0, pending: 0 },
+      ),
+    );
+  }
+  return out;
+}
+
+const windowLabel = (m: number) => (m < 60 ? `${m} min` : `${m / 60} h`);
+const since = new Intl.RelativeTimeFormat("es-MX", { numeric: "auto" });
+function ago(iso: string): string {
+  const minutes = Math.round((new Date(iso).getTime() - Date.now()) / 60_000);
+  if (minutes > -60) return since.format(minutes, "minute");
+  if (minutes > -48 * 60) return since.format(Math.round(minutes / 60), "hour");
+  return since.format(Math.round(minutes / 1440), "day");
+}
 const POLL_MS = 15_000;
 const clock = new Intl.DateTimeFormat("es-MX", { hour: "2-digit", minute: "2-digit", timeZone: "America/Mexico_City" });
 const nf = new Intl.NumberFormat("es-MX");
@@ -43,11 +77,14 @@ export function CrisisRoom({
   canWrite,
   initialLog,
   alerts,
+  lastMentionAt,
 }: {
   orgId: string;
   canWrite: boolean;
   initialLog: LogEntry[];
   alerts: AlertEvent[];
+  /** When the newest mention was published, to explain an empty window. */
+  lastMentionAt: string | null;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const frame = useRef<HTMLDivElement>(null);
@@ -137,7 +174,7 @@ export function CrisisRoom({
                   minutes === w ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {w < 60 ? `${w} min` : `${w / 60} h`}
+                {windowLabel(w)}
               </button>
             ))}
           </div>
@@ -147,21 +184,59 @@ export function CrisisRoom({
         </div>
       </div>
 
+      {snapshot && t?.mentions === 0 && (
+        <div role="status" className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          <Clock className="size-4 shrink-0" aria-hidden />
+          <span className="min-w-0 flex-1">
+            Sin menciones en {minutes === 60 ? "la última hora" : `las últimas ${minutes / 60} horas`}.
+            {lastMentionAt ? ` La más reciente se publicó ${ago(lastMentionAt)}.` : ""} Las fuentes se consultan cada hora, así que
+            esta sala se llena durante un evento en curso.
+          </span>
+          {minutes < 1440 && (
+            <Button size="sm" variant="outline" onClick={() => setMinutes(1440)}>
+              Ver últimas 24 h
+            </Button>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label={`Menciones (${minutes < 60 ? `${minutes} min` : `${minutes / 60} h`})`} value={t?.mentions ?? 0} format={INTEGER} />
-        <Stat label="Por minuto (últimos 5)" value={perMinuteNow} format={{ maximumFractionDigits: 1 }} />
-        <Stat label="NSS en vivo" value={nss} format={SCORE} tone={nss <= -20 ? "negative" : nss >= 20 ? "positive" : undefined} />
-        <Stat label="Negativas" value={t?.negative ?? 0} format={INTEGER} tone={(t?.negative ?? 0) > 0 ? "negative" : undefined} />
+        <Stat
+          label={`Menciones (${windowLabel(minutes)})`}
+          value={t?.mentions ?? 0}
+          format={INTEGER}
+          info="Publicaciones sobre el municipio en la ventana elegida (1, 3, 6 o 24 horas)."
+        />
+        <Stat
+          label="Por minuto (últimos 5)"
+          value={perMinuteNow}
+          format={{ maximumFractionDigits: 1 }}
+          info="Ritmo actual: promedio de menciones por minuto en los últimos 5 minutos. Si sube de golpe, el tema se está viralizando."
+        />
+        <Stat
+          label="NSS en vivo"
+          value={nss}
+          format={SCORE}
+          tone={nss <= -20 ? "negative" : nss >= 20 ? "positive" : undefined}
+          info="Tono de la ventana, de -100 a +100: (positivas − negativas) ÷ clasificadas × 100. Se pinta rojo en -20 o menos."
+        />
+        <Stat
+          label="Negativas"
+          value={t?.negative ?? 0}
+          format={INTEGER}
+          tone={(t?.negative ?? 0) > 0 ? "negative" : undefined}
+          info="Menciones con tono negativo en la ventana. Revisa los difusores para saber quién las impulsa."
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
         <Card className="lg:col-span-8">
           <CardHeader>
-            <CardTitle as="h2">Volumen por minuto</CardTitle>
-            <CardDescription>Menciones publicadas cada minuto, por sentimiento.</CardDescription>
+            <CardTitle as="h2">{BUCKET[minutes] === 1 ? "Volumen por minuto" : `Volumen cada ${BUCKET[minutes]} minutos`}</CardTitle>
+            <CardDescription>Menciones publicadas en cada intervalo, por sentimiento.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-64">{snapshot ? <MinuteChart data={snapshot.per_minute} /> : <Skeleton className="size-full" />}</div>
+            <div className="h-64">{snapshot ? <MinuteChart data={bucketed(snapshot.per_minute, BUCKET[minutes])} /> : <Skeleton className="size-full" />}</div>
             <SentimentBar positive={t?.positive ?? 0} neutral={t?.neutral ?? 0} negative={t?.negative ?? 0} />
           </CardContent>
         </Card>
@@ -234,10 +309,25 @@ export function CrisisRoom({
   );
 }
 
-function Stat({ label, value, format, tone }: { label: string; value: number; format: Intl.NumberFormatOptions; tone?: "positive" | "negative" }) {
+function Stat({
+  label,
+  value,
+  format,
+  tone,
+  info,
+}: {
+  label: string;
+  value: number;
+  format: Intl.NumberFormatOptions;
+  tone?: "positive" | "negative";
+  info: string;
+}) {
   return (
     <div className="flex flex-col gap-1 rounded-xl border bg-card p-4">
-      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="flex items-center gap-1 text-sm text-muted-foreground">
+        {label}
+        <InfoTip label={label}>{info}</InfoTip>
+      </span>
       <AnimatedNumber
         value={value}
         formatOptions={format}

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { computeDelta, computePointDelta, formatDelta, formatPoints, trendTone, type Tone } from "@/lib/metrics";
 import { cn } from "@/lib/utils";
 import { AnimatedNumber } from "./animated-number";
+import { InfoTip } from "./info-tip";
 import { Reveal } from "./reveal";
 
 // The tone lives in the tint and the arrow; the figure stays in text ink so it
@@ -30,6 +31,8 @@ export type KpiCardProps = {
   deltaMode?: "relative" | "points";
   icon?: React.ReactNode;
   comparisonLabel?: string;
+  /** What the figure means, behind an (i) next to the label. */
+  info?: React.ReactNode;
   /** Stagger index for the entry animation in a row of cards. */
   index?: number;
   className?: string;
@@ -44,6 +47,7 @@ export function KpiCard({
   deltaMode = "relative",
   icon,
   comparisonLabel = "vs. periodo anterior",
+  info,
   index = 0,
   className,
 }: KpiCardProps) {
@@ -57,9 +61,12 @@ export function KpiCard({
     <Reveal delay={index * 0.06} className={cn("h-full", className)}>
       <Card className="h-full">
         <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <CardTitle as="h3" className="text-sm font-medium text-muted-foreground">
-            {label}
-          </CardTitle>
+          <div className="flex min-w-0 items-center gap-1">
+            <CardTitle as="h3" className="text-sm font-medium text-muted-foreground">
+              {label}
+            </CardTitle>
+            {info && <InfoTip label={label}>{info}</InfoTip>}
+          </div>
           {icon && <span className="text-muted-foreground [&_svg]:size-4">{icon}</span>}
         </CardHeader>
         <CardContent className="flex flex-col gap-2">

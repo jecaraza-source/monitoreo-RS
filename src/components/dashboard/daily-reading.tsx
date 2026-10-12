@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Reveal } from "@/components/ui-kit";
+import { InfoTip, Reveal } from "@/components/ui-kit";
 import type { Member } from "@/lib/auth/session";
 import { getDailyReading } from "@/lib/reports/daily-reading";
 
@@ -14,9 +14,15 @@ export function DailyReading({ index, member }: { index: number; member: Member 
     <Reveal delay={index * 0.06} className="h-full">
       <Card className="h-full bg-linear-to-br from-primary/10 via-card to-card">
         <CardHeader>
-          <CardTitle as="h3" className="flex items-center gap-2">
-            <Sparkles className="size-4 text-primary" aria-hidden /> Lectura del día
-          </CardTitle>
+          <div className="flex items-center gap-1">
+            <CardTitle as="h3" className="flex items-center gap-2">
+              <Sparkles className="size-4 text-primary" aria-hidden /> Lectura del día
+            </CardTitle>
+            <InfoTip label="Lectura del día">
+              Resumen redactado con inteligencia artificial a partir de las menciones recientes: qué está pasando, qué temas
+              suben y qué conviene atender. Se actualiza cada hora; verifica los datos en las gráficas.
+            </InfoTip>
+          </div>
         </CardHeader>
         <CardContent>
           <Suspense fallback={<ReadingSkeleton />}>

@@ -21,9 +21,10 @@ async function Crisis() {
   const member = await requireSection("/alertas/crisis");
   const supabase = await createClient();
   const since = isoAgo(DAY_MS);
-  const [log, alerts] = await Promise.all([
+  const [log, alerts, last] = await Promise.all([
     supabase.from("crisis_log").select("id, author_name, body, created_at").eq("org_id", member.orgId).order("created_at", { ascending: false }).limit(100),
     supabase.from("alert_events").select(EVENT_SELECT).eq("org_id", member.orgId).gte("created_at", since).order("created_at", { ascending: false }).limit(20),
+    supabase.from("mentions").select("published_at").eq("org_id", member.orgId).order("published_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   return (
     <CrisisRoom
@@ -31,6 +32,7 @@ async function Crisis() {
       canWrite={member.role === "admin" || member.role === "comunicacion"}
       initialLog={log.data ?? []}
       alerts={(alerts.data ?? []).map((r) => toAlertEvent(r as never))}
+      lastMentionAt={last.data?.published_at ?? null}
     />
   );
 }

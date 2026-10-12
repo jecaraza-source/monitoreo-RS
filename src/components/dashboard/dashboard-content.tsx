@@ -68,6 +68,7 @@ export function DashboardContent({ data, period, member }: { data: Dashboard; pe
         <KpiCard
           index={0}
           label="Menciones"
+          info="Publicaciones públicas sobre el municipio, sus funcionarios y programas que se recolectaron en el periodo (redes, medios y RSS). La flecha compara con el periodo anterior de la misma duración."
           value={totals.mentions}
           previousValue={previous.mentions}
           higherIsBetter={null}
@@ -77,6 +78,7 @@ export function DashboardContent({ data, period, member }: { data: Dashboard; pe
         <KpiCard
           index={1}
           label="Net Sentiment Score"
+          info="Tono general, de -100 a +100: (positivas − negativas) ÷ menciones clasificadas × 100. Arriba de 0 predomina lo positivo; abajo, lo negativo. El cambio se expresa en puntos."
           value={nss(totals.positive, totals.negative, totals.classified)}
           previousValue={previous.classified ? nss(previous.positive, previous.negative, previous.classified) : null}
           deltaMode="points"
@@ -86,6 +88,7 @@ export function DashboardContent({ data, period, member }: { data: Dashboard; pe
         <KpiCard
           index={2}
           label="% negativo"
+          info="Qué parte de las menciones clasificadas tiene tono negativo. Que baje es buena señal. El cambio se expresa en puntos porcentuales."
           value={negativeShare(totals)}
           previousValue={previous.classified ? negativeShare(previous) : null}
           deltaMode="points"
@@ -96,6 +99,7 @@ export function DashboardContent({ data, period, member }: { data: Dashboard; pe
         <KpiCard
           index={3}
           label="Quejas abiertas"
+          info="Menciones turnadas a una dependencia en el periodo que siguen abiertas o en proceso. Cada dependencia turnada (principal o de apoyo) cuenta su propio turno."
           value={totals.openTickets}
           previousValue={previous.openTickets}
           higherIsBetter={false}
@@ -105,6 +109,7 @@ export function DashboardContent({ data, period, member }: { data: Dashboard; pe
         <KpiCard
           index={4}
           label="Tiempo medio de atención"
+          info="Horas promedio entre que se turna una mención y la dependencia la marca resuelta, para los turnos resueltos en el periodo. Menos es mejor."
           value={totals.attentionHours ?? 0}
           previousValue={totals.attentionHours == null ? undefined : previous.attentionHours}
           higherIsBetter={false}
@@ -123,6 +128,7 @@ export function DashboardContent({ data, period, member }: { data: Dashboard; pe
           index={6}
           className="lg:col-span-8"
           title="Volumen por sentimiento"
+          info="Cuántas menciones hubo por día (u hora, en periodos cortos), separadas por tono. Pendiente = todavía sin clasificar. Un pico rojo indica un tema negativo creciendo."
           description="Clic en un punto para ver las menciones de ese día."
           height={280}
           footer={
@@ -141,6 +147,7 @@ export function DashboardContent({ data, period, member }: { data: Dashboard; pe
         <ChartCard
           index={7}
           title="Temas por NSS"
+          info="Los temas con más menciones, ordenados del tono más negativo al más positivo. La barra es su Net Sentiment Score (-100 a +100); el número junto a ella, sus menciones."
           description="Los temas con más menciones, del peor al mejor tono. Clic para abrir la bandeja."
           height={barsHeight(topicBars.length)}
           footer={
@@ -156,6 +163,7 @@ export function DashboardContent({ data, period, member }: { data: Dashboard; pe
         <ChartCard
           index={8}
           title="Dependencias por NSS"
+          info="El tono de lo que se dice sobre cada dependencia (según la clasificación de cada mención), del peor al mejor. Sirve para ver qué áreas generan más inconformidad."
           description="Tono de lo que se dice de cada dependencia. Clic para ver sus menciones."
           height={barsHeight(departmentBars.length)}
           footer={
@@ -175,6 +183,7 @@ export function DashboardContent({ data, period, member }: { data: Dashboard; pe
           index={9}
           className="lg:col-span-7"
           title="Quejas por colonia"
+          info="Mapa de las colonias según cuántas quejas y denuncias se ubicaron en ellas en el periodo: más intenso, más quejas. Sólo cuenta menciones en las que se identificó la colonia."
           description="Más intenso, más quejas y denuncias. Clic en una colonia para ver sus menciones."
           height={360}
           action={<ComplaintsLegend max={maxComplaints} />}
