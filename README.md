@@ -387,6 +387,9 @@ Configuración → Usuarios (`memberships.can_view_officials`); dependencias nun
 - **Salvaguardas:** los ciudadanos aparecen como «Ciudadano», sin nombre, usuario ni enlace (sólo se nombra a
   medios y figuras públicas); no hay rankings de autores ni exportación; cada consulta queda en la bitácora
   (`audit_log`, acción `view`). Datos sólo por `officials_stats()` y `official_mentions_list()`.
+- **Datos demo:** `supabase/demo/funcionarios.sql` (SQL Editor del proyecto de preview, nunca producción) crea
+  cuatro funcionarios ficticios y ~70 menciones clasificadas sobre su gestión en los últimos 60 días. Se puede
+  correr varias veces sin duplicar.
 
 ## WhatsApp
 
