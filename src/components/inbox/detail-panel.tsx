@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { AlarmClock, Archive, CheckCheck, ExternalLink, MessageCircle, Pencil, RotateCcw, Send, UserCheck } from "lucide-react";
+import Link from "next/link";
+import { AlarmClock, Archive, CheckCheck, ExternalLink, FolderKanban, FolderPlus, MessageCircle, Pencil, RotateCcw, Send, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -26,6 +27,7 @@ import {
   type Priority,
   type Sentiment,
 } from "@/lib/inbox/model";
+import { CASE_STATUS_LABELS } from "@/lib/cases/model";
 import { fetchNotes, type InboxItem, type InboxNote } from "@/lib/inbox/query";
 import { cn } from "@/lib/utils";
 import { formatDateTime, fromNow } from "./format";
@@ -65,6 +67,7 @@ export function DetailPanel({
   lookups,
   notesVersion,
   onRoute,
+  onCase,
   onChanged,
 }: {
   item: InboxItem;
@@ -74,6 +77,7 @@ export function DetailPanel({
   /** Bumped by Realtime when someone adds a note to this mention. */
   notesVersion: number;
   onRoute: () => void;
+  onCase: () => void;
   onChanged: (id: string) => void;
 }) {
   const source = lookups.sources.get(item.source_id);
@@ -107,7 +111,16 @@ export function DetailPanel({
 
       <p className="text-[0.95rem] leading-relaxed whitespace-pre-wrap">{item.text}</p>
 
-      {editor && <TriageActions key={`t-${item.id}`} item={item} onRoute={onRoute} onChanged={onChanged} />}
+      {item.case && (
+        <Link
+          href={`/casos/${item.case.id}`}
+          className="flex w-fit items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm font-medium hover:bg-muted"
+        >
+          <FolderKanban className="size-4" aria-hidden /> Parte del caso {item.case.folio} · {CASE_STATUS_LABELS[item.case.status]}
+        </Link>
+      )}
+
+      {editor && <TriageActions key={`t-${item.id}`} item={item} onRoute={onRoute} onCase={onCase} onChanged={onChanged} />}
 
       <Separator />
       <Classification
@@ -128,15 +141,33 @@ export function DetailPanel({
   );
 }
 
-function TriageActions({ item, onRoute, onChanged }: { item: InboxItem; onRoute: () => void; onChanged: (id: string) => void }) {
+function TriageActions({
+  item,
+  onRoute,
+  onCase,
+  onChanged,
+}: {
+  item: InboxItem;
+  onRoute: () => void;
+  onCase: () => void;
+  onChanged: (id: string) => void;
+}) {
   const { pending, run } = useAction();
   const triage = (value: "new" | "reviewed" | "discarded") =>
     run(() => setTriage({ ids: [item.id], triage: value }), () => onChanged(item.id));
   return (
     <div className="flex flex-wrap gap-2">
-      <Button size="sm" onClick={onRoute} disabled={pending}>
-        <Send aria-hidden /> Turnar <kbd className="ml-1 text-[10px] opacity-70">T</kbd>
-      </Button>
+      {/* A mention in a case is assigned from the case. */}
+      {!item.case && (
+        <>
+          <Button size="sm" onClick={onRoute} disabled={pending}>
+            <Send aria-hidden /> Turnar <kbd className="ml-1 text-[10px] opacity-70">T</kbd>
+          </Button>
+          <Button size="sm" variant="outline" onClick={onCase} disabled={pending}>
+            <FolderPlus aria-hidden /> Caso <kbd className="ml-1 text-[10px] opacity-70">C</kbd>
+          </Button>
+        </>
+      )}
       {item.triage !== "reviewed" && item.triage !== "routed" && (
         <Button size="sm" variant="outline" onClick={() => triage("reviewed")} disabled={pending}>
           <CheckCheck aria-hidden /> Revisada <kbd className="ml-1 text-[10px] opacity-70">R</kbd>
@@ -323,6 +354,7 @@ function Tickets({
       title={scope === "editor" ? "Turnado" : "Ticket"}
       action={
         scope === "editor" &&
+        !item.case &&
         item.tickets.length > 0 && (
           <Button size="xs" variant="ghost" onClick={onRoute}>
             <Send aria-hidden /> Agregar o cambiar
@@ -348,13 +380,17 @@ function Tickets({
                   <OptionSelect
                     label="Estado del ticket"
                     value={t.status}
-                    disabled={pending}
+                    // In a case only the leading department moves the work forward; opening and closing happen in the case.
+                    disabled={pending || (Boolean(t.case_id) && !t.is_primary)}
                     onChange={(status) =>
                       status &&
                       status !== t.status &&
                       run(() => setTicketStatus({ ticketId: t.id, status }), () => onChanged(item.id))
                     }
-                    options={TICKET_STATUSES.map((s) => ({ value: s, label: TICKET_LABELS[s] }))}
+                    options={TICKET_STATUSES.filter((s) => !t.case_id || s === t.status || s === "in_progress" || s === "resolved").map((s) => ({
+                      value: s,
+                      label: TICKET_LABELS[s],
+                    }))}
                     className="w-36"
                   />
                 </div>

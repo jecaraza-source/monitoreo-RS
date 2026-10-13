@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlarmClock, Archive, ArrowUp, CheckCheck, Inbox, Keyboard, Radio, Send, X } from "lucide-react";
+import { AlarmClock, Archive, ArrowUp, CheckCheck, FolderPlus, Inbox, Keyboard, Radio, Send, X } from "lucide-react";
 import { toast } from "sonner";
+import { CaseDialog, type CaseRequest } from "@/components/cases/case-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -32,6 +33,7 @@ const SHORTCUTS: [string, string, InboxScope | null][] = [
   ["Enter", "Abrir detalle", null],
   ["x", "Seleccionar", "editor"],
   ["t", "Turnar a dependencia", "editor"],
+  ["c", "Crear caso o agregar a uno", "editor"],
   ["d", "Descartar", "editor"],
   ["r", "Marcar revisada", "editor"],
   ["/", "Buscar", null],
@@ -86,6 +88,7 @@ export function InboxView({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [help, setHelp] = useState(false);
   const [route, setRoute] = useState<RouteRequest | null>(null);
+  const [caseRequest, setCaseRequest] = useState<CaseRequest | null>(null);
   const [notesBump, setNotesBump] = useState<{ id: string; n: number }>({ id: "", n: 0 });
   const [live, setLive] = useState(false);
 
@@ -352,6 +355,23 @@ export function InboxView({
     });
   }
 
+  function openCase(list = targets()) {
+    if (!editor || !list.length) return;
+    const first = list[0].classifications;
+    const same = <T,>(pick: (i: InboxItem) => T) => (new Set(list.map(pick)).size === 1 ? pick(list[0]) : null);
+    const topic = same((i) => i.classifications?.topic ?? null);
+    const neighborhoodId = same((i) => i.classifications?.neighborhood_id ?? null);
+    const place = neighborhoodId ? lookups.neighborhoods.get(neighborhoodId) : null;
+    const priority = list
+      .map((i) => i.classifications?.priority)
+      .filter((p): p is Priority => Boolean(p))
+      .sort((a, b) => PRIORITY_RANK[b] - PRIORITY_RANK[a])[0];
+    const title = topic
+      ? `${topic.charAt(0).toUpperCase()}${topic.slice(1)}${place ? ` en ${place}` : ""}`
+      : list[0].text.replace(/\s+/g, " ").slice(0, 80);
+    setCaseRequest({ ids: list.map((i) => i.id), title, category: topic ?? first?.topic ?? null, neighborhoodId, priority: priority ?? "medium" });
+  }
+
   async function triage(value: "reviewed" | "discarded", list = targets()) {
     if (!editor || !list.length) return;
     const previous = new Map<TriageStatus, string[]>();
@@ -382,6 +402,7 @@ export function InboxView({
       Enter: () => active && !desktop && setSheetOpen(true),
       x: () => editor && active && toggle(active.id),
       t: () => openRoute(),
+      c: () => openCase(),
       d: () => void triage("discarded"),
       r: () => void triage("reviewed"),
       "/": () => searchRef.current?.focus(),
@@ -391,7 +412,7 @@ export function InboxView({
         else setSheetOpen(false);
       },
     },
-    route === null && !help,
+    route === null && caseRequest === null && !help,
   );
 
   const allChecked = items.length > 0 && checked.size === items.length;
@@ -406,6 +427,7 @@ export function InboxView({
       lookups={lookups}
       notesVersion={notesBump.id === active.id ? notesBump.n : 0}
       onRoute={() => openRoute([active])}
+      onCase={() => openCase([active])}
       onChanged={(id) => refresh(id)}
     />
   );
@@ -481,6 +503,9 @@ export function InboxView({
               <span className="font-medium">{checked.size} seleccionadas</span>
               <Button size="sm" onClick={() => openRoute()}>
                 <Send aria-hidden /> Turnar
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => openCase()}>
+                <FolderPlus aria-hidden /> Caso
               </Button>
               <Button size="sm" variant="outline" onClick={() => triage("reviewed")}>
                 <CheckCheck aria-hidden /> Revisadas
@@ -582,6 +607,17 @@ export function InboxView({
         sla={catalogs.sla}
         onClose={() => setRoute(null)}
         onRouted={(ids) => {
+          setChecked(new Set());
+          ids.forEach((id) => refresh(id));
+        }}
+      />
+
+      <CaseDialog
+        request={caseRequest}
+        orgId={orgId}
+        neighborhoods={catalogs.neighborhoods}
+        onClose={() => setCaseRequest(null)}
+        onDone={(ids) => {
           setChecked(new Set());
           ids.forEach((id) => refresh(id));
         }}

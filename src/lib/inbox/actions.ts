@@ -28,6 +28,8 @@ const ids = z.array(id).min(1, "Selecciona al menos una mención.").max(500, "De
 function fail(error: { code?: string; message: string } | null, what: string): InboxActionResult {
   console.error(`[inbox] ${what}:`, error?.code, error?.message);
   if (error?.code === "42501") return FORBIDDEN;
+  // Rule violations the database explains in Spanish (e.g. a mention that belongs to a case).
+  if (error?.code === "22023") return { ok: false, message: error.message };
   return { ok: false, message: `No se pudo ${what}.` };
 }
 
@@ -175,6 +177,14 @@ export async function setTicketStatus(input: unknown): Promise<InboxActionResult
   const done = status === "resolved" || status === "closed";
 
   const supabase = await createClient();
+  // A ticket that is an assignment of a case follows the case: move the case.
+  const { data: ticket } = await supabase.from("tickets").select("case_id").eq("org_id", m.orgId).eq("id", ticketId).maybeSingle();
+  if (!ticket) return FORBIDDEN;
+  if (ticket.case_id) {
+    const { error: caseError } = await supabase.rpc("case_ticket_status", { p_ticket_id: ticketId, p_status: status });
+    if (caseError) return fail(caseError, "actualizar el caso");
+    return { ok: true, message: "Estado del caso actualizado." };
+  }
   const { data, error } = await supabase
     .from("tickets")
     .update({ status, resolved_at: done ? new Date().toISOString() : null })

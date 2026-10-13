@@ -149,6 +149,154 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"case_counters": {
+                  Row: {
+                    "last_number": number,"org_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "last_number"?: number,"org_id": string
+                  }
+                  Update: {
+                    "last_number"?: number,"org_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "case_counters_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: true
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"case_events": {
+                  Row: {
+                    "actor_id": string | null,"actor_kind": string,"actor_name": string,"at": string,"case_id": string,"changes": NonNullable<Json>,"from_status": Database["public"]['Enums']["case_status"] | null,"id": number,"internal": boolean,"operation": string,"org_id": string,"reason": string | null,"to_status": Database["public"]['Enums']["case_status"] | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "actor_id"?: string | null,"actor_kind": string,"actor_name"?: string,"at"?: string,"case_id": string,"changes"?: NonNullable<Json>,"from_status"?: Database["public"]['Enums']["case_status"] | null,"id"?: never,"internal"?: boolean,"operation": string,"org_id": string,"reason"?: string | null,"to_status"?: Database["public"]['Enums']["case_status"] | null
+                  }
+                  Update: {
+                    "actor_id"?: string | null,"actor_kind"?: string,"actor_name"?: string,"at"?: string,"case_id"?: string,"changes"?: NonNullable<Json>,"from_status"?: Database["public"]['Enums']["case_status"] | null,"id"?: never,"internal"?: boolean,"operation"?: string,"org_id"?: string,"reason"?: string | null,"to_status"?: Database["public"]['Enums']["case_status"] | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "case_events_org_id_case_id_fkey"
+      columns: ["org_id","case_id"]
+isOneToOne: false
+      referencedRelation: "cases"
+      referencedColumns: ["org_id","id"]
+    },{
+      foreignKeyName: "case_events_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"case_mentions": {
+                  Row: {
+                    "added_at": string,"added_by": string | null,"case_id": string,"mention_id": string,"org_id": string,"reason": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "added_at"?: string,"added_by"?: string | null,"case_id": string,"mention_id": string,"org_id": string,"reason"?: string | null
+                  }
+                  Update: {
+                    "added_at"?: string,"added_by"?: string | null,"case_id"?: string,"mention_id"?: string,"org_id"?: string,"reason"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "case_mentions_org_id_case_id_fkey"
+      columns: ["org_id","case_id"]
+isOneToOne: false
+      referencedRelation: "cases"
+      referencedColumns: ["org_id","id"]
+    },{
+      foreignKeyName: "case_mentions_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "case_mentions_org_id_mention_id_fkey"
+      columns: ["org_id","mention_id"]
+isOneToOne: false
+      referencedRelation: "mentions"
+      referencedColumns: ["org_id","id"]
+    }
+                  ]
+                },"case_notes": {
+                  Row: {
+                    "author_id": string | null,"author_name": string,"body": string,"case_id": string,"created_at": string,"id": string,"org_id": string,"visibility": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "author_id"?: string | null,"author_name"?: string,"body": string,"case_id": string,"created_at"?: string,"id"?: string,"org_id": string,"visibility": string
+                  }
+                  Update: {
+                    "author_id"?: string | null,"author_name"?: string,"body"?: string,"case_id"?: string,"created_at"?: string,"id"?: string,"org_id"?: string,"visibility"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "case_notes_org_id_case_id_fkey"
+      columns: ["org_id","case_id"]
+isOneToOne: false
+      referencedRelation: "cases"
+      referencedColumns: ["org_id","id"]
+    },{
+      foreignKeyName: "case_notes_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"cases": {
+                  Row: {
+                    "accepted_at": string | null,"assigned_at": string | null,"backfill_key": string | null,"category": string | null,"closed_at": string | null,"department_id": string | null,"description": string,"due_at": string | null,"folio": string | null,"id": string,"merged_into_id": string | null,"neighborhood_id": string | null,"number": number,"opened_at": string,"opened_by": string | null,"org_id": string,"primary_mention_id": string | null,"priority": Database["public"]['Enums']["priority"],"resolved_at": string | null,"responsible_user_id": string | null,"status": Database["public"]['Enums']["case_status"],"status_reason": string | null,"title": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "accepted_at"?: string | null,"assigned_at"?: string | null,"backfill_key"?: string | null,"category"?: string | null,"closed_at"?: string | null,"department_id"?: string | null,"description"?: string,"due_at"?: string | null,"folio"?: never,"id"?: string,"merged_into_id"?: string | null,"neighborhood_id"?: string | null,"number": number,"opened_at"?: string,"opened_by"?: string | null,"org_id": string,"primary_mention_id"?: string | null,"priority"?: Database["public"]['Enums']["priority"],"resolved_at"?: string | null,"responsible_user_id"?: string | null,"status"?: Database["public"]['Enums']["case_status"],"status_reason"?: string | null,"title": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "accepted_at"?: string | null,"assigned_at"?: string | null,"backfill_key"?: string | null,"category"?: string | null,"closed_at"?: string | null,"department_id"?: string | null,"description"?: string,"due_at"?: string | null,"folio"?: never,"id"?: string,"merged_into_id"?: string | null,"neighborhood_id"?: string | null,"number"?: number,"opened_at"?: string,"opened_by"?: string | null,"org_id"?: string,"primary_mention_id"?: string | null,"priority"?: Database["public"]['Enums']["priority"],"resolved_at"?: string | null,"responsible_user_id"?: string | null,"status"?: Database["public"]['Enums']["case_status"],"status_reason"?: string | null,"title"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "cases_org_id_department_id_fkey"
+      columns: ["org_id","department_id"]
+isOneToOne: false
+      referencedRelation: "departments"
+      referencedColumns: ["org_id","id"]
+    },{
+      foreignKeyName: "cases_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "cases_org_id_merged_into_id_fkey"
+      columns: ["org_id","merged_into_id"]
+isOneToOne: false
+      referencedRelation: "cases"
+      referencedColumns: ["org_id","id"]
+    },{
+      foreignKeyName: "cases_org_id_neighborhood_id_fkey"
+      columns: ["org_id","neighborhood_id"]
+isOneToOne: false
+      referencedRelation: "neighborhoods"
+      referencedColumns: ["org_id","id"]
+    },{
+      foreignKeyName: "cases_org_id_primary_mention_id_fkey"
+      columns: ["org_id","primary_mention_id"]
+isOneToOne: false
+      referencedRelation: "mentions"
+      referencedColumns: ["org_id","id"]
+    }
+                  ]
                 },"classifications": {
                   Row: {
                     "confidence": number | null,"corrected_at": string | null,"corrected_by": string | null,"created_at": string,"department_id": string | null,"emotion": string | null,"id": string,"intent": string | null,"mention_id": string,"model": string,"neighborhood_id": string | null,"org_id": string,"priority": Database["public"]['Enums']["priority"],"sentiment": Database["public"]['Enums']["sentiment"],"topic": string | null
@@ -655,17 +803,23 @@ isOneToOne: false
                   ]
                 },"tickets": {
                   Row: {
-                    "assigned_at": string,"assignee_id": string | null,"created_at": string,"created_by": string | null,"department_id": string,"due_at": string | null,"id": string,"is_primary": boolean,"mention_id": string,"org_id": string,"resolved_at": string | null,"status": Database["public"]['Enums']["ticket_status"],"whatsapp_escalated_at": string | null,"whatsapp_notified_at": string | null,"whatsapp_reminded_at": string | null
+                    "assigned_at": string,"assignee_id": string | null,"case_id": string | null,"created_at": string,"created_by": string | null,"department_id": string,"due_at": string | null,"id": string,"is_primary": boolean,"mention_id": string,"org_id": string,"resolved_at": string | null,"status": Database["public"]['Enums']["ticket_status"],"whatsapp_escalated_at": string | null,"whatsapp_notified_at": string | null,"whatsapp_reminded_at": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "assigned_at"?: string,"assignee_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_id": string,"due_at"?: string | null,"id"?: string,"is_primary"?: boolean,"mention_id": string,"org_id": string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"whatsapp_escalated_at"?: string | null,"whatsapp_notified_at"?: string | null,"whatsapp_reminded_at"?: string | null
+                    "assigned_at"?: string,"assignee_id"?: string | null,"case_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_id": string,"due_at"?: string | null,"id"?: string,"is_primary"?: boolean,"mention_id": string,"org_id": string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"whatsapp_escalated_at"?: string | null,"whatsapp_notified_at"?: string | null,"whatsapp_reminded_at"?: string | null
                   }
                   Update: {
-                    "assigned_at"?: string,"assignee_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_id"?: string,"due_at"?: string | null,"id"?: string,"is_primary"?: boolean,"mention_id"?: string,"org_id"?: string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"whatsapp_escalated_at"?: string | null,"whatsapp_notified_at"?: string | null,"whatsapp_reminded_at"?: string | null
+                    "assigned_at"?: string,"assignee_id"?: string | null,"case_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"department_id"?: string,"due_at"?: string | null,"id"?: string,"is_primary"?: boolean,"mention_id"?: string,"org_id"?: string,"resolved_at"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"whatsapp_escalated_at"?: string | null,"whatsapp_notified_at"?: string | null,"whatsapp_reminded_at"?: string | null
                   }
                   Relationships: [
                     {
+      foreignKeyName: "tickets_case_fk"
+      columns: ["org_id","case_id"]
+isOneToOne: false
+      referencedRelation: "cases"
+      referencedColumns: ["org_id","id"]
+    },{
       foreignKeyName: "tickets_org_id_department_id_fkey"
       columns: ["org_id","department_id"]
 isOneToOne: false
@@ -817,7 +971,10 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "alert_candidates":
+            "add_case_note":
+{ Args: { "p_body": string,"p_case_id": string,"p_visibility": string }; Returns: string
+                           },
+"alert_candidates":
 { Args: { "p_department_id"?: string,"p_org_id": string,"p_since": string }; Returns: {
               "author_id": string,"author_kind": Database["public"]['Enums']["author_kind"],"author_name": string,"max_severity": Database["public"]['Enums']["priority"],"mention_id": string,"priority": Database["public"]['Enums']["priority"],"published_at": string,"sentiment": Database["public"]['Enums']["sentiment"],"terms": (string)[],"text": string
             }[]
@@ -835,8 +992,34 @@ isOneToOne: false
               "baseline_mean": number,"baseline_stddev": number,"baseline_windows": number,"current_count": number
             }[]
                            },
+"apply_ticket_backfill":
+{ Args: { "p_org_id": string }; Returns: Json
+                           },
 "can_view_officials":
 { Args: { "p_org_id": string }; Returns: boolean
+                           },
+"case_add_mentions":
+{ Args: { "p_case_id": string,"p_mention_ids": (string)[],"p_reason"?: string }; Returns: number
+                           },
+"case_people":
+{ Args: { "p_case_id": string }; Returns: {
+              "is_responsible": boolean,"name": string,"user_id": string
+            }[]
+                           },
+"case_remove_mention":
+{ Args: { "p_case_id": string,"p_mention_id": string,"p_reason": string }; Returns: undefined
+                           },
+"case_ticket_status":
+{ Args: { "p_status": Database["public"]['Enums']["ticket_status"],"p_ticket_id": string }; Returns: Json
+                           },
+"case_transition_allowed":
+{ Args: { "p_from": Database["public"]['Enums']["case_status"],"p_to": Database["public"]['Enums']["case_status"] }; Returns: boolean
+                           },
+"case_transition_by_department":
+{ Args: { "p_from": Database["public"]['Enums']["case_status"],"p_to": Database["public"]['Enums']["case_status"] }; Returns: boolean
+                           },
+"case_transition_needs_reason":
+{ Args: { "p_from": Database["public"]['Enums']["case_status"],"p_to": Database["public"]['Enums']["case_status"] }; Returns: boolean
                            },
 "claim_mentions":
 { Args: { "p_claim_id": string,"p_lease_seconds": number,"p_limit": number,"p_max_attempts": number }; Returns: {
@@ -883,6 +1066,9 @@ isOneToOne: false
 "complete_classifications":
 { Args: { "p_claim_id": string,"p_failures": Json,"p_max_attempts": number,"p_results": Json }; Returns: Json
                            },
+"create_case":
+{ Args: { "p_category"?: string,"p_description"?: string,"p_mention_ids": (string)[],"p_neighborhood_id"?: string,"p_org_id": string,"p_priority"?: Database["public"]['Enums']["priority"],"p_title": string }; Returns: string
+                           },
 "crisis_snapshot":
 { Args: { "p_minutes"?: number,"p_org_id": string }; Returns: Json
                            },
@@ -914,6 +1100,9 @@ isOneToOne: false
 { Args: { "p_from": string,"p_org_id": string,"p_to": string }; Returns: {
               "department_id": string,"hour": string,"interactions": number,"mentions": number,"sentiment": Database["public"]['Enums']["sentiment"]
             }[]
+                           },
+"merge_cases":
+{ Args: { "p_reason": string,"p_source_ids": (string)[],"p_target_id": string }; Returns: number
                            },
 "monitor_health":
 { Args: { "p_org_id": string }; Returns: Json
@@ -996,10 +1185,24 @@ isOneToOne: false
 "set_source_secret":
 { Args: { "p_secret": string,"p_source_id": string }; Returns: undefined
                            },
+"simulate_ticket_backfill":
+{ Args: { "p_org_id": string }; Returns: Json
+                           },
 "source_labels":
 { Args: { "p_org_id": string }; Returns: {
               "id": string,"name": string,"type": Database["public"]['Enums']["source_type"]
             }[]
+                           },
+"suggest_case_mentions":
+{ Args: { "p_case_id": string,"p_limit"?: number }; Returns: {
+              "hours_apart": number,"mention_id": string,"same_neighborhood": boolean,"same_topic": boolean,"score": number,"word_overlap": number
+            }[]
+                           },
+"transition_case":
+{ Args: { "p_case_id": string,"p_department_id"?: string,"p_due_at"?: string,"p_reason"?: string,"p_support_ids"?: (string)[],"p_to": Database["public"]['Enums']["case_status"] }; Returns: Json
+                           },
+"update_case":
+{ Args: { "p_case_id": string,"p_fields": Json }; Returns: undefined
                            },
 "whatsapp_recipients":
 { Args: { "p_org_id": string }; Returns: {
@@ -1011,7 +1214,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "author_kind": "media"|"public_figure"|"citizen","membership_role": "admin"|"comunicacion"|"dependencia"|"lectura","mention_status": "pending"|"classified"|"failed","priority": "low"|"medium"|"high"|"critical","report_period": "daily"|"weekly"|"monthly","report_status": "draft"|"approved"|"sent","sentiment": "positive"|"neutral"|"negative","source_type": "meta"|"rss"|"youtube"|"x","ticket_status": "open"|"in_progress"|"resolved"|"closed","triage_status": "new"|"reviewed"|"routed"|"discarded","whatsapp_contact_status": "pending"|"active"|"declined"|"opted_out"
+            "author_kind": "media"|"public_figure"|"citizen","case_status": "new"|"in_review"|"assigned"|"accepted"|"in_progress"|"resolved"|"closed"|"returned"|"discarded"|"merged","membership_role": "admin"|"comunicacion"|"dependencia"|"lectura","mention_status": "pending"|"classified"|"failed","priority": "low"|"medium"|"high"|"critical","report_period": "daily"|"weekly"|"monthly","report_status": "draft"|"approved"|"sent","sentiment": "positive"|"neutral"|"negative","source_type": "meta"|"rss"|"youtube"|"x","ticket_status": "open"|"in_progress"|"resolved"|"closed","triage_status": "new"|"reviewed"|"routed"|"discarded","whatsapp_contact_status": "pending"|"active"|"declined"|"opted_out"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -1127,7 +1330,7 @@ export type CompositeTypes<
 export const Constants = {
   "public": {
           Enums: {
-            "author_kind": ["media", "public_figure", "citizen"],"membership_role": ["admin", "comunicacion", "dependencia", "lectura"],"mention_status": ["pending", "classified", "failed"],"priority": ["low", "medium", "high", "critical"],"report_period": ["daily", "weekly", "monthly"],"report_status": ["draft", "approved", "sent"],"sentiment": ["positive", "neutral", "negative"],"source_type": ["meta", "rss", "youtube", "x"],"ticket_status": ["open", "in_progress", "resolved", "closed"],"triage_status": ["new", "reviewed", "routed", "discarded"],"whatsapp_contact_status": ["pending", "active", "declined", "opted_out"]
+            "author_kind": ["media", "public_figure", "citizen"],"case_status": ["new", "in_review", "assigned", "accepted", "in_progress", "resolved", "closed", "returned", "discarded", "merged"],"membership_role": ["admin", "comunicacion", "dependencia", "lectura"],"mention_status": ["pending", "classified", "failed"],"priority": ["low", "medium", "high", "critical"],"report_period": ["daily", "weekly", "monthly"],"report_status": ["draft", "approved", "sent"],"sentiment": ["positive", "neutral", "negative"],"source_type": ["meta", "rss", "youtube", "x"],"ticket_status": ["open", "in_progress", "resolved", "closed"],"triage_status": ["new", "reviewed", "routed", "discarded"],"whatsapp_contact_status": ["pending", "active", "declined", "opted_out"]
           }
         }
 } as const

@@ -188,10 +188,10 @@ Palancas: subir el umbral de escalamiento (`ESCALATE_BELOW_CONFIDENCE`), usar So
 
   | Rol | Secciones |
   |---|---|
-  | admin | Dashboard, Bandeja, Mapa, Alertas, Reportes, Asistente, Salud, Configuración (Proyectos, Catálogos, Usuarios) |
-  | comunicacion | Dashboard, Bandeja, Mapa, Alertas, Reportes, Asistente, Salud, Configuración (sólo Proyectos) |
-  | dependencia | Bandeja, Alertas, Asistente (sólo con lo turnado a su dependencia) |
-  | lectura | Dashboard, Mapa, Alertas, Reportes, Asistente, Salud (sólo el resumen) |
+  | admin | Dashboard, Bandeja, Casos, Mapa, Alertas, Reportes, Asistente, Salud, Configuración (Proyectos, Catálogos, Usuarios) |
+  | comunicacion | Dashboard, Bandeja, Casos, Mapa, Alertas, Reportes, Asistente, Salud, Configuración (sólo Proyectos) |
+  | dependencia | Bandeja, Casos, Alertas, Asistente (sólo con lo turnado o asignado a su dependencia) |
+  | lectura | Dashboard, Casos (sólo consulta), Mapa, Alertas, Reportes, Asistente, Salud (sólo el resumen) |
 
   Esto controla la navegación; la visibilidad de los datos la impone RLS.
 
@@ -366,8 +366,8 @@ Funciones:
   ticket, estado y avisos por WhatsApp (a la de apoyo le dice a quién apoya); una mención tiene una sola
   principal (`tickets.is_primary`, índice único) y sólo Comunicación o admin la cambian. Turnar de nuevo con
   otra principal deja a la anterior como apoyo.
-- Acciones masivas: turnar, marcar revisadas y descartar (con deshacer).
-- Atajos: `j`/`k` navegar, `Enter` abrir, `x` seleccionar, `t` turnar, `d` descartar, `r` revisada,
+- Acciones masivas: turnar, crear caso o agregar a uno, marcar revisadas y descartar (con deshacer).
+- Atajos: `j`/`k` navegar, `Enter` abrir, `x` seleccionar, `t` turnar, `c` caso, `d` descartar, `r` revisada,
   `/` buscar, `?` ayuda.
 - Tiempo real con Supabase Realtime (`mentions`, `classifications`, `tickets`, `mention_notes` en la
   publicación `supabase_realtime`): cada cambio llega filtrado por RLS, la tarjeta entra animada y a la
@@ -376,6 +376,32 @@ Funciones:
 Turnar usa `route_mentions(menciones, principal, fecha, apoyo[])` (crea los tickets y marca las menciones como turnadas en una transacción,
 con los permisos de quien llama). En Supabase hospedado, la publicación `supabase_realtime` ya existe; la
 migración le agrega las tablas.
+
+## Casos
+
+Un **caso** es la unidad operativa: agrupa las menciones sobre un mismo problema (por ejemplo, 18 publicaciones
+de la misma fuga) y sigue su atención. Las menciones no se pierden ni se funden: dashboard, mapa y reportes las
+siguen contando una por una. Detalle en [docs/etapa-4-casos.md](docs/etapa-4-casos.md).
+
+- **Folio** por municipio (`C-00001`), título, descripción, categoría, colonia opcional, prioridad operativa,
+  dependencia y persona responsables, plazo y estado. Quien abrió el caso (su autor) es distinto del autor de
+  cada publicación.
+- **Estados:** detectado → en revisión → asignado → aceptado → en atención → atendido (por validar) → cerrado.
+  También devuelto por competencia (con motivo), descartado (con motivo), reabrir (con motivo) y fusionado.
+  La base valida cada transición (`case_transition_allowed`); devolver, descartar, rechazar la validación y
+  reabrir exigen motivo.
+- **Turnos:** asignar un caso crea o actualiza los tickets de la dependencia responsable y de las de apoyo
+  sobre la mención principal, con aviso por WhatsApp. El estado del ticket sigue al del caso (una sola máquina
+  de estados); cambiarlo desde la Bandeja o desde WhatsApp mueve el caso por `case_ticket_status`.
+- **Historial** de sólo agregar (`case_events`): quién, cuándo, qué operación, cambio y motivo, incluidas las
+  acciones por WhatsApp y del sistema.
+- **Por rol:** Comunicación y admin crean, asignan, editan, fusionan y validan. La dependencia sólo ve los
+  casos que tiene asignados (sin notas ni historial internos) y los acepta, atiende, marca atendidos o
+  devuelve. Lectura consulta.
+- **Sugerencias:** en el caso, Comunicación ve menciones posiblemente del mismo problema (misma colonia o
+  palabras en común, en ±72 h). Nunca se agregan solas, y compartir sólo sentimiento o tema no basta.
+- **Turnos anteriores:** admin, en `/casos` → «Migrar turnos existentes», primero simula y luego aplica.
+  Se crea un caso por mención turnada; se puede repetir sin duplicar.
 
 ## Dashboard
 

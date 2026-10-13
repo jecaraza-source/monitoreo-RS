@@ -17,6 +17,7 @@ export const ROLE_LABELS: Record<Role, string> = {
 export type SectionKey =
   | "dashboard"
   | "inbox"
+  | "cases"
   | "map"
   | "alerts"
   | "reports"
@@ -42,6 +43,8 @@ const NO_GRANTS: Access = { officials: false };
 export const SECTIONS: readonly Section[] = [
   { key: "dashboard", href: "/dashboard", label: "Dashboard", roles: ["admin", "comunicacion", "lectura"] },
   { key: "inbox", href: "/bandeja", label: "Bandeja", roles: ["admin", "comunicacion", "dependencia"] },
+  // Cases: dependencia sees only cases assigned to it (RLS); lectura reads without acting.
+  { key: "cases", href: "/casos", label: "Casos", roles: ["admin", "comunicacion", "dependencia", "lectura"] },
   { key: "map", href: "/mapa", label: "Mapa", roles: ["admin", "comunicacion", "lectura"] },
   { key: "alerts", href: "/alertas", label: "Alertas", roles: ["admin", "comunicacion", "dependencia", "lectura"] },
   { key: "reports", href: "/reportes", label: "Reportes", roles: ["admin", "comunicacion", "lectura"] },

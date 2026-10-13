@@ -6,13 +6,13 @@ describe("sectionsForRole", () => {
   it("gives each role exactly its menu", () => {
     const menu = (role: (typeof ROLES)[number]) => sectionsForRole(role).map((s) => s.label);
     assert.deepEqual(menu("admin"), [
-      "Dashboard", "Bandeja", "Mapa", "Alertas", "Reportes", "Asistente", "Salud", "Configuración",
+      "Dashboard", "Bandeja", "Casos", "Mapa", "Alertas", "Reportes", "Asistente", "Salud", "Configuración",
     ]);
     assert.deepEqual(menu("comunicacion"), [
-      "Dashboard", "Bandeja", "Mapa", "Alertas", "Reportes", "Asistente", "Salud", "Configuración",
+      "Dashboard", "Bandeja", "Casos", "Mapa", "Alertas", "Reportes", "Asistente", "Salud", "Configuración",
     ]);
-    assert.deepEqual(menu("dependencia"), ["Bandeja", "Alertas", "Asistente"]);
-    assert.deepEqual(menu("lectura"), ["Dashboard", "Mapa", "Alertas", "Reportes", "Asistente", "Salud"]);
+    assert.deepEqual(menu("dependencia"), ["Bandeja", "Casos", "Alertas", "Asistente"]);
+    assert.deepEqual(menu("lectura"), ["Dashboard", "Casos", "Mapa", "Alertas", "Reportes", "Asistente", "Salud"]);
   });
 
   it("shows Funcionarios only with the explicit grant", () => {
@@ -59,6 +59,12 @@ describe("canAccessPath", () => {
       assert.equal(canAccessPath("dependencia", path), false, path);
     }
     assert.equal(canAccessPath("dependencia", "/bandeja/123"), true);
+  });
+
+  it("opens cases to every role (RLS scopes what each one sees)", () => {
+    for (const role of ["admin", "comunicacion", "dependencia", "lectura"] as const) {
+      assert.equal(canAccessPath(role, "/casos/abc"), true, role);
+    }
   });
 
   it("keeps lectura out of operational sections", () => {

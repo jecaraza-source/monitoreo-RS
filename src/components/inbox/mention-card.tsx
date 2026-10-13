@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import { AlarmClock, Building2, ExternalLink, MapPin, Tag } from "lucide-react";
+import { AlarmClock, Building2, ExternalLink, FolderKanban, MapPin, Tag } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SentimentBadge } from "@/components/ui-kit";
 import { isOverdue, PRIORITY_LABELS, SOURCE_LABELS, TICKET_LABELS, TRIAGE_LABELS, type InboxScope } from "@/lib/inbox/model";
@@ -124,6 +124,12 @@ export function MentionCard({
           </span>
         )}
         <span className="ml-auto" />
+        {item.case && (
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 font-medium" title="Parte de un caso">
+            <FolderKanban className="size-3" aria-hidden />
+            {item.case.folio}
+          </span>
+        )}
         {ticket ? (
           <span
             className={cn(
