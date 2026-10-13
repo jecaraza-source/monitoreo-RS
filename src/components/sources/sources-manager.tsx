@@ -112,7 +112,13 @@ export function SourcesManager({ connectors, sources }: { connectors: ConnectorI
                       {describe(source)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Último éxito: {ago(source.lastSuccessAt)} · Última corrida: {ago(source.lastRunAt)}
+                      Último éxito: {ago(source.lastSuccessAt)} · Última corrida: {ago(source.lastRunAt)} · Leído hasta:{" "}
+                      {source.coveredUntil ? ago(source.coveredUntil) : "aún no"}
+                      {source.catchingUp && (
+                        <span title="Una corrida alcanzó un tope; las siguientes leen lo que faltó antes de lo más nuevo.">
+                          {" "}· Poniéndose al día
+                        </span>
+                      )}
                     </p>
                     {failing && source.lastError && (
                       <p className="flex items-start gap-1.5 text-xs text-negative">

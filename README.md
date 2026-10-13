@@ -265,14 +265,29 @@ Por eso el demo `/api/demo/rss` sólo funciona como fuente desde la URL pública
 **Cron:** `vercel.json` programa `/api/cron/ingest` cada hora (requiere plan Pro de Vercel; en Hobby
 sólo se permiten crons diarios). La ruta exige `Authorization: Bearer $CRON_SECRET`. En cada corrida:
 
-1. Toma hasta 12 fuentes activas, empezando por las que llevan más tiempo sin correr, y procesa 3 a la vez
-   (deja de iniciar fuentes nuevas a los ~45 s).
-2. Lee desde el último éxito, con 15 minutos de traslape (3 días de historial la primera vez).
-3. Asigna `query_id` con `match.ts`: gana la primera consulta activa que coincida. Si la fuente exige
-   coincidencia (RSS y YouTube, por defecto), lo que no coincide se descarta.
-4. Inserta con `ON CONFLICT (source_id, external_id) DO NOTHING` y `status = pending`.
-5. Guarda `last_run_at`, `last_success_at` y el error de la fuente, y registra la corrida en `ingest_runs`.
-   Tras 3 fallos seguidos la fuente espera 1 h, 2 h, 4 h… (hasta 24 h) antes de reintentarse.
+1. Reserva hasta 12 fuentes activas (`claim_sources`, con *lease* de 2 min: dos corridas no leen la misma
+   fuente), empezando por las que llevan más tiempo sin correr, y procesa 3 a la vez (deja de iniciar
+   fuentes nuevas a los ~45 s; cada fuente tiene 18 s para pedir páginas y se corta a los 25 s).
+2. Lee la **ventana** de la fuente (`src/lib/ingest/coverage.ts`): desde `covered_until` con 15 minutos de
+   traslape (3 días la primera vez) hasta ahora. El conector dice si la leyó completa. Si un tope la cortó
+   (páginas, tiempo o un error a mitad), lo que faltó queda en el cursor como *backfill* y la siguiente
+   corrida lo lee antes de lo nuevo; `covered_until` sólo avanza sobre ventanas completas.
+3. Asigna `query_id` con `match.ts`: gana la primera consulta activa que coincida (cada versión de una
+   consulta es una fila, así que la mención apunta a la versión exacta). Si la fuente exige coincidencia
+   (RSS y YouTube, por defecto), lo que no coincide se descarta.
+4. Guarda con `ingest_mentions`: deduplica por `(source_id, external_id)`; una mención conocida que reaparece
+   sólo actualiza sus interacciones (último valor observado, `metrics_updated_at`), nunca su texto, consulta
+   ni estado.
+5. Registra en una transacción (`finish_source_run`) el estado de la fuente y la corrida en `ingest_runs`
+   (completa o no, ventana, topes alcanzados, huecos sin recuperar), y los contadores por municipio en
+   `worker_runs`. Tras 3 fallos seguidos la fuente espera 1 h, 2 h, 4 h… (hasta 24 h); al 5º pasa a la cola
+   **Fallos por revisar**.
+
+| Conector | Paginación y reanudación | Lo que no se puede recuperar (se reporta como hueco) |
+|---|---|---|
+| RSS | Un feed es sólo sus últimas notas: se lee completo, sin tope de 200. Toma notas fechadas hasta 7 días antes de la ventana (indexación tardía) | Si hasta la nota más vieja del feed es posterior al inicio de la ventana, lo intermedio ya no lo publica |
+| Facebook | Publicaciones: hasta 10 páginas de 100 por ventana `since`/`until`, reanuda con `until`. Comentarios: en orden cronológico con el cursor `after` de cada publicación (hasta 5 páginas por corrida, sigue en la siguiente) | Publicaciones fuera de las 50 más recientes dejan de revisarse por comentarios |
+| YouTube | Búsqueda: 2 páginas de 50 por corrida (100 unidades de cuota cada una), reanuda con `publishedBefore` | Comentarios de un video con más de 500 nuevos entre corridas (YouTube sólo los lista del más nuevo al más viejo) |
 
 Corrida manual:
 
@@ -293,10 +308,19 @@ proyecto u `otro`), intención, prioridad, dependencia y colonia (de los catálo
 - El prompt de sistema incluye el contexto del municipio, modismos mexicanos, sarcasmo y las reglas del
   proyecto (columnas `projects.topics` y `projects.classification_rules`; aún sin editor en la UI).
   Ese bloque fijo va con `cache_control`, así que los lotes siguientes leen de caché.
-- La respuesta se valida con zod; si falla se reintenta una vez indicando el error y, si vuelve a fallar,
-  las menciones quedan `failed`.
+- Cada corrida **reserva** sus menciones (`claim_mentions`, `FOR UPDATE SKIP LOCKED`, *lease* de 3 min): dos
+  corridas simultáneas nunca mandan la misma mención a Claude. Lo que no alcanza a procesar lo devuelve
+  (`release_mentions`); si el proceso muere, la reserva vence y otra corrida la toma.
+- Resultados y estado se guardan en **una transacción** (`complete_classifications`), sólo para menciones que
+  la corrida aún tiene reservadas, y **nunca sobre una corrección humana** (`corrected_at`).
+- La respuesta se valida con zod; si falla se reintenta una vez indicando el error. Si vuelve a fallar, la
+  mención se reintenta después con espera (2, 4, 8… min, hasta 6 h); al 5º intento pasa a `failed` y a la cola
+  **Fallos por revisar** (Configuración → Fuentes), donde se reintenta o descarta.
 - Las menciones con confianza < 0.6 o prioridad alta se reprocesan con `CLAUDE_MODEL_SMART`.
-- Si la API no responde, la corrida se detiene y las menciones siguen `pending` para la próxima.
+- Cada llamada tiene 30 s y un reintento del SDK; no se empieza un lote con menos de 20 s del presupuesto de
+  45 s. Si la API no responde, la corrida se detiene y devuelve sus reservas sin gastar intentos.
+- Contadores por municipio de cada corrida (reservadas, guardadas, correcciones respetadas, reintentos, a
+  revisión, llamadas y costo) en `worker_runs`.
 - Tokens y costo estimado se acumulan por día, modelo y propósito en `ai_usage` (zona America/Mexico_City),
   visible para admin y comunicación.
 

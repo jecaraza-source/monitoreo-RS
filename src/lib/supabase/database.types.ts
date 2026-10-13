@@ -255,14 +255,14 @@ isOneToOne: false
                   ]
                 },"ingest_runs": {
                   Row: {
-                    "created_at": string,"duplicates": number,"error": string | null,"fetched": number,"finished_at": string,"id": string,"inserted": number,"org_id": string,"source_id": string,"started_at": string,"status": string,"trigger": string,"unmatched": number
+                    "complete": boolean | null,"covered_until": string | null,"created_at": string,"duplicates": number,"error": string | null,"fetched": number,"finished_at": string,"gap_from": string | null,"gap_to": string | null,"id": string,"inserted": number,"limits": NonNullable<Json>,"org_id": string,"run_id": string | null,"source_id": string,"started_at": string,"status": string,"trigger": string,"unmatched": number,"updated": number,"window_from": string | null,"window_to": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"duplicates"?: number,"error"?: string | null,"fetched"?: number,"finished_at"?: string,"id"?: string,"inserted"?: number,"org_id": string,"source_id": string,"started_at": string,"status": string,"trigger": string,"unmatched"?: number
+                    "complete"?: boolean | null,"covered_until"?: string | null,"created_at"?: string,"duplicates"?: number,"error"?: string | null,"fetched"?: number,"finished_at"?: string,"gap_from"?: string | null,"gap_to"?: string | null,"id"?: string,"inserted"?: number,"limits"?: NonNullable<Json>,"org_id": string,"run_id"?: string | null,"source_id": string,"started_at": string,"status": string,"trigger": string,"unmatched"?: number,"updated"?: number,"window_from"?: string | null,"window_to"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"duplicates"?: number,"error"?: string | null,"fetched"?: number,"finished_at"?: string,"id"?: string,"inserted"?: number,"org_id"?: string,"source_id"?: string,"started_at"?: string,"status"?: string,"trigger"?: string,"unmatched"?: number
+                    "complete"?: boolean | null,"covered_until"?: string | null,"created_at"?: string,"duplicates"?: number,"error"?: string | null,"fetched"?: number,"finished_at"?: string,"gap_from"?: string | null,"gap_to"?: string | null,"id"?: string,"inserted"?: number,"limits"?: NonNullable<Json>,"org_id"?: string,"run_id"?: string | null,"source_id"?: string,"started_at"?: string,"status"?: string,"trigger"?: string,"unmatched"?: number,"updated"?: number,"window_from"?: string | null,"window_to"?: string | null
                   }
                   Relationships: [
                     {
@@ -333,14 +333,14 @@ isOneToOne: false
                   ]
                 },"mentions": {
                   Row: {
-                    "author_id": string | null,"created_at": string,"external_id": string,"id": string,"metrics": NonNullable<Json>,"org_id": string,"published_at": string,"query_id": string | null,"search": unknown,"source_id": string,"status": Database["public"]['Enums']["mention_status"],"text": string,"triage": Database["public"]['Enums']["triage_status"],"url": string | null
+                    "attempts": number,"author_id": string | null,"claim_expires_at": string | null,"claim_id": string | null,"created_at": string,"external_id": string,"id": string,"last_error": string | null,"metrics": NonNullable<Json>,"metrics_updated_at": string | null,"next_attempt_at": string | null,"org_id": string,"published_at": string,"query_id": string | null,"search": unknown,"source_id": string,"status": Database["public"]['Enums']["mention_status"],"text": string,"triage": Database["public"]['Enums']["triage_status"],"url": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "author_id"?: string | null,"created_at"?: string,"external_id": string,"id"?: string,"metrics"?: NonNullable<Json>,"org_id": string,"published_at": string,"query_id"?: string | null,"search"?: never,"source_id": string,"status"?: Database["public"]['Enums']["mention_status"],"text": string,"triage"?: Database["public"]['Enums']["triage_status"],"url"?: string | null
+                    "attempts"?: number,"author_id"?: string | null,"claim_expires_at"?: string | null,"claim_id"?: string | null,"created_at"?: string,"external_id": string,"id"?: string,"last_error"?: string | null,"metrics"?: NonNullable<Json>,"metrics_updated_at"?: string | null,"next_attempt_at"?: string | null,"org_id": string,"published_at": string,"query_id"?: string | null,"search"?: never,"source_id": string,"status"?: Database["public"]['Enums']["mention_status"],"text": string,"triage"?: Database["public"]['Enums']["triage_status"],"url"?: string | null
                   }
                   Update: {
-                    "author_id"?: string | null,"created_at"?: string,"external_id"?: string,"id"?: string,"metrics"?: NonNullable<Json>,"org_id"?: string,"published_at"?: string,"query_id"?: string | null,"search"?: never,"source_id"?: string,"status"?: Database["public"]['Enums']["mention_status"],"text"?: string,"triage"?: Database["public"]['Enums']["triage_status"],"url"?: string | null
+                    "attempts"?: number,"author_id"?: string | null,"claim_expires_at"?: string | null,"claim_id"?: string | null,"created_at"?: string,"external_id"?: string,"id"?: string,"last_error"?: string | null,"metrics"?: NonNullable<Json>,"metrics_updated_at"?: string | null,"next_attempt_at"?: string | null,"org_id"?: string,"published_at"?: string,"query_id"?: string | null,"search"?: never,"source_id"?: string,"status"?: Database["public"]['Enums']["mention_status"],"text"?: string,"triage"?: Database["public"]['Enums']["triage_status"],"url"?: string | null
                   }
                   Relationships: [
                     {
@@ -448,6 +448,38 @@ isOneToOne: false
                   }
                   Relationships: [
                     
+                  ]
+                },"pipeline_failures": {
+                  Row: {
+                    "attempts": number,"error": string | null,"first_failed_at": string,"id": string,"kind": string,"last_failed_at": string,"mention_id": string | null,"org_id": string,"resolution": string | null,"resolved_at": string | null,"resolved_by": string | null,"source_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "attempts"?: number,"error"?: string | null,"first_failed_at"?: string,"id"?: string,"kind": string,"last_failed_at"?: string,"mention_id"?: string | null,"org_id": string,"resolution"?: string | null,"resolved_at"?: string | null,"resolved_by"?: string | null,"source_id"?: string | null
+                  }
+                  Update: {
+                    "attempts"?: number,"error"?: string | null,"first_failed_at"?: string,"id"?: string,"kind"?: string,"last_failed_at"?: string,"mention_id"?: string | null,"org_id"?: string,"resolution"?: string | null,"resolved_at"?: string | null,"resolved_by"?: string | null,"source_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "pipeline_failures_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "pipeline_failures_org_id_mention_id_fkey"
+      columns: ["org_id","mention_id"]
+isOneToOne: false
+      referencedRelation: "mentions"
+      referencedColumns: ["org_id","id"]
+    },{
+      foreignKeyName: "pipeline_failures_org_id_source_id_fkey"
+      columns: ["org_id","source_id"]
+isOneToOne: false
+      referencedRelation: "sources"
+      referencedColumns: ["org_id","id"]
+    }
                   ]
                 },"projects": {
                   Row: {
@@ -583,14 +615,14 @@ isOneToOne: false
                   ]
                 },"sources": {
                   Row: {
-                    "config": NonNullable<Json>,"consecutive_failures": number,"created_at": string,"cursor": NonNullable<Json>,"has_secret": boolean,"id": string,"is_active": boolean,"last_error": string | null,"last_error_at": string | null,"last_run_at": string | null,"last_success_at": string | null,"name": string,"org_id": string,"type": Database["public"]['Enums']["source_type"]
+                    "config": NonNullable<Json>,"consecutive_failures": number,"covered_until": string | null,"created_at": string,"cursor": NonNullable<Json>,"has_secret": boolean,"id": string,"is_active": boolean,"last_error": string | null,"last_error_at": string | null,"last_run_at": string | null,"last_success_at": string | null,"name": string,"org_id": string,"run_lease_id": string | null,"run_lease_until": string | null,"type": Database["public"]['Enums']["source_type"]
                   }
                   ComputedFields: never
                   Insert: {
-                    "config"?: NonNullable<Json>,"consecutive_failures"?: number,"created_at"?: string,"cursor"?: NonNullable<Json>,"has_secret"?: boolean,"id"?: string,"is_active"?: boolean,"last_error"?: string | null,"last_error_at"?: string | null,"last_run_at"?: string | null,"last_success_at"?: string | null,"name": string,"org_id": string,"type": Database["public"]['Enums']["source_type"]
+                    "config"?: NonNullable<Json>,"consecutive_failures"?: number,"covered_until"?: string | null,"created_at"?: string,"cursor"?: NonNullable<Json>,"has_secret"?: boolean,"id"?: string,"is_active"?: boolean,"last_error"?: string | null,"last_error_at"?: string | null,"last_run_at"?: string | null,"last_success_at"?: string | null,"name": string,"org_id": string,"run_lease_id"?: string | null,"run_lease_until"?: string | null,"type": Database["public"]['Enums']["source_type"]
                   }
                   Update: {
-                    "config"?: NonNullable<Json>,"consecutive_failures"?: number,"created_at"?: string,"cursor"?: NonNullable<Json>,"has_secret"?: boolean,"id"?: string,"is_active"?: boolean,"last_error"?: string | null,"last_error_at"?: string | null,"last_run_at"?: string | null,"last_success_at"?: string | null,"name"?: string,"org_id"?: string,"type"?: Database["public"]['Enums']["source_type"]
+                    "config"?: NonNullable<Json>,"consecutive_failures"?: number,"covered_until"?: string | null,"created_at"?: string,"cursor"?: NonNullable<Json>,"has_secret"?: boolean,"id"?: string,"is_active"?: boolean,"last_error"?: string | null,"last_error_at"?: string | null,"last_run_at"?: string | null,"last_success_at"?: string | null,"name"?: string,"org_id"?: string,"run_lease_id"?: string | null,"run_lease_until"?: string | null,"type"?: Database["public"]['Enums']["source_type"]
                   }
                   Relationships: [
                     {
@@ -711,6 +743,26 @@ isOneToOne: true
       referencedColumns: ["id"]
     }
                   ]
+                },"worker_runs": {
+                  Row: {
+                    "counters": NonNullable<Json>,"finished_at": string,"id": string,"kind": string,"org_id": string,"run_id": string,"started_at": string,"status": string,"stopped_by": string | null,"trigger": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "counters"?: NonNullable<Json>,"finished_at"?: string,"id"?: string,"kind": string,"org_id": string,"run_id": string,"started_at": string,"status": string,"stopped_by"?: string | null,"trigger": string
+                  }
+                  Update: {
+                    "counters"?: NonNullable<Json>,"finished_at"?: string,"id"?: string,"kind"?: string,"org_id"?: string,"run_id"?: string,"started_at"?: string,"status"?: string,"stopped_by"?: string | null,"trigger"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "worker_runs_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
                 }
           }
           Views: {
@@ -752,6 +804,37 @@ isOneToOne: false
 "can_view_officials":
 { Args: { "p_org_id": string }; Returns: boolean
                            },
+"claim_mentions":
+{ Args: { "p_claim_id": string,"p_lease_seconds": number,"p_limit": number,"p_max_attempts": number }; Returns: {
+              "attempts": number,"author_kind": Database["public"]['Enums']["author_kind"],"author_name": string,"id": string,"org_id": string,"project_id": string,"published_at": string,"source_name": string,"source_type": Database["public"]['Enums']["source_type"],"text": string
+            }[]
+                           },
+"claim_sources":
+{ Args: { "p_lease_id": string,"p_lease_seconds": number,"p_limit": number,"p_org_id"?: string,"p_respect_backoff"?: boolean,"p_source_ids"?: (string)[],"p_types": (Database["public"]['Enums']["source_type"])[] }; Returns: {
+              "config": NonNullable<Json>,
+"consecutive_failures": number,
+"covered_until": string | null,
+"created_at": string,
+"cursor": NonNullable<Json>,
+"has_secret": boolean,
+"id": string,
+"is_active": boolean,
+"last_error": string | null,
+"last_error_at": string | null,
+"last_run_at": string | null,
+"last_success_at": string | null,
+"name": string,
+"org_id": string,
+"run_lease_id": string | null,
+"run_lease_until": string | null,
+"type": Database["public"]['Enums']["source_type"]
+            }[]
+                          SetofOptions: {
+        from: "*"
+        to: "sources"
+        isOneToOne: false
+        isSetofReturn: true
+      } },
 "claim_whatsapp_followups":
 { Args: { "p_limit": number,"p_now": string }; Returns: {
               "kind": string,"ticket_id": string
@@ -760,17 +843,26 @@ isOneToOne: false
 "clear_source_secret":
 { Args: { "p_source_id": string }; Returns: undefined
                            },
+"complete_classifications":
+{ Args: { "p_claim_id": string,"p_failures": Json,"p_max_attempts": number,"p_results": Json }; Returns: Json
+                           },
 "crisis_snapshot":
 { Args: { "p_minutes"?: number,"p_org_id": string }; Returns: Json
                            },
 "dashboard_stats":
 { Args: { "p_bucket"?: string,"p_detail"?: boolean,"p_from": string,"p_org_id": string,"p_to": string }; Returns: Json
                            },
+"finish_source_run":
+{ Args: { "p_lease_id": string,"p_run": Json,"p_source_id": string,"p_state": Json }; Returns: boolean
+                           },
 "fire_alert":
 { Args: { "p_fingerprint": string,"p_kind": string,"p_mention_ids": (string)[],"p_payload": Json,"p_rule_id": string,"p_severity": Database["public"]['Enums']["priority"],"p_summary": string,"p_title": string }; Returns: string
                            },
 "get_source_secret":
 { Args: { "p_source_id": string }; Returns: string
+                           },
+"ingest_mentions":
+{ Args: { "p_org_id": string,"p_rows": Json,"p_source_id": string }; Returns: Json
                            },
 "invite_whatsapp_contact":
 { Args: { "p_org_id": string,"p_phone": string,"p_user_id": string }; Returns: string
@@ -819,11 +911,17 @@ isOneToOne: false
 "refresh_mention_stats":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },
+"release_mentions":
+{ Args: { "p_claim_id": string,"p_count_attempt"?: boolean,"p_error"?: string,"p_ids": (string)[] }; Returns: number
+                           },
 "remove_whatsapp_contact":
 { Args: { "p_org_id": string,"p_user_id": string }; Returns: undefined
                            },
 "report_extras":
 { Args: { "p_bucket"?: string,"p_from": string,"p_org_id": string,"p_peaks"?: (string)[],"p_to": string }; Returns: Json
+                           },
+"resolve_pipeline_failure":
+{ Args: { "p_action": string,"p_failure_id": string }; Returns: undefined
                            },
 "route_mentions":
 { Args: { "p_department_id": string,"p_due_at": string,"p_mention_ids": (string)[],"p_support_ids"?: (string)[] }; Returns: number

@@ -62,7 +62,8 @@ describe("youtubeConnector", () => {
       since,
       { fetch: ytFetch(handler, calls), env, now },
     );
-    assert.deepEqual(result.mentions.map((m) => m.externalId), ["video:vid1", "comment:c2"]);
+    // vid1 is new: all of its comments are read (its watermark starts now).
+    assert.deepEqual(result.mentions.map((m) => m.externalId), ["video:vid1", "comment:c2", "comment:c1"]);
     const [video, comment] = result.mentions;
     assert.equal(video.text, "Informe del ayuntamiento & obras — Resumen de obras en San Andrés");
     assert.deepEqual(video.metrics, { views: 1500, likes: 40, comments: 2 });
@@ -74,7 +75,8 @@ describe("youtubeConnector", () => {
     assert.equal(search.searchParams.get("publishedAfter"), since.toISOString());
     assert.equal(search.searchParams.get("q"), "San Andrés ayuntamiento");
     assert.equal(search.searchParams.get("key"), "yt-key");
-    assert.equal(calls.filter((c) => c.pathname.endsWith("/search")).length, 1, "one 100-unit search per run");
+    assert.equal(calls.filter((c) => c.pathname.endsWith("/search")).length, 1, "one 100-unit search when one page covers the window");
+    assert.equal(result.complete, true);
   });
 
   it("explains an exhausted quota", async () => {

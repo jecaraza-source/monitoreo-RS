@@ -46,18 +46,3 @@ export function assignQueries(
   }
   return { kept, unmatched };
 }
-
-/** Where the next run starts: last success (or a 3-day backfill), minus an overlap margin. */
-export function sinceFor(lastSuccessAt: string | null, now: Date): Date {
-  const BACKFILL_MS = 3 * 86_400_000;
-  const OVERLAP_MS = 15 * 60_000; // late-indexed items; dedupe absorbs the overlap
-  const base = lastSuccessAt ? Date.parse(lastSuccessAt) : now.getTime() - BACKFILL_MS;
-  return new Date(base - OVERLAP_MS);
-}
-
-/** Exponential backoff for failing sources: 1 h, 2 h, 4 h… capped at 24 h after the 3rd failure. */
-export function inBackoff(consecutiveFailures: number, lastErrorAt: string | null, now: Date): boolean {
-  if (consecutiveFailures < 3 || !lastErrorAt) return false;
-  const waitMs = Math.min(2 ** (consecutiveFailures - 3) * 3_600_000, 86_400_000);
-  return now.getTime() - Date.parse(lastErrorAt) < waitMs;
-}

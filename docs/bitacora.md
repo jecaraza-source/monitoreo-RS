@@ -3,6 +3,58 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Etapa 2 — Cobertura y clasificación confiable (13 oct 2026, base `ea3e9e8`)
+
+- **Antes:**
+  - **Ingesta:** los conectores truncaban en silencio (200 elementos, 1–4 páginas) y la siguiente corrida
+    empezaba en el último éxito, así que lo omitido se perdía; las interacciones no se actualizaban.
+  - **Clasificación:** dos workers clasificaban y mandaban a la IA las mismas menciones; el upsert pisaba
+    correcciones humanas; guardar y cambiar estado eran dos escrituras sin transacción.
+  - **Fallos:** las menciones `failed` quedaban así para siempre.
+- **Después:**
+  - **Contrato de conectores:** con ventana, completitud, `resumeUntil`, huecos y topes. `covered_until` sólo
+    avanza sobre ventanas completas, con backfill de lo cortado.
+  - **Paginación:** Facebook pagina y reanuda (comentarios por cursor); YouTube pagina la búsqueda; RSS sin tope
+    y con tolerancia de 7 días.
+  - **Almacenamiento:** `ingest_mentions` deduplica y actualiza métricas.
+  - **Clasificación:** reserva con lease (`claim_mentions`) y guardado transaccional que respeta correcciones
+    (`complete_classifications`).
+  - **Corridas y fallos:** reintentos con espera y cola revisable (`pipeline_failures`); contadores por
+    municipio (`worker_runs`).
+- **Archivos:**
+  - **Nuevos:**
+    - `supabase/migrations/20261025000000_pipeline_reliability.sql`;
+    - `docs/rollback/20261025000000_pipeline_reliability.down.sql`;
+    - `src/lib/connectors/window.ts`;
+    - `src/lib/ingest/coverage.ts` y `coverage.test.ts`;
+    - `src/components/sources/failures-queue.tsx`;
+    - `supabase/tests/database/pipeline.test.sql`;
+    - `e2e/pipeline.spec.ts`;
+    - `docs/etapa-2-cobertura-y-clasificacion.md`.
+  - **Modificados:**
+    - `connectors/types.ts`, `meta.ts`, `youtube.ts`, `rss.ts`, `recent.ts` y las pruebas de conectores;
+    - `ingest/run.ts` y `assign.ts`, `ai/classify.ts` y `classifier.ts`;
+    - `sources/actions.ts` y `data.ts`, la página de fuentes y `runs-table.tsx`, `sources-manager.tsx`;
+    - `e2e/mock-anthropic.mjs` (registra qué menciones se envían), `database.types.ts` y el README.
+- **Pruebas:**
+  - lint, typecheck y 279 unitarias;
+  - `db reset` de 18 migraciones y 311 pgTAP;
+  - build canario + `check:bundle`;
+  - 18 e2e;
+  - el e2e de concurrencia falla con el código anterior (2 envíos por mención) y pasa con el nuevo;
+  - reversión y reaplicación probadas.
+- **Hallazgo:** la estructura de `queries` ya versionaba cada consulta (una fila por versión); se conserva y se
+  documenta en lugar de agregar otra columna.
+- **Limitaciones:**
+  - paginación real de Facebook y YouTube sin probar contra los proveedores;
+  - ingesta exitosa de punta a punta sin probar en el sandbox (sin internet);
+  - comentarios de YouTube por encima de 500 entre corridas y feeds que se adelantan quedan como huecos
+    reportados.
+- **Activación / reversión:**
+  - activar: migración en preview y producción antes del deploy;
+  - revertir: commit y `down.sql`.
+- **Pendiente:** orden de etapas y Node 22/24 (etapa 0); cuotas y costos (etapa 3).
+
 ## Etapa 1 — Endurecimiento (13 oct 2026, base `9ac734a`)
 
 - **Antes:**

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { NormalizedMention } from "../connectors/types.ts";
-import { assignQueries, compileQueries, inBackoff, sinceFor } from "./assign.ts";
+import { assignQueries, compileQueries } from "./assign.ts";
 
 const mention = (externalId: string, text: string): NormalizedMention => ({
   externalId,
@@ -46,21 +46,5 @@ describe("assignQueries", () => {
   it("dedupes repeated items within one fetch", () => {
     const { kept } = assignQueries([mention("1", "agua"), mention("1", "agua")], compiled, true);
     assert.equal(kept.length, 1);
-  });
-});
-
-describe("sinceFor / inBackoff", () => {
-  const now = new Date("2026-10-09T15:00:00Z");
-
-  it("starts from the last success minus 15 min, or a 3-day backfill", () => {
-    assert.equal(sinceFor("2026-10-09T14:00:00Z", now).toISOString(), "2026-10-09T13:45:00.000Z");
-    assert.equal(sinceFor(null, now).toISOString(), "2026-10-06T14:45:00.000Z");
-  });
-
-  it("backs off after three consecutive failures", () => {
-    assert.equal(inBackoff(2, "2026-10-09T14:59:00Z", now), false);
-    assert.equal(inBackoff(3, "2026-10-09T14:30:00Z", now), true); // waits 1 h
-    assert.equal(inBackoff(3, "2026-10-09T13:30:00Z", now), false);
-    assert.equal(inBackoff(10, "2026-10-08T16:00:00Z", now), true); // capped at 24 h
   });
 });

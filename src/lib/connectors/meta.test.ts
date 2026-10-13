@@ -65,7 +65,8 @@ describe("metaConnector", () => {
 
     assert.deepEqual(
       result.mentions.map((m) => `${m.kind}:${m.externalId}`),
-      ["post:123_1", "post:123_2", "comment:c2", "comment:c9"],
+      // A new post gets all its comments; the post tracked from before keeps the `since` filter.
+      ["post:123_1", "post:123_2", "comment:c2", "comment:c1", "comment:c9"],
     );
     const [post] = result.mentions;
     assert.deepEqual(post.metrics, { likes: 30, shares: 4, comments: 2 });
