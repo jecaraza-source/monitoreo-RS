@@ -106,6 +106,7 @@ describe("rssConnector.fetchSince", () => {
       displayName: "Diario del Valle",
       followers: null,
       kind: "media",
+      vouched: true,
     });
     assert.equal(mentions[2].publishedAt, now().toISOString()); // undated → now
     assert.equal(mentions.every((m) => m.kind === "article"), true);

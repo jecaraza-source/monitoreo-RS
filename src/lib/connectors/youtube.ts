@@ -150,8 +150,11 @@ export const youtubeConnector: Connector<YoutubeConfig> = {
         text: clampText(joinTitleAndBody(decodeEntities(snippet.title ?? ""), decodeEntities(snippet.description ?? ""))),
         publishedAt: new Date(snippet.publishedAt!).toISOString(),
         kind: "video",
+        // Only the configured channel is vouched; channels found by an open search are not media by default.
         author: snippet.channelId
-          ? { platform: "youtube", handle: snippet.channelId, displayName: snippet.channelTitle ?? null, followers: null, kind: "media" }
+          ? snippet.channelId === source.config.channelId
+            ? { platform: "youtube", handle: snippet.channelId, displayName: snippet.channelTitle ?? null, followers: null, kind: "media", vouched: true }
+            : { platform: "youtube", handle: snippet.channelId, displayName: null, followers: null, kind: null, vouched: false }
           : null,
         metrics: s ? { views: toInt(s.viewCount), likes: toInt(s.likeCount), comments: toInt(s.commentCount) } : {},
       });

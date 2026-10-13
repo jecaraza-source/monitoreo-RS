@@ -1,5 +1,6 @@
 "use client";
 
+import { authorBadge, authorName } from "@/lib/authors/label";
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { AlarmClock, Archive, CheckCheck, ExternalLink, FolderKanban, FolderPlus, MessageCircle, Pencil, RotateCcw, Send, UserCheck } from "lucide-react";
@@ -93,7 +94,8 @@ export function DetailPanel({
   onChanged: (id: string) => void;
 }) {
   const source = lookups.sources.get(item.source_id);
-  const author = item.authors?.display_name ?? (item.authors ? `@${item.authors.handle}` : "Autor desconocido");
+  const author = authorName(item.authors);
+  const badge = authorBadge(item.authors);
   const editor = scope === "editor";
 
   return (
@@ -101,7 +103,7 @@ export function DetailPanel({
       <header className="flex flex-col gap-1.5 pr-8">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">{author}</span>
-          {item.authors?.kind === "media" && <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase">Medio</span>}
+          {badge && <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase">{badge}</span>}
           {editor && (
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{TRIAGE_LABELS[item.triage]}</span>
           )}

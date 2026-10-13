@@ -1,15 +1,17 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
-import { runAssistant, type AssistantEvent, type StreamingClient } from "@/lib/ai/assistant";
+import { runAssistant, type AssistantEvent } from "@/lib/ai/assistant";
+import { meteredAnthropic } from "@/lib/ai/ledger";
+import { AiLimitError } from "@/lib/ai/meter";
 import { runTool } from "@/lib/ai/tools";
 import { canAccessPath } from "@/lib/auth/roles";
 import { getSession } from "@/lib/auth/session";
 import { toMxDay } from "@/lib/dashboard/period";
-import { recordUsage } from "@/lib/reports/data";
 import { createClient } from "@/lib/supabase/server";
 
 // Several tool rounds plus the streamed answer.
 export const maxDuration = 120;
+/** The whole turn stops (SDK stream included) before the platform kills the function. */
+const TURN_TIMEOUT_MS = 100_000;
 
 const bodySchema = z.object({
   messages: z
@@ -52,12 +54,19 @@ export async function POST(request: Request) {
   const topics = [...new Set((projects.data ?? []).flatMap((p) => p.topics ?? []))];
 
   const encoder = new TextEncoder();
+  // The user closing the chat (request aborted) or the deadline cancels the provider call in flight.
+  const signal = AbortSignal.any([request.signal, AbortSignal.timeout(TURN_TIMEOUT_MS)]);
+  // Each call reserves quota (user, concurrency, budget) and is reconciled as soon as it ends,
+  // so a round that fails later never loses what the earlier ones consumed.
+  const client = meteredAnthropic({ orgId: member.orgId, userId: member.userId, purpose: "assistant", ttlSeconds: maxDuration + 30 });
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const emit = (event: AssistantEvent) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      const emit = (event: AssistantEvent) => {
+        if (!request.signal.aborted) controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      };
       try {
-        const calls = await runAssistant({
-          client: new Anthropic() as unknown as StreamingClient,
+        await runAssistant({
+          client,
           model,
           scope: {
             municipality: member.orgName,
@@ -71,15 +80,29 @@ export async function POST(request: Request) {
           history: parsed.data.messages,
           runTool: (name, input) => runTool(name, input, ctx),
           emit,
+          signal,
         });
-        await recordUsage(member.orgId, "assistant", calls);
       } catch (error) {
-        console.error("[assistant]", error instanceof Error ? error.message : error);
-        emit({ type: "error", message: "No se pudo completar la respuesta. Intenta de nuevo." });
+        if (error instanceof AiLimitError) {
+          emit({ type: "error", message: error.message });
+        } else if (signal.aborted) {
+          // Closed by the user: nothing to show. A timeout does tell the user.
+          if (!request.signal.aborted) emit({ type: "error", message: "La respuesta tardó demasiado y se canceló. Intenta con una pregunta más acotada." });
+        } else {
+          console.error("[assistant]", error instanceof Error ? error.message : error);
+          emit({ type: "error", message: "No se pudo completar la respuesta. Intenta de nuevo." });
+        }
         emit({ type: "done" });
       } finally {
-        controller.close();
+        try {
+          controller.close();
+        } catch {
+          // Already closed by a disconnect.
+        }
       }
+    },
+    cancel() {
+      // The reader went away: nothing more to stream (the request signal aborts the work).
     },
   });
 

@@ -100,6 +100,8 @@ export const metaConnector: Connector<MetaConfig> = {
       displayName: page.name ?? null,
       followers: page.followers_count ?? null,
       kind: "public_figure",
+      // The configured page itself (its token proves the org follows it).
+      vouched: true,
     };
 
     // Posts come newest first; since/until bound the window and the read

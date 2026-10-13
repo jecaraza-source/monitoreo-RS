@@ -117,12 +117,14 @@ reset role;
 
 select is((select string_agg(s.t, ', ' order by s.t) from seen s join everything e using (t)
            where s.role = 'comunicacion' and s.n <> e.n
-             and s.t not in ('memberships', 'audit_log', 'app_errors', 'officials', 'official_mentions', 'worker_heartbeats', 'case_counters')), null,
-  'comunicacion reads every row of its org (not other memberships, the audit log or errors: admin only; officials: officials.test.sql; heartbeats: through monitor_health, health.test.sql)');
+             and s.t not in ('memberships', 'audit_log', 'app_errors', 'officials', 'official_mentions', 'worker_heartbeats', 'case_counters',
+                             'author_events', 'ai_leases')), null,
+  'comunicacion reads every row of its org (not other memberships, the audit log, errors or the authors trail: admin only; officials: officials.test.sql; heartbeats: through monitor_health, health.test.sql; AI leases: server only)');
 select is((select string_agg(s.t, ', ' order by s.t) from seen s join everything e using (t)
            where s.role = 'lectura' and s.n <> e.n
-             and s.t not in ('memberships', 'ai_usage', 'audit_log', 'app_errors', 'officials', 'official_mentions', 'worker_heartbeats', 'case_counters')), null,
-  'lectura reads everything except AI costs and other memberships');
+             and s.t not in ('memberships', 'ai_usage', 'audit_log', 'app_errors', 'officials', 'official_mentions', 'worker_heartbeats', 'case_counters',
+                             'ai_calls', 'ai_limits', 'ai_invoices', 'ai_leases', 'verified_authors', 'author_events')), null,
+  'lectura reads everything except AI costs and limits, the authors catalog and trail, and other memberships');
 select is((select string_agg(s.t, ', ' order by s.t) from seen s
            where s.role = 'obras' and s.n > 0
              and s.t not in ('mentions', 'classifications', 'tickets', 'authors', 'departments', 'neighborhoods',

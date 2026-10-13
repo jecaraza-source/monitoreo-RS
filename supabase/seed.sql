@@ -135,24 +135,34 @@ insert into public.sources (id, org_id, name, type, config, is_active) values
   ('00000000-0000-4000-e200-000000000003', '00000000-0000-4000-a000-000000000001', 'Canal del Ayuntamiento', 'youtube', '{"channelId":"UC0000000000000000000000","includeComments":true}', false),
   ('00000000-0000-4000-e200-000000000004', '00000000-0000-4000-a000-000000000001', 'Búsqueda en X', 'x', '{}', false);
 
-insert into public.authors (org_id, platform, handle, display_name, followers, kind) values
-  ('00000000-0000-4000-a000-000000000001', 'rss', 'diario-del-valle', 'Diario del Valle', 85000, 'media'),
-  ('00000000-0000-4000-a000-000000000001', 'x', 'noticiasvalle', 'Noticias del Valle', 42000, 'media'),
-  ('00000000-0000-4000-a000-000000000001', 'meta', 'radiovalle', 'Radio Valle 98.5', 31000, 'media'),
-  ('00000000-0000-4000-a000-000000000001', 'youtube', 'tvregional', 'TV Regional', 120000, 'media'),
-  ('00000000-0000-4000-a000-000000000001', 'x', 'regidora_ejemplo', 'Regidora (cuenta ficticia)', 9800, 'public_figure'),
-  ('00000000-0000-4000-a000-000000000001', 'meta', 'diputado_ejemplo', 'Diputado local (cuenta ficticia)', 15400, 'public_figure');
+-- Catalog of verified authors (fictitious evidence) and their author rows (stage 10).
+insert into public.verified_authors (id, org_id, platform, handle, kind, display_name, evidence, evidence_url, verified_by, verified_by_name) values
+  ('00000000-0000-4000-e500-000000000001', '00000000-0000-4000-a000-000000000001', 'rss', 'diario-del-valle', 'media', 'Diario del Valle', 'Medio ficticio de pruebas: directorio de medios del estado.', 'https://example.org/medios/diario-del-valle', '00000000-0000-4000-d000-000000000002', 'Comunicación (prueba)'),
+  ('00000000-0000-4000-e500-000000000002', '00000000-0000-4000-a000-000000000001', 'x', 'noticiasvalle', 'media', 'Noticias del Valle', 'Medio ficticio de pruebas: cuenta institucional del periódico.', null, '00000000-0000-4000-d000-000000000002', 'Comunicación (prueba)'),
+  ('00000000-0000-4000-e500-000000000003', '00000000-0000-4000-a000-000000000001', 'meta', 'radiovalle', 'media', 'Radio Valle 98.5', 'Medio ficticio de pruebas: concesión de radio pública.', null, '00000000-0000-4000-d000-000000000002', 'Comunicación (prueba)'),
+  ('00000000-0000-4000-e500-000000000004', '00000000-0000-4000-a000-000000000001', 'youtube', 'tvregional', 'media', 'TV Regional', 'Medio ficticio de pruebas: canal oficial de la televisora.', null, '00000000-0000-4000-d000-000000000002', 'Comunicación (prueba)'),
+  ('00000000-0000-4000-e500-000000000005', '00000000-0000-4000-a000-000000000001', 'x', 'regidora_ejemplo', 'public_figure', 'Regidora (cuenta ficticia)', 'Figura pública ficticia: integrante del cabildo.', null, '00000000-0000-4000-d000-000000000001', 'Administración (prueba)'),
+  ('00000000-0000-4000-e500-000000000006', '00000000-0000-4000-a000-000000000001', 'meta', 'diputado_ejemplo', 'public_figure', 'Diputado local (cuenta ficticia)', 'Figura pública ficticia: diputado del congreso local.', null, '00000000-0000-4000-d000-000000000001', 'Administración (prueba)');
 
--- Pseudonymous citizen accounts (only to attribute mentions).
-insert into public.authors (org_id, platform, handle, display_name, followers, kind)
+insert into public.authors (org_id, platform, handle, display_name, followers, kind, verification, verified_author_id)
+select va.org_id, va.platform, va.handle, va.display_name, f.followers, va.kind, 'catalog', va.id
+from public.verified_authors va
+join (values ('diario-del-valle', 85000), ('noticiasvalle', 42000), ('radiovalle', 31000), ('tvregional', 120000),
+             ('regidora_ejemplo', 9800), ('diputado_ejemplo', 15400)) as f(handle, followers) on f.handle = va.handle;
+
+-- Unverified accounts: only a pseudonym, never a name or followers (only to attribute mentions).
+insert into public.authors (org_id, platform, handle, display_name, followers, kind, verification, pseudonymized_at)
 select
   '00000000-0000-4000-a000-000000000001',
-  (array['meta', 'x', 'youtube']::public.source_type[])[1 + (n % 3)],
-  'vecino_' || lpad(n::text, 3, '0'),
+  p.platform,
+  private.author_pseudonym('00000000-0000-4000-a000-000000000001', p.platform, 'vecino_' || lpad(n::text, 3, '0')),
   null,
-  (random() * 900)::integer,
-  'citizen'
-from generate_series(1, 30) as n;
+  null,
+  'citizen',
+  'unverified',
+  now()
+from generate_series(1, 30) as n
+cross join lateral (select (array['meta', 'x', 'youtube']::public.source_type[])[1 + (n % 3)] as platform) p;
 
 -- Topics that raise priority. Never names of people (see CLAUDE.md).
 insert into public.risk_terms (org_id, term, normalized, severity) values

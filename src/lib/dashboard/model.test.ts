@@ -76,7 +76,10 @@ describe("metrics", () => {
       {
         totals: { mentions: 10, classified: 8, positive: 4, negative: 2, attention_hours: null },
         departments: [{ id: "d1", total: 6, positive: null, negative: 3 }],
-        top_mentions: [{ id: "m", text: "x", source_id: "s1", interactions: "12", handle: "vecino" }],
+        top_mentions: [
+          { id: "m", text: "x", source_id: "s1", interactions: "12", handle: "nv_0123456789abcdef01234567", kind: "citizen" },
+          { id: "m2", text: "y", source_id: "s1", interactions: "3", handle: "diario", display_name: null, kind: "media" },
+        ],
       },
       { totals: { mentions: 5 } },
       new Map([["d1", "Obras"]]),
@@ -86,7 +89,9 @@ describe("metrics", () => {
     assert.equal(data.previous.mentions, 5);
     assert.deepEqual(data.departments[0], { id: "d1", name: "Obras", total: 6, positive: 0, negative: 3, nss: -50 });
     assert.equal(data.topMentions[0].source, "RSS · Diario");
-    assert.equal(data.topMentions[0].author, "@vecino");
+    // An unverified account is never named, not even by its pseudonym.
+    assert.equal(data.topMentions[0].author, "Cuenta no verificada");
+    assert.equal(data.topMentions[1].author, "@diario");
     assert.equal(data.topMentions[0].interactions, 12);
     assert.deepEqual(data.series, []);
   });

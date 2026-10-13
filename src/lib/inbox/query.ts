@@ -132,7 +132,11 @@ export async function fetchInbox(
   if (filters.to) query = query.lt("published_at", dayEnd(filters.to));
   if (filters.source) query = query.eq("source_id", filters.source);
   if (filters.mention) query = query.eq("id", filters.mention);
-  if (filters.author) query = query.eq("author_id", filters.author);
+  if (filters.author) {
+    // Filtering by account exists for verified media and public figures; never to follow an unverified account.
+    const { data: author } = await supabase.from("authors").select("kind").eq("id", filters.author).eq("org_id", orgId).maybeSingle();
+    query = query.eq("author_id", author && author.kind !== "citizen" ? filters.author : "00000000-0000-0000-0000-000000000000");
+  }
   if (filters.sentiment) query = query.eq("classifications.sentiment", filters.sentiment);
   if (filters.topic) query = query.eq("classifications.topic", filters.topic);
   if (filters.department) query = query.eq("classifications.department_id", filters.department);

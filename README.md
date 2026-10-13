@@ -142,6 +142,25 @@ y tamaños típicos de prompt; se reemplazan por las reales con `npm run ai:cost
 Palancas: subir el umbral de escalamiento (`ESCALATE_BELOW_CONFIDENCE`), usar Sonnet como modelo
 "smart" o limitar preguntas por usuario.
 
+### Cuotas, presupuesto y tarifas (etapa 10)
+
+- **Antes de cada llamada** a Claude se reserva su costo máximo estimado (`reserve_ai`, atómico por
+  municipio), contra:
+  - llamadas simultáneas por uso;
+  - solicitudes por persona al día;
+  - presupuesto diario y mensual en US$;
+  - tokens por día.
+- **Al terminar** se concilia el consumo real (`settle_ai`). Si un límite se alcanza, la llamada no se hace y
+  se explica el motivo en español.
+- **Configuración → Consumo de IA** (administración edita; comunicación consulta):
+  - consumo de hoy y del mes por uso y modelo;
+  - límites;
+  - conciliación mensual con la factura del proveedor.
+- **Tarifas** versionadas en `src/lib/ai/pricing.ts`, con normalización de identificadores de modelo. Un modelo
+  sin tarifa muestra **«Costo desconocido»** con sus tokens: nunca se cuenta como 0. Nunca se inventan precios:
+  para un modelo nuevo se agrega una versión de tarifa.
+- Detalle: `docs/etapa-10-ia-autores.md`.
+
 ## Seguridad
 
 ### Checklist
@@ -254,6 +273,17 @@ menciones normalizadas sin tocar la base:
 | `x` | Deshabilitado: requiere plan de pago de la API de X | — |
 
 Los autores de comentarios (ciudadanos) no se guardan; sólo medios y páginas oficiales.
+
+**Autores verificados (etapa 10):**
+
+- Sólo es medio o figura pública:
+  - quien está en el catálogo de Configuración → Autores verificados (con evidencia y responsable);
+  - o el medio, página o canal que lee una fuente configurada (host RSS, página de Meta, canal de YouTube
+    por ID).
+- Un canal encontrado por una búsqueda abierta de YouTube **no** es medio.
+- Cualquier otra cuenta se guarda como seudónimo (`nv_…`, con sal secreta por municipio), sin nombre ni
+  seguidores, y se muestra como «Cuenta no verificada». Cuenta en análisis agregados, nunca en rankings,
+  reportes, prompts ni exportaciones con nombre.
 
 Las URL de feeds las escriben los usuarios, así que el conector RSS usa `safe-fetch.ts`: sólo `http(s)`,
 sin credenciales en la URL, a direcciones públicas (bloquea loopback, redes privadas, link-local, metadatos
@@ -745,4 +775,7 @@ semana?"). Usa `CLAUDE_MODEL_SMART` con cinco herramientas de **sólo lectura** 
 - `/api/asistente` responde en streaming (NDJSON): texto, avisos de herramienta, mini-gráficas cuando hay
   series o rankings y enlaces a la bandeja filtrada con el mismo periodo y filtros.
 - Los ciudadanos nunca se identifican en los resultados; sólo se nombran medios y figuras públicas.
-- El costo queda en `ai_usage` (`purpose = 'assistant'`).
+- El costo queda en `ai_usage` (`purpose = 'assistant'`). Cada ronda reserva cuota (persona, concurrencia,
+  presupuesto) y se concilia al terminar, aunque una ronda posterior falle.
+- Cerrar el chat o pasar de 100 s cancela la llamada en curso (la señal llega al SDK) y no empieza otra ronda
+  ni herramienta. Historial de 20 turnos y 6 rondas como máximo.

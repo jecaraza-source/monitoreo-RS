@@ -1,4 +1,5 @@
 import "server-only";
+import { authorName } from "@/lib/authors/label";
 import type { Member } from "@/lib/auth/session";
 import { dayEnd, dayStart, PRIORITIES, type Priority, type Sentiment, type TicketStatus } from "@/lib/inbox/model";
 import type { Database } from "@/lib/supabase/database.types";
@@ -283,7 +284,7 @@ export async function getCase(member: Member, id: string): Promise<CaseDetail | 
         url: x.url,
         published_at: x.published_at,
         source_id: x.source_id,
-        author: x.authors ? { name: x.authors.display_name ?? `@${x.authors.handle}`, kind: x.authors.kind } : null,
+        author: x.authors ? { name: authorName(x.authors), kind: x.authors.kind } : null,
         sentiment: cls?.sentiment ?? null,
         topic: cls?.topic ?? null,
         neighborhood_id: cls?.neighborhood_id ?? null,

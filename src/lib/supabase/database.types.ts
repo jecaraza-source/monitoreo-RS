@@ -5,16 +5,96 @@ export type Database = {
   
   "public": {
           Tables: {
-            "ai_usage": {
+            "ai_calls": {
                   Row: {
-                    "cache_read_tokens": number,"cache_write_tokens": number,"cost_usd": number,"created_at": string,"day": string,"id": string,"input_tokens": number,"model": string,"org_id": string,"output_tokens": number,"purpose": string,"requests": number
+                    "cache_read_tokens": number | null,"cache_write_tokens": number | null,"cost_status": string | null,"cost_usd": number | null,"created_at": string,"error": string | null,"expires_at": string,"id": string,"input_tokens": number | null,"model": string,"org_id": string,"output_tokens": number | null,"purpose": string,"reserved_tokens": number,"reserved_usd": number | null,"settled_at": string | null,"status": string,"tariff_version": string | null,"user_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "cache_read_tokens"?: number,"cache_write_tokens"?: number,"cost_usd"?: number,"created_at"?: string,"day": string,"id"?: string,"input_tokens"?: number,"model": string,"org_id": string,"output_tokens"?: number,"purpose": string,"requests"?: number
+                    "cache_read_tokens"?: number | null,"cache_write_tokens"?: number | null,"cost_status"?: string | null,"cost_usd"?: number | null,"created_at"?: string,"error"?: string | null,"expires_at": string,"id"?: string,"input_tokens"?: number | null,"model": string,"org_id": string,"output_tokens"?: number | null,"purpose": string,"reserved_tokens": number,"reserved_usd"?: number | null,"settled_at"?: string | null,"status"?: string,"tariff_version"?: string | null,"user_id"?: string | null
                   }
                   Update: {
-                    "cache_read_tokens"?: number,"cache_write_tokens"?: number,"cost_usd"?: number,"created_at"?: string,"day"?: string,"id"?: string,"input_tokens"?: number,"model"?: string,"org_id"?: string,"output_tokens"?: number,"purpose"?: string,"requests"?: number
+                    "cache_read_tokens"?: number | null,"cache_write_tokens"?: number | null,"cost_status"?: string | null,"cost_usd"?: number | null,"created_at"?: string,"error"?: string | null,"expires_at"?: string,"id"?: string,"input_tokens"?: number | null,"model"?: string,"org_id"?: string,"output_tokens"?: number | null,"purpose"?: string,"reserved_tokens"?: number,"reserved_usd"?: number | null,"settled_at"?: string | null,"status"?: string,"tariff_version"?: string | null,"user_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ai_calls_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"ai_invoices": {
+                  Row: {
+                    "amount_usd": number,"id": string,"month": string,"notes": string | null,"org_id": string,"recorded_at": string,"recorded_by": string,"reference": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount_usd": number,"id"?: string,"month": string,"notes"?: string | null,"org_id": string,"recorded_at"?: string,"recorded_by": string,"reference"?: string | null
+                  }
+                  Update: {
+                    "amount_usd"?: number,"id"?: string,"month"?: string,"notes"?: string | null,"org_id"?: string,"recorded_at"?: string,"recorded_by"?: string,"reference"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ai_invoices_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"ai_leases": {
+                  Row: {
+                    "expires_at": string,"holder": string,"name": string,"org_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "expires_at": string,"holder": string,"name": string,"org_id": string
+                  }
+                  Update: {
+                    "expires_at"?: string,"holder"?: string,"name"?: string,"org_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ai_leases_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"ai_limits": {
+                  Row: {
+                    "daily_budget_usd": number | null,"daily_token_budget": number | null,"max_concurrent": NonNullable<Json>,"monthly_budget_usd": number | null,"org_id": string,"updated_at": string,"updated_by": string | null,"user_daily_requests": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "daily_budget_usd"?: number | null,"daily_token_budget"?: number | null,"max_concurrent"?: NonNullable<Json>,"monthly_budget_usd"?: number | null,"org_id": string,"updated_at"?: string,"updated_by"?: string | null,"user_daily_requests"?: number
+                  }
+                  Update: {
+                    "daily_budget_usd"?: number | null,"daily_token_budget"?: number | null,"max_concurrent"?: NonNullable<Json>,"monthly_budget_usd"?: number | null,"org_id"?: string,"updated_at"?: string,"updated_by"?: string | null,"user_daily_requests"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ai_limits_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: true
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"ai_usage": {
+                  Row: {
+                    "cache_read_tokens": number,"cache_write_tokens": number,"cost_usd": number,"created_at": string,"day": string,"id": string,"input_tokens": number,"model": string,"org_id": string,"output_tokens": number,"purpose": string,"requests": number,"tariff_version": string | null,"unpriced_requests": number,"unpriced_tokens": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "cache_read_tokens"?: number,"cache_write_tokens"?: number,"cost_usd"?: number,"created_at"?: string,"day": string,"id"?: string,"input_tokens"?: number,"model": string,"org_id": string,"output_tokens"?: number,"purpose": string,"requests"?: number,"tariff_version"?: string | null,"unpriced_requests"?: number,"unpriced_tokens"?: number
+                  }
+                  Update: {
+                    "cache_read_tokens"?: number,"cache_write_tokens"?: number,"cost_usd"?: number,"created_at"?: string,"day"?: string,"id"?: string,"input_tokens"?: number,"model"?: string,"org_id"?: string,"output_tokens"?: number,"purpose"?: string,"requests"?: number,"tariff_version"?: string | null,"unpriced_requests"?: number,"unpriced_tokens"?: number
                   }
                   Relationships: [
                     {
@@ -129,16 +209,36 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"authors": {
+                },"author_events": {
                   Row: {
-                    "created_at": string,"display_name": string | null,"followers": number | null,"handle": string,"id": string,"kind": Database["public"]['Enums']["author_kind"],"org_id": string,"platform": Database["public"]['Enums']["source_type"]
+                    "action": string,"actor_id": string | null,"actor_name": string | null,"author_id": string | null,"created_at": string,"from_kind": Database["public"]['Enums']["author_kind"] | null,"id": number,"org_id": string,"reason": string,"to_kind": Database["public"]['Enums']["author_kind"] | null,"verified_author_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"display_name"?: string | null,"followers"?: number | null,"handle": string,"id"?: string,"kind"?: Database["public"]['Enums']["author_kind"],"org_id": string,"platform": Database["public"]['Enums']["source_type"]
+                    "action": string,"actor_id"?: string | null,"actor_name"?: string | null,"author_id"?: string | null,"created_at"?: string,"from_kind"?: Database["public"]['Enums']["author_kind"] | null,"id"?: never,"org_id": string,"reason": string,"to_kind"?: Database["public"]['Enums']["author_kind"] | null,"verified_author_id"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"display_name"?: string | null,"followers"?: number | null,"handle"?: string,"id"?: string,"kind"?: Database["public"]['Enums']["author_kind"],"org_id"?: string,"platform"?: Database["public"]['Enums']["source_type"]
+                    "action"?: string,"actor_id"?: string | null,"actor_name"?: string | null,"author_id"?: string | null,"created_at"?: string,"from_kind"?: Database["public"]['Enums']["author_kind"] | null,"id"?: never,"org_id"?: string,"reason"?: string,"to_kind"?: Database["public"]['Enums']["author_kind"] | null,"verified_author_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "author_events_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"authors": {
+                  Row: {
+                    "created_at": string,"display_name": string | null,"followers": number | null,"handle": string,"id": string,"kind": Database["public"]['Enums']["author_kind"],"org_id": string,"platform": Database["public"]['Enums']["source_type"],"pseudonymized_at": string | null,"verification": string,"verified_author_id": string | null,"vouching_source_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"display_name"?: string | null,"followers"?: number | null,"handle": string,"id"?: string,"kind"?: Database["public"]['Enums']["author_kind"],"org_id": string,"platform": Database["public"]['Enums']["source_type"],"pseudonymized_at"?: string | null,"verification"?: string,"verified_author_id"?: string | null,"vouching_source_id"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"display_name"?: string | null,"followers"?: number | null,"handle"?: string,"id"?: string,"kind"?: Database["public"]['Enums']["author_kind"],"org_id"?: string,"platform"?: Database["public"]['Enums']["source_type"],"pseudonymized_at"?: string | null,"verification"?: string,"verified_author_id"?: string | null,"vouching_source_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -147,6 +247,18 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "organizations"
       referencedColumns: ["id"]
+    },{
+      foreignKeyName: "authors_verified_author_fk"
+      columns: ["org_id","verified_author_id"]
+isOneToOne: false
+      referencedRelation: "verified_authors"
+      referencedColumns: ["org_id","id"]
+    },{
+      foreignKeyName: "authors_vouching_source_fk"
+      columns: ["org_id","vouching_source_id"]
+isOneToOne: false
+      referencedRelation: "sources"
+      referencedColumns: ["org_id","id"]
     }
                   ]
                 },"case_counters": {
@@ -1391,6 +1503,26 @@ isOneToOne: false
       referencedColumns: ["org_id","id"]
     }
                   ]
+                },"verified_authors": {
+                  Row: {
+                    "display_name": string,"evidence": string,"evidence_url": string | null,"handle": string,"id": string,"kind": Database["public"]['Enums']["author_kind"],"org_id": string,"platform": Database["public"]['Enums']["source_type"],"revoked_at": string | null,"revoked_by": string | null,"revoked_by_name": string | null,"revoked_reason": string | null,"verified_at": string,"verified_by": string,"verified_by_name": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "display_name": string,"evidence": string,"evidence_url"?: string | null,"handle": string,"id"?: string,"kind": Database["public"]['Enums']["author_kind"],"org_id": string,"platform": Database["public"]['Enums']["source_type"],"revoked_at"?: string | null,"revoked_by"?: string | null,"revoked_by_name"?: string | null,"revoked_reason"?: string | null,"verified_at"?: string,"verified_by": string,"verified_by_name": string
+                  }
+                  Update: {
+                    "display_name"?: string,"evidence"?: string,"evidence_url"?: string | null,"handle"?: string,"id"?: string,"kind"?: Database["public"]['Enums']["author_kind"],"org_id"?: string,"platform"?: Database["public"]['Enums']["source_type"],"revoked_at"?: string | null,"revoked_by"?: string | null,"revoked_by_name"?: string | null,"revoked_reason"?: string | null,"verified_at"?: string,"verified_by"?: string,"verified_by_name"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "verified_authors_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"whatsapp_contacts": {
                   Row: {
                     "confirmed_at": string | null,"created_at": string,"id": string,"invited_at": string | null,"last_inbound_at": string | null,"opted_out_at": string | null,"org_id": string,"phone": string,"status": Database["public"]['Enums']["whatsapp_contact_status"],"user_id": string
@@ -1543,7 +1675,10 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "add_case_note":
+            "acquire_ai_lease":
+{ Args: { "p_holder": string,"p_name": string,"p_org_id": string,"p_ttl_seconds": number }; Returns: boolean
+                           },
+"add_case_note":
 { Args: { "p_body": string,"p_case_id": string,"p_visibility": string }; Returns: string
                            },
 "add_case_task":
@@ -1855,6 +1990,12 @@ isOneToOne: false
 "refresh_mention_stats":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },
+"release_ai":
+{ Args: { "p_call_id": string,"p_error": string }; Returns: boolean
+                           },
+"release_ai_lease":
+{ Args: { "p_holder": string,"p_name": string,"p_org_id": string }; Returns: undefined
+                           },
 "release_mentions":
 { Args: { "p_claim_id": string,"p_count_attempt"?: boolean,"p_error"?: string,"p_ids": (string)[] }; Returns: number
                            },
@@ -1873,11 +2014,19 @@ isOneToOne: false
 "report_snapshot":
 { Args: { "p_bucket"?: string,"p_from": string,"p_org_id": string,"p_prev_from": string,"p_prev_to": string,"p_to": string }; Returns: Json
                            },
+"reserve_ai":
+{ Args: { "p_estimated_tokens": number,"p_estimated_usd": number,"p_model": string,"p_org_id": string,"p_purpose": string,"p_ttl_seconds"?: number,"p_user_id": string }; Returns: {
+              "allowed": boolean,"call_id": string,"message": string,"reason": string
+            }[]
+                           },
 "resolve_pipeline_failure":
 { Args: { "p_action": string,"p_failure_id": string }; Returns: undefined
                            },
 "retry_outbox":
 { Args: { "p_id": string }; Returns: undefined
+                           },
+"revoke_author":
+{ Args: { "p_entry_id": string,"p_reason": string }; Returns: undefined
                            },
 "route_mentions":
 { Args: { "p_department_id": string,"p_due_at": string,"p_mention_ids": (string)[],"p_support_ids"?: (string)[] }; Returns: number
@@ -1918,6 +2067,9 @@ isOneToOne: false
 "set_source_secret":
 { Args: { "p_secret": string,"p_source_id": string }; Returns: undefined
                            },
+"settle_ai":
+{ Args: { "p_cache_read_tokens": number,"p_cache_write_tokens": number,"p_call_id": string,"p_cost_usd": number,"p_input_tokens": number,"p_model": string,"p_output_tokens": number,"p_tariff_version": string }; Returns: boolean
+                           },
 "simulate_ticket_backfill":
 { Args: { "p_org_id": string }; Returns: Json
                            },
@@ -1949,8 +2101,16 @@ isOneToOne: false
 "update_case_task":
 { Args: { "p_note"?: string,"p_status": Database["public"]['Enums']["case_task_status"],"p_task_id": string }; Returns: undefined
                            },
+"upsert_authors":
+{ Args: { "p_org_id": string,"p_rows": Json,"p_source_id": string }; Returns: {
+              "author_id": string,"handle": string,"platform": Database["public"]['Enums']["source_type"]
+            }[]
+                           },
 "validate_case":
 { Args: { "p_case_id": string,"p_decision": string,"p_evidence_sufficient"?: boolean,"p_note": string }; Returns: Json
+                           },
+"verify_author":
+{ Args: { "p_display_name": string,"p_evidence": string,"p_evidence_url": string,"p_handle": string,"p_kind": Database["public"]['Enums']["author_kind"],"p_org_id": string,"p_platform": Database["public"]['Enums']["source_type"] }; Returns: string
                            },
 "whatsapp_recipients":
 { Args: { "p_org_id": string }; Returns: {

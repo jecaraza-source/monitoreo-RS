@@ -62,6 +62,10 @@ export const SECTIONS: readonly Section[] = [
 export const SUBSECTIONS: readonly { href: string; label: string; roles: readonly Role[] }[] = [
   { href: "/configuracion/proyectos", label: "Proyectos", roles: ["admin", "comunicacion"] },
   { href: "/configuracion/fuentes", label: "Fuentes", roles: ["admin", "comunicacion"] },
+  // Catalog of verified media and public figures (with evidence and who verified).
+  { href: "/configuracion/autores", label: "Autores verificados", roles: ["admin", "comunicacion"] },
+  // AI usage, limits and billing reconciliation (comunicacion reads, admin edits).
+  { href: "/configuracion/consumo", label: "Consumo de IA", roles: ["admin", "comunicacion"] },
   { href: "/configuracion/catalogos", label: "Catálogos", roles: ["admin"] },
   { href: "/configuracion/usuarios", label: "Usuarios", roles: ["admin"] },
   // Client logo and cover colors for the reports.
