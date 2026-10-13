@@ -72,7 +72,9 @@ export async function getSources(member: Member): Promise<SourceView[]> {
     .from("sources")
     .select("id, name, type, config, is_active, has_secret, last_run_at, last_success_at, last_error, last_error_at, consecutive_failures, covered_until, cursor")
     .eq("org_id", member.orgId)
-    .order("created_at");
+    // Newest first; sources added together (same instant) by name.
+    .order("created_at", { ascending: false })
+    .order("name");
   return (data ?? []).map((s) => ({
     id: s.id,
     name: s.name,
