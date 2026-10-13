@@ -67,7 +67,10 @@ export const SUBSECTIONS: readonly { href: string; label: string; roles: readonl
   { href: "/configuracion/identidad", label: "Identidad", roles: ["admin"] },
   // Incident policies (emergency channels): admin.
   { href: "/configuracion/emergencias", label: "Emergencias", roles: ["admin"] },
-  { href: "/configuracion/whatsapp", label: "WhatsApp y SLA", roles: ["admin"] },
+  { href: "/configuracion/whatsapp", label: "WhatsApp", roles: ["admin"] },
+  // SLA calendar and targets, escalation levels; the outbox and report jobs monitor.
+  { href: "/configuracion/sla", label: "SLA y escalamiento", roles: ["admin"] },
+  { href: "/configuracion/envios", label: "Envíos", roles: ["admin"] },
   { href: "/configuracion/bitacora", label: "Bitácora", roles: ["admin"] },
   // Human review of doubtful classifications: editorial work.
   { href: "/bandeja/revision", label: "Revisión", roles: ["admin", "comunicacion"] },

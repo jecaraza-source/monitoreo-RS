@@ -336,7 +336,7 @@ function RuleForm({
             </ul>
           ) : null}
           <span className="text-xs text-muted-foreground">
-            Sólo funcionarios con WhatsApp registrado en Configuración → WhatsApp y SLA; reciben la alerta cuando aceptan.
+            Sólo funcionarios con WhatsApp registrado en Configuración → WhatsApp; reciben la alerta cuando aceptan.
           </span>
         </fieldset>
       </div>

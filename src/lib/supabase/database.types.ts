@@ -403,14 +403,14 @@ isOneToOne: false
                   ]
                 },"cases": {
                   Row: {
-                    "accept_due_at": string | null,"accepted_at": string | null,"assigned_at": string | null,"backfill_key": string | null,"category": string | null,"closed_at": string | null,"commitment": string | null,"coordinator_user_id": string | null,"cycle": number,"department_id": string | null,"description": string,"due_at": string | null,"folio": string | null,"id": string,"merged_into_id": string | null,"neighborhood_id": string | null,"number": number,"opened_at": string,"opened_by": string | null,"org_id": string,"primary_mention_id": string | null,"priority": Database["public"]['Enums']["priority"],"resolved_at": string | null,"responsible_user_id": string | null,"result": string | null,"status": Database["public"]['Enums']["case_status"],"status_reason": string | null,"title": string,"updated_at": string
+                    "accept_due_at": string | null,"accepted_at": string | null,"assigned_at": string | null,"backfill_key": string | null,"category": string | null,"closed_at": string | null,"commitment": string | null,"coordinator_user_id": string | null,"cycle": number,"department_id": string | null,"description": string,"due_at": string | null,"folio": string | null,"id": string,"merged_into_id": string | null,"neighborhood_id": string | null,"number": number,"opened_at": string,"opened_by": string | null,"org_id": string,"primary_mention_id": string | null,"priority": Database["public"]['Enums']["priority"],"resolved_at": string | null,"responsible_user_id": string | null,"result": string | null,"sla_terms": Json | null,"sla_version_id": string | null,"status": Database["public"]['Enums']["case_status"],"status_reason": string | null,"title": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "accept_due_at"?: string | null,"accepted_at"?: string | null,"assigned_at"?: string | null,"backfill_key"?: string | null,"category"?: string | null,"closed_at"?: string | null,"commitment"?: string | null,"coordinator_user_id"?: string | null,"cycle"?: number,"department_id"?: string | null,"description"?: string,"due_at"?: string | null,"folio"?: never,"id"?: string,"merged_into_id"?: string | null,"neighborhood_id"?: string | null,"number": number,"opened_at"?: string,"opened_by"?: string | null,"org_id": string,"primary_mention_id"?: string | null,"priority"?: Database["public"]['Enums']["priority"],"resolved_at"?: string | null,"responsible_user_id"?: string | null,"result"?: string | null,"status"?: Database["public"]['Enums']["case_status"],"status_reason"?: string | null,"title": string,"updated_at"?: string
+                    "accept_due_at"?: string | null,"accepted_at"?: string | null,"assigned_at"?: string | null,"backfill_key"?: string | null,"category"?: string | null,"closed_at"?: string | null,"commitment"?: string | null,"coordinator_user_id"?: string | null,"cycle"?: number,"department_id"?: string | null,"description"?: string,"due_at"?: string | null,"folio"?: never,"id"?: string,"merged_into_id"?: string | null,"neighborhood_id"?: string | null,"number": number,"opened_at"?: string,"opened_by"?: string | null,"org_id": string,"primary_mention_id"?: string | null,"priority"?: Database["public"]['Enums']["priority"],"resolved_at"?: string | null,"responsible_user_id"?: string | null,"result"?: string | null,"sla_terms"?: Json | null,"sla_version_id"?: string | null,"status"?: Database["public"]['Enums']["case_status"],"status_reason"?: string | null,"title": string,"updated_at"?: string
                   }
                   Update: {
-                    "accept_due_at"?: string | null,"accepted_at"?: string | null,"assigned_at"?: string | null,"backfill_key"?: string | null,"category"?: string | null,"closed_at"?: string | null,"commitment"?: string | null,"coordinator_user_id"?: string | null,"cycle"?: number,"department_id"?: string | null,"description"?: string,"due_at"?: string | null,"folio"?: never,"id"?: string,"merged_into_id"?: string | null,"neighborhood_id"?: string | null,"number"?: number,"opened_at"?: string,"opened_by"?: string | null,"org_id"?: string,"primary_mention_id"?: string | null,"priority"?: Database["public"]['Enums']["priority"],"resolved_at"?: string | null,"responsible_user_id"?: string | null,"result"?: string | null,"status"?: Database["public"]['Enums']["case_status"],"status_reason"?: string | null,"title"?: string,"updated_at"?: string
+                    "accept_due_at"?: string | null,"accepted_at"?: string | null,"assigned_at"?: string | null,"backfill_key"?: string | null,"category"?: string | null,"closed_at"?: string | null,"commitment"?: string | null,"coordinator_user_id"?: string | null,"cycle"?: number,"department_id"?: string | null,"description"?: string,"due_at"?: string | null,"folio"?: never,"id"?: string,"merged_into_id"?: string | null,"neighborhood_id"?: string | null,"number"?: number,"opened_at"?: string,"opened_by"?: string | null,"org_id"?: string,"primary_mention_id"?: string | null,"priority"?: Database["public"]['Enums']["priority"],"resolved_at"?: string | null,"responsible_user_id"?: string | null,"result"?: string | null,"sla_terms"?: Json | null,"sla_version_id"?: string | null,"status"?: Database["public"]['Enums']["case_status"],"status_reason"?: string | null,"title"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -442,6 +442,12 @@ isOneToOne: false
       columns: ["org_id","primary_mention_id"]
 isOneToOne: false
       referencedRelation: "mentions"
+      referencedColumns: ["org_id","id"]
+    },{
+      foreignKeyName: "cases_sla_version_fk"
+      columns: ["org_id","sla_version_id"]
+isOneToOne: false
+      referencedRelation: "sla_versions"
       referencedColumns: ["org_id","id"]
     }
                   ]
@@ -583,14 +589,14 @@ isOneToOne: true
                   ]
                 },"departments": {
                   Row: {
-                    "created_at": string,"id": string,"name": string,"org_id": string,"responsible_user_id": string | null,"short_name": string | null
+                    "created_at": string,"head_user_id": string | null,"id": string,"name": string,"org_id": string,"responsible_user_id": string | null,"short_name": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"id"?: string,"name": string,"org_id": string,"responsible_user_id"?: string | null,"short_name"?: string | null
+                    "created_at"?: string,"head_user_id"?: string | null,"id"?: string,"name": string,"org_id": string,"responsible_user_id"?: string | null,"short_name"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"id"?: string,"name"?: string,"org_id"?: string,"responsible_user_id"?: string | null,"short_name"?: string | null
+                    "created_at"?: string,"head_user_id"?: string | null,"id"?: string,"name"?: string,"org_id"?: string,"responsible_user_id"?: string | null,"short_name"?: string | null
                   }
                   Relationships: [
                     {
@@ -777,6 +783,72 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"notification_events": {
+                  Row: {
+                    "case_id": string | null,"created_at": string,"cycle": number | null,"deadline": string | null,"dedupe_key": string,"id": string,"kind": string,"level": string | null,"org_id": string,"phase": string | null,"reason": string,"recipient_user_id": string | null,"result": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "case_id"?: string | null,"created_at"?: string,"cycle"?: number | null,"deadline"?: string | null,"dedupe_key": string,"id"?: string,"kind": string,"level"?: string | null,"org_id": string,"phase"?: string | null,"reason": string,"recipient_user_id"?: string | null,"result": string
+                  }
+                  Update: {
+                    "case_id"?: string | null,"created_at"?: string,"cycle"?: number | null,"deadline"?: string | null,"dedupe_key"?: string,"id"?: string,"kind"?: string,"level"?: string | null,"org_id"?: string,"phase"?: string | null,"reason"?: string,"recipient_user_id"?: string | null,"result"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "notification_events_org_id_case_id_fkey"
+      columns: ["org_id","case_id"]
+isOneToOne: false
+      referencedRelation: "cases"
+      referencedColumns: ["org_id","id"]
+    },{
+      foreignKeyName: "notification_events_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"notification_preferences": {
+                  Row: {
+                    "email": boolean,"org_id": string,"quiet_end": number | null,"quiet_start": number | null,"updated_at": string,"user_id": string,"whatsapp": boolean
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "email"?: boolean,"org_id": string,"quiet_end"?: number | null,"quiet_start"?: number | null,"updated_at"?: string,"user_id": string,"whatsapp"?: boolean
+                  }
+                  Update: {
+                    "email"?: boolean,"org_id"?: string,"quiet_end"?: number | null,"quiet_start"?: number | null,"updated_at"?: string,"user_id"?: string,"whatsapp"?: boolean
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "notification_preferences_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"notification_settings": {
+                  Row: {
+                    "coordinator_after_hours": number,"head_after_hours": number,"id": string,"link_after_hours": number,"max_per_hour": number,"org_id": string,"quiet_end": number,"quiet_start": number,"reminder_percent": number,"updated_at": string,"updated_by": string | null,"whatsapp_enabled": boolean
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "coordinator_after_hours"?: number,"head_after_hours"?: number,"id"?: string,"link_after_hours"?: number,"max_per_hour"?: number,"org_id": string,"quiet_end"?: number,"quiet_start"?: number,"reminder_percent"?: number,"updated_at"?: string,"updated_by"?: string | null,"whatsapp_enabled"?: boolean
+                  }
+                  Update: {
+                    "coordinator_after_hours"?: number,"head_after_hours"?: number,"id"?: string,"link_after_hours"?: number,"max_per_hour"?: number,"org_id"?: string,"quiet_end"?: number,"quiet_start"?: number,"reminder_percent"?: number,"updated_at"?: string,"updated_by"?: string | null,"whatsapp_enabled"?: boolean
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "notification_settings_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: true
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"official_mentions": {
                   Row: {
                     "mention_id": string,"official_id": string,"org_id": string,"published_at": string
@@ -836,6 +908,70 @@ isOneToOne: false
                   }
                   Relationships: [
                     
+                  ]
+                },"outbox": {
+                  Row: {
+                    "address": string,"alert_event_id": string | null,"attempts": number,"channel": string,"created_at": string,"deferred_reason": string | null,"event_id": string | null,"id": string,"idempotency_key": string,"kind": string,"last_error": string | null,"lease_expires_at": string | null,"lease_owner": string | null,"max_attempts": number,"next_attempt_at": string,"org_id": string,"payload": NonNullable<Json>,"provider_message_id": string | null,"recipient_user_id": string | null,"report_id": string | null,"sent_at": string | null,"status": string,"updated_at": string,"urgency": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "address": string,"alert_event_id"?: string | null,"attempts"?: number,"channel": string,"created_at"?: string,"deferred_reason"?: string | null,"event_id"?: string | null,"id"?: string,"idempotency_key": string,"kind": string,"last_error"?: string | null,"lease_expires_at"?: string | null,"lease_owner"?: string | null,"max_attempts"?: number,"next_attempt_at"?: string,"org_id": string,"payload"?: NonNullable<Json>,"provider_message_id"?: string | null,"recipient_user_id"?: string | null,"report_id"?: string | null,"sent_at"?: string | null,"status"?: string,"updated_at"?: string,"urgency"?: string
+                  }
+                  Update: {
+                    "address"?: string,"alert_event_id"?: string | null,"attempts"?: number,"channel"?: string,"created_at"?: string,"deferred_reason"?: string | null,"event_id"?: string | null,"id"?: string,"idempotency_key"?: string,"kind"?: string,"last_error"?: string | null,"lease_expires_at"?: string | null,"lease_owner"?: string | null,"max_attempts"?: number,"next_attempt_at"?: string,"org_id"?: string,"payload"?: NonNullable<Json>,"provider_message_id"?: string | null,"recipient_user_id"?: string | null,"report_id"?: string | null,"sent_at"?: string | null,"status"?: string,"updated_at"?: string,"urgency"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "outbox_alert_event_id_fkey"
+      columns: ["alert_event_id"]
+isOneToOne: false
+      referencedRelation: "alert_events"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "outbox_event_id_fkey"
+      columns: ["event_id"]
+isOneToOne: false
+      referencedRelation: "notification_events"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "outbox_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "outbox_report_id_fkey"
+      columns: ["report_id"]
+isOneToOne: false
+      referencedRelation: "reports"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"outbox_attempts": {
+                  Row: {
+                    "attempt": number,"error": string | null,"finished_at": string | null,"id": number,"org_id": string,"outbox_id": string,"provider_message_id": string | null,"result": string | null,"started_at": string,"worker": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "attempt": number,"error"?: string | null,"finished_at"?: string | null,"id"?: never,"org_id": string,"outbox_id": string,"provider_message_id"?: string | null,"result"?: string | null,"started_at"?: string,"worker": string
+                  }
+                  Update: {
+                    "attempt"?: number,"error"?: string | null,"finished_at"?: string | null,"id"?: never,"org_id"?: string,"outbox_id"?: string,"provider_message_id"?: string | null,"result"?: string | null,"started_at"?: string,"worker"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "outbox_attempts_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "outbox_attempts_outbox_id_fkey"
+      columns: ["outbox_id"]
+isOneToOne: false
+      referencedRelation: "outbox"
+      referencedColumns: ["id"]
+    }
                   ]
                 },"pipeline_failures": {
                   Row: {
@@ -915,6 +1051,64 @@ isOneToOne: false
       referencedColumns: ["org_id","id"]
     }
                   ]
+                },"report_job_events": {
+                  Row: {
+                    "at": string,"error": string | null,"from_stage": string,"id": number,"job_id": string,"ok": boolean,"org_id": string,"to_stage": string,"worker": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "at"?: string,"error"?: string | null,"from_stage": string,"id"?: never,"job_id": string,"ok": boolean,"org_id": string,"to_stage": string,"worker": string
+                  }
+                  Update: {
+                    "at"?: string,"error"?: string | null,"from_stage"?: string,"id"?: never,"job_id"?: string,"ok"?: boolean,"org_id"?: string,"to_stage"?: string,"worker"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "report_job_events_job_id_fkey"
+      columns: ["job_id"]
+isOneToOne: false
+      referencedRelation: "report_jobs"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "report_job_events_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"report_jobs": {
+                  Row: {
+                    "attempts": number,"auto_approve": boolean,"created_at": string,"finished_at": string | null,"id": string,"kind": Database["public"]['Enums']["report_period"],"last_error": string | null,"lease_expires_at": string | null,"lease_owner": string | null,"max_attempts": number,"next_attempt_at": string,"org_id": string,"period_end": string,"period_start": string,"recipients": (string)[],"report_id": string | null,"schedule_id": string | null,"stage": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "attempts"?: number,"auto_approve"?: boolean,"created_at"?: string,"finished_at"?: string | null,"id"?: string,"kind": Database["public"]['Enums']["report_period"],"last_error"?: string | null,"lease_expires_at"?: string | null,"lease_owner"?: string | null,"max_attempts"?: number,"next_attempt_at"?: string,"org_id": string,"period_end": string,"period_start": string,"recipients"?: (string)[],"report_id"?: string | null,"schedule_id"?: string | null,"stage"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "attempts"?: number,"auto_approve"?: boolean,"created_at"?: string,"finished_at"?: string | null,"id"?: string,"kind"?: Database["public"]['Enums']["report_period"],"last_error"?: string | null,"lease_expires_at"?: string | null,"lease_owner"?: string | null,"max_attempts"?: number,"next_attempt_at"?: string,"org_id"?: string,"period_end"?: string,"period_start"?: string,"recipients"?: (string)[],"report_id"?: string | null,"schedule_id"?: string | null,"stage"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "report_jobs_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "report_jobs_report_id_fkey"
+      columns: ["report_id"]
+isOneToOne: false
+      referencedRelation: "reports"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "report_jobs_schedule_id_fkey"
+      columns: ["schedule_id"]
+isOneToOne: false
+      referencedRelation: "report_schedules"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"report_schedules": {
                   Row: {
                     "auto_approve": boolean,"created_at": string,"id": string,"is_active": boolean,"last_run_at": string | null,"org_id": string,"period": Database["public"]['Enums']["report_period"],"recipients": (string)[],"updated_at": string
@@ -937,17 +1131,23 @@ isOneToOne: false
                   ]
                 },"reports": {
                   Row: {
-                    "approved_at": string | null,"approved_by": string | null,"content": NonNullable<Json>,"created_at": string,"created_by": string | null,"delivery": NonNullable<Json>,"facts": NonNullable<Json>,"facts_stale_at": string | null,"id": string,"model": string | null,"org_id": string,"pdf_path": string | null,"period": Database["public"]['Enums']["report_period"],"period_end": string,"period_start": string,"recipients": (string)[],"schedule_id": string | null,"sent_at": string | null,"status": Database["public"]['Enums']["report_status"],"title": string,"updated_at": string
+                    "approved_at": string | null,"approved_by": string | null,"content": NonNullable<Json>,"created_at": string,"created_by": string | null,"delivery": NonNullable<Json>,"facts": NonNullable<Json>,"facts_stale_at": string | null,"id": string,"job_id": string | null,"model": string | null,"org_id": string,"pdf_path": string | null,"period": Database["public"]['Enums']["report_period"],"period_end": string,"period_start": string,"recipients": (string)[],"schedule_id": string | null,"sent_at": string | null,"status": Database["public"]['Enums']["report_status"],"title": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "approved_at"?: string | null,"approved_by"?: string | null,"content"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"delivery"?: NonNullable<Json>,"facts"?: NonNullable<Json>,"facts_stale_at"?: string | null,"id"?: string,"model"?: string | null,"org_id": string,"pdf_path"?: string | null,"period": Database["public"]['Enums']["report_period"],"period_end": string,"period_start": string,"recipients"?: (string)[],"schedule_id"?: string | null,"sent_at"?: string | null,"status"?: Database["public"]['Enums']["report_status"],"title"?: string,"updated_at"?: string
+                    "approved_at"?: string | null,"approved_by"?: string | null,"content"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"delivery"?: NonNullable<Json>,"facts"?: NonNullable<Json>,"facts_stale_at"?: string | null,"id"?: string,"job_id"?: string | null,"model"?: string | null,"org_id": string,"pdf_path"?: string | null,"period": Database["public"]['Enums']["report_period"],"period_end": string,"period_start": string,"recipients"?: (string)[],"schedule_id"?: string | null,"sent_at"?: string | null,"status"?: Database["public"]['Enums']["report_status"],"title"?: string,"updated_at"?: string
                   }
                   Update: {
-                    "approved_at"?: string | null,"approved_by"?: string | null,"content"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"delivery"?: NonNullable<Json>,"facts"?: NonNullable<Json>,"facts_stale_at"?: string | null,"id"?: string,"model"?: string | null,"org_id"?: string,"pdf_path"?: string | null,"period"?: Database["public"]['Enums']["report_period"],"period_end"?: string,"period_start"?: string,"recipients"?: (string)[],"schedule_id"?: string | null,"sent_at"?: string | null,"status"?: Database["public"]['Enums']["report_status"],"title"?: string,"updated_at"?: string
+                    "approved_at"?: string | null,"approved_by"?: string | null,"content"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"delivery"?: NonNullable<Json>,"facts"?: NonNullable<Json>,"facts_stale_at"?: string | null,"id"?: string,"job_id"?: string | null,"model"?: string | null,"org_id"?: string,"pdf_path"?: string | null,"period"?: Database["public"]['Enums']["report_period"],"period_end"?: string,"period_start"?: string,"recipients"?: (string)[],"schedule_id"?: string | null,"sent_at"?: string | null,"status"?: Database["public"]['Enums']["report_status"],"title"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "reports_job_id_fkey"
+      columns: ["job_id"]
+isOneToOne: true
+      referencedRelation: "report_jobs"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "reports_org_id_fkey"
       columns: ["org_id"]
 isOneToOne: false
@@ -981,6 +1181,46 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"sla_calendars": {
+                  Row: {
+                    "day_end": string,"day_start": string,"mode": string,"org_id": string,"time_zone": string,"updated_at": string,"workdays": (number)[]
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "day_end"?: string,"day_start"?: string,"mode"?: string,"org_id": string,"time_zone"?: string,"updated_at"?: string,"workdays"?: (number)[]
+                  }
+                  Update: {
+                    "day_end"?: string,"day_start"?: string,"mode"?: string,"org_id"?: string,"time_zone"?: string,"updated_at"?: string,"workdays"?: (number)[]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sla_calendars_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: true
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"sla_holidays": {
+                  Row: {
+                    "day": string,"name": string,"org_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "day": string,"name": string,"org_id": string
+                  }
+                  Update: {
+                    "day"?: string,"name"?: string,"org_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sla_holidays_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"sla_policies": {
                   Row: {
                     "hours": number,"org_id": string,"priority": Database["public"]['Enums']["priority"],"updated_at": string
@@ -995,6 +1235,46 @@ isOneToOne: false
                   Relationships: [
                     {
       foreignKeyName: "sla_policies_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"sla_targets": {
+                  Row: {
+                    "accept_hours": number,"attention_hours": number,"category": string | null,"id": string,"org_id": string,"priority": Database["public"]['Enums']["priority"]
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "accept_hours": number,"attention_hours": number,"category"?: string | null,"id"?: string,"org_id": string,"priority": Database["public"]['Enums']["priority"]
+                  }
+                  Update: {
+                    "accept_hours"?: number,"attention_hours"?: number,"category"?: string | null,"id"?: string,"org_id"?: string,"priority"?: Database["public"]['Enums']["priority"]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sla_targets_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"sla_versions": {
+                  Row: {
+                    "approval_note": string | null,"approved": boolean,"approved_at": string | null,"approved_by": string | null,"created_at": string,"created_by": string | null,"id": string,"org_id": string,"snapshot": NonNullable<Json>,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "approval_note"?: string | null,"approved"?: boolean,"approved_at"?: string | null,"approved_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"org_id": string,"snapshot": NonNullable<Json>,"version": number
+                  }
+                  Update: {
+                    "approval_note"?: string | null,"approved"?: boolean,"approved_at"?: string | null,"approved_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"id"?: string,"org_id"?: string,"snapshot"?: NonNullable<Json>,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "sla_versions_org_id_fkey"
       columns: ["org_id"]
 isOneToOne: false
       referencedRelation: "organizations"
@@ -1240,6 +1520,9 @@ isOneToOne: false
 "add_case_update":
 { Args: { "p_audience"?: string,"p_body": string,"p_case_id": string,"p_paths"?: (string)[],"p_task_id"?: string }; Returns: string
                            },
+"advance_report_job":
+{ Args: { "p_error"?: string,"p_id": string,"p_now"?: string,"p_release"?: boolean,"p_report_id"?: string,"p_to_stage": string,"p_worker": string }; Returns: string
+                           },
 "alert_candidates":
 { Args: { "p_department_id"?: string,"p_org_id": string,"p_since": string }; Returns: {
               "author_id": string,"author_kind": Database["public"]['Enums']["author_kind"],"author_name": string,"max_severity": Database["public"]['Enums']["priority"],"mention_id": string,"priority": Database["public"]['Enums']["priority"],"published_at": string,"sentiment": Database["public"]['Enums']["sentiment"],"terms": (string)[],"text": string
@@ -1260,6 +1543,9 @@ isOneToOne: false
                            },
 "apply_ticket_backfill":
 { Args: { "p_org_id": string }; Returns: Json
+                           },
+"approve_sla_version":
+{ Args: { "p_note"?: string,"p_version_id": string }; Returns: undefined
                            },
 "assign_case":
 { Args: { "p_accept_due_at": string,"p_case_id": string,"p_commitment"?: string,"p_department_id": string,"p_due_at": string,"p_reason"?: string,"p_responsible_user_id"?: string,"p_support_ids"?: (string)[] }; Returns: Json
@@ -1303,6 +1589,67 @@ isOneToOne: false
               "attempts": number,"author_kind": Database["public"]['Enums']["author_kind"],"author_name": string,"id": string,"org_id": string,"project_id": string,"published_at": string,"source_name": string,"source_type": Database["public"]['Enums']["source_type"],"text": string
             }[]
                            },
+"claim_outbox":
+{ Args: { "p_lease_seconds"?: number,"p_limit"?: number,"p_now"?: string,"p_worker": string }; Returns: {
+              "address": string,
+"alert_event_id": string | null,
+"attempts": number,
+"channel": string,
+"created_at": string,
+"deferred_reason": string | null,
+"event_id": string | null,
+"id": string,
+"idempotency_key": string,
+"kind": string,
+"last_error": string | null,
+"lease_expires_at": string | null,
+"lease_owner": string | null,
+"max_attempts": number,
+"next_attempt_at": string,
+"org_id": string,
+"payload": NonNullable<Json>,
+"provider_message_id": string | null,
+"recipient_user_id": string | null,
+"report_id": string | null,
+"sent_at": string | null,
+"status": string,
+"updated_at": string,
+"urgency": string
+            }[]
+                          SetofOptions: {
+        from: "*"
+        to: "outbox"
+        isOneToOne: false
+        isSetofReturn: true
+      } },
+"claim_report_jobs":
+{ Args: { "p_lease_seconds"?: number,"p_limit"?: number,"p_now"?: string,"p_worker": string }; Returns: {
+              "attempts": number,
+"auto_approve": boolean,
+"created_at": string,
+"finished_at": string | null,
+"id": string,
+"kind": Database["public"]['Enums']["report_period"],
+"last_error": string | null,
+"lease_expires_at": string | null,
+"lease_owner": string | null,
+"max_attempts": number,
+"next_attempt_at": string,
+"org_id": string,
+"period_end": string,
+"period_start": string,
+"recipients": (string)[],
+"report_id": string | null,
+"schedule_id": string | null,
+"stage": string,
+"updated_at": string
+            }[]
+                          SetofOptions: {
+        from: "*"
+        to: "report_jobs"
+        isOneToOne: false
+        isSetofReturn: true
+      } },
 "claim_sources":
 { Args: { "p_lease_id": string,"p_lease_seconds": number,"p_limit": number,"p_min_gap_seconds"?: number,"p_org_id"?: string,"p_respect_backoff"?: boolean,"p_source_ids"?: (string)[],"p_types": (Database["public"]['Enums']["source_type"])[] }; Returns: {
               "config": NonNullable<Json>,
@@ -1343,6 +1690,9 @@ isOneToOne: false
 "complete_classifications":
 { Args: { "p_claim_id": string,"p_failures": Json,"p_max_attempts": number,"p_results": Json }; Returns: Json
                            },
+"complete_outbox":
+{ Args: { "p_attempt": number,"p_error"?: string,"p_id": string,"p_now"?: string,"p_ok": boolean,"p_provider_id"?: string,"p_retryable"?: boolean,"p_worker": string }; Returns: string
+                           },
 "confirm_classification":
 { Args: { "p_mention_id": string }; Returns: undefined
                            },
@@ -1365,6 +1715,15 @@ isOneToOne: false
 { Args: { "p_org_id": string }; Returns: {
               "department_id": string,"name": string,"user_id": string
             }[]
+                           },
+"enqueue_case_escalations":
+{ Args: { "p_limit"?: number,"p_now"?: string }; Returns: Json
+                           },
+"enqueue_outbox":
+{ Args: { "p_address": string,"p_alert_event_id"?: string,"p_channel": string,"p_event_id"?: string,"p_key": string,"p_kind": string,"p_org_id": string,"p_payload": Json,"p_recipient_user_id"?: string,"p_report_id"?: string,"p_urgency"?: string }; Returns: string
+                           },
+"enqueue_report_job":
+{ Args: { "p_auto_approve": boolean,"p_end": string,"p_kind": Database["public"]['Enums']["report_period"],"p_org_id": string,"p_recipients": (string)[],"p_schedule_id": string,"p_start": string }; Returns: Json
                            },
 "finish_source_run":
 { Args: { "p_lease_id": string,"p_run": Json,"p_source_id": string,"p_state": Json }; Returns: boolean
@@ -1465,6 +1824,9 @@ isOneToOne: false
 "resolve_pipeline_failure":
 { Args: { "p_action": string,"p_failure_id": string }; Returns: undefined
                            },
+"retry_outbox":
+{ Args: { "p_id": string }; Returns: undefined
+                           },
 "route_mentions":
 { Args: { "p_department_id": string,"p_due_at": string,"p_mention_ids": (string)[],"p_support_ids"?: (string)[] }; Returns: number
                            },
@@ -1489,6 +1851,12 @@ isOneToOne: false
         isOneToOne: true
         isSetofReturn: false
       } },
+"save_sla_config":
+{ Args: { "p_calendar": Json,"p_holidays": Json,"p_org_id": string,"p_targets": Json }; Returns: Json
+                           },
+"set_department_contacts":
+{ Args: { "p_department_id": string,"p_head_user_id": string,"p_link_user_id": string }; Returns: undefined
+                           },
 "set_report_recipients":
 { Args: { "p_recipients": (string)[],"p_report_id": string }; Returns: (string)[]
                            },
@@ -1497,6 +1865,12 @@ isOneToOne: false
                            },
 "simulate_ticket_backfill":
 { Args: { "p_org_id": string }; Returns: Json
+                           },
+"sla_deadline":
+{ Args: { "p_hours": number,"p_org_id": string,"p_start": string }; Returns: string
+                           },
+"sla_terms":
+{ Args: { "p_category": string,"p_org_id": string,"p_priority": Database["public"]['Enums']["priority"],"p_start"?: string }; Returns: Json
                            },
 "source_labels":
 { Args: { "p_org_id": string }; Returns: {

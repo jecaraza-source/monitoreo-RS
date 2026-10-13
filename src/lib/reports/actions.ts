@@ -107,6 +107,7 @@ export async function approveReport(input: unknown): Promise<ReportActionResult>
       revalidatePath("/reportes");
       revalidatePath(`/reportes/${data.id}`);
       if (result.status === "sent") return { ok: true, message: `Aprobado. PDF enviado a ${result.recipients} destinatario(s).` };
+      if (result.status === "queued") return { ok: true, message: "Aprobado. El correo quedó en cola y se reintentará automáticamente." };
       return { ok: true, message: `Aprobado y PDF guardado, pero el correo no salió: ${result.detail ?? result.status}.` };
     }
     await storeReportPdf(data.id);
@@ -133,9 +134,9 @@ export async function resendReport(input: unknown): Promise<ReportActionResult> 
   try {
     const result = await sendReport(data.id, undefined, m.userId);
     revalidatePath(`/reportes/${data.id}`);
-    return result.status === "sent"
-      ? { ok: true, message: `PDF enviado a ${result.recipients} destinatario(s).` }
-      : { ok: false, message: `El correo no salió: ${result.detail ?? result.status}.` };
+    if (result.status === "sent") return { ok: true, message: `PDF enviado a ${result.recipients} destinatario(s).` };
+    if (result.status === "queued") return { ok: true, message: "El correo quedó en cola y se reintentará automáticamente." };
+    return { ok: false, message: `El correo no salió: ${result.detail ?? result.status}.` };
   } catch (e) {
     return { ok: false, message: message(e) };
   }

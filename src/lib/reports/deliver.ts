@@ -1,6 +1,7 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
+import { runOutbox } from "@/lib/outbox/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { siteUrl } from "@/lib/site-url";
 import { REPORT_SELECT, toReport, type ReportRow } from "./data";
 import { loadLogo } from "@/lib/branding/logo";
 import { renderReportPdf } from "./pdf";
@@ -63,61 +64,78 @@ export function renderReportEmail(report: ReportRow, orgName: string, url: strin
   return { subject, html, text };
 }
 
-export type DeliveryResult = { status: "sent" | "skipped" | "not_configured" | "failed"; detail?: string; recipients: number };
+export type DeliveryResult = { status: "sent" | "skipped" | "not_configured" | "failed" | "queued"; detail?: string; recipients: number };
 
-/** Emails the approved report with its PDF attached and marks it as sent. */
-export async function sendReport(reportId: string, recipients?: string[], actorId?: string): Promise<DeliveryResult> {
-  const { path, bytes, report, orgName } = await storeReportPdf(reportId);
-  const to = recipients ?? report.recipients;
-  const admin = createAdminClient();
-  let result: DeliveryResult;
-
-  const key = process.env.RESEND_API_KEY;
-  const from = process.env.REPORTS_FROM_EMAIL || process.env.ALERTS_FROM_EMAIL;
-  if (!to.length) result = { status: "skipped", detail: "Sin destinatarios.", recipients: 0 };
-  else if (!key || !from) result = { status: "not_configured", detail: "Faltan RESEND_API_KEY o ALERTS_FROM_EMAIL.", recipients: to.length };
-  else {
-    const { subject, html, text } = renderReportEmail(report, orgName, `${siteUrl()}/reportes/${report.id}`);
-    try {
-      const res = await fetch(`${process.env.RESEND_BASE_URL ?? "https://api.resend.com"}/emails`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from,
-          to,
-          subject,
-          html,
-          text,
-          attachments: [{ filename: path.split("/").pop(), content: bytes.toString("base64") }],
-        }),
-        signal: AbortSignal.timeout(20_000),
-      });
-      result = res.ok
-        ? { status: "sent", recipients: to.length }
-        : { status: "failed", detail: `Resend ${res.status}: ${(await res.text()).slice(0, 200)}`, recipients: to.length };
-    } catch (error) {
-      result = { status: "failed", detail: error instanceof Error ? error.message : String(error), recipients: to.length };
-    }
+/**
+ * Queues the report's emails in the outbox (one per recipient, one
+ * idempotency key per send) and returns their combined state, marking the
+ * report sent only when every email was accepted. p_nonce distinguishes a
+ * person's re-send from the scheduled send.
+ */
+export async function queueReportEmails(admin: ReturnType<typeof createAdminClient>, report: ReportRow, to: string[], nonce: string): Promise<string[]> {
+  const ids: string[] = [];
+  for (const address of to) {
+    const { data, error } = await admin.rpc("enqueue_outbox", {
+      p_org_id: report.orgId,
+      p_key: `report:${report.id}:${nonce}:${address.toLowerCase()}`,
+      p_kind: "report",
+      p_channel: "email",
+      p_address: address,
+      p_payload: { report_id: report.id, title: report.title },
+      p_report_id: report.id,
+    });
+    if (error) throw new Error(`No se pudo encolar el correo: ${error.message}`);
+    ids.push(data as string);
   }
+  return ids;
+}
 
-  const delivery = { ...report.delivery, email: { ...result, at: new Date().toISOString(), to } };
+/** Combined state of a send's outbox rows; marks the report sent (once) when all were accepted. */
+export async function settleReportDelivery(reportId: string, outboxIds: string[], actorId?: string): Promise<DeliveryResult> {
+  const admin = createAdminClient();
+  const { data: rows } = await admin.from("outbox").select("id, address, status, provider_message_id, last_error").in("id", outboxIds);
+  const list = rows ?? [];
+  const sent = list.filter((r) => r.status === "sent");
+  const failed = list.filter((r) => ["dead", "uncertain", "cancelled"].includes(r.status));
+  const status: DeliveryResult["status"] = !list.length ? "skipped" : failed.length ? "failed" : sent.length === list.length ? "sent" : "queued";
+  const detail = failed.length ? failed.map((r) => `${r.address}: ${r.last_error ?? r.status}`).join("; ").slice(0, 300) : undefined;
+  const result: DeliveryResult = { status, detail, recipients: list.length };
+  if (status === "queued") return result;
+
+  const { data: current } = await admin.from("reports").select("delivery, status").eq("id", reportId).single();
+  const email = { status, detail, recipients: list.length, at: new Date().toISOString(), to: list.map((r) => r.address), ids: sent.map((r) => r.provider_message_id) };
   const { error } = await admin
     .from("reports")
     .update({
-      delivery: delivery as never,
-      ...(result.status === "sent" ? { status: "sent" as const, sent_at: new Date().toISOString() } : {}),
+      delivery: { ...((current?.delivery as object | null) ?? {}), email } as never,
+      ...(status === "sent" && current?.status !== "sent" ? { status: "sent" as const, sent_at: new Date().toISOString() } : {}),
     })
     .eq("id", reportId);
   if (error) console.error("[reports] delivery:", error.message);
-  // Audit: report emailed (to whom and with what result). The actor is the
-  // editor when approved from the app, the system when sent by the cron.
-  const { error: auditError } = await admin.rpc("log_event", {
-    p_org_id: report.orgId,
-    p_action: "send",
-    p_entity: "reports",
-    p_entity_id: report.id,
-    p_details: { to, status: result.status, ...(actorId ? { by: actorId } : {}) },
-  });
-  if (auditError) console.error("[audit] send:", auditError.message);
+  const { data: org } = await admin.from("reports").select("org_id").eq("id", reportId).single();
+  if (org) {
+    const { error: auditError } = await admin.rpc("log_event", {
+      p_org_id: org.org_id,
+      p_action: "send",
+      p_entity: "reports",
+      p_entity_id: reportId,
+      p_details: { to: email.to, status, ...(actorId ? { by: actorId } : {}) },
+    });
+    if (auditError) console.error("[audit] send:", auditError.message);
+  }
   return result;
+}
+
+/** A person sends (or re-sends) the approved report: PDF, outbox, immediate dispatch. */
+export async function sendReport(reportId: string, recipients?: string[], actorId?: string): Promise<DeliveryResult> {
+  const { report } = await storeReportPdf(reportId);
+  const to = recipients ?? report.recipients;
+  if (!to.length) return { status: "skipped", detail: "Sin destinatarios.", recipients: 0 };
+  if (!process.env.RESEND_API_KEY || !(process.env.REPORTS_FROM_EMAIL || process.env.ALERTS_FROM_EMAIL)) {
+    return { status: "not_configured", detail: "Faltan RESEND_API_KEY o ALERTS_FROM_EMAIL.", recipients: to.length };
+  }
+  const admin = createAdminClient();
+  const ids = await queueReportEmails(admin, report, to, `send-${randomUUID()}`);
+  await runOutbox(admin, { budgetMs: 30_000, max: 40 });
+  return settleReportDelivery(reportId, ids, actorId);
 }

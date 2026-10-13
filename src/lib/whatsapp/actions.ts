@@ -34,8 +34,6 @@ function fail(error: { code?: string; message: string }, what: string): WhatsApp
 }
 
 // ---------------------------------------------------------------------------
-// SLA by priority
-// ---------------------------------------------------------------------------
 
 const hours = z.coerce.number().int("Usa horas enteras.").min(1, "Mínimo 1 hora.").max(2160, "Máximo 90 días.");
 const slaSchema = z.object(Object.fromEntries(PRIORITIES.map((p) => [p, hours])) as Record<(typeof PRIORITIES)[number], typeof hours>);

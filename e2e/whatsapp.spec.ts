@@ -66,27 +66,18 @@ async function cleanUp() {
   }
 }
 
-test.describe("WhatsApp y SLA", () => {
+test.describe("WhatsApp", () => {
   test.beforeEach(cleanUp);
   test.afterEach(cleanUp);
 
-  test("admin changes the SLA, keeping higher priorities faster", async ({ page }) => {
-    const db = admin();
-    const { data: org } = await db.from("departments").select("org_id").eq("id", OBRAS).single();
-    const { data: before } = await db.from("sla_policies").select("hours").eq("org_id", org!.org_id).eq("priority", "critical").single();
-    try {
-      await login(page, USERS.admin, "/configuracion/whatsapp");
-      const critical = page.getByLabel("Prioridad crítica");
-      await critical.fill("4");
-      await page.getByRole("button", { name: "Guardar SLA" }).click();
-      await expect(toast(page, "SLA actualizado")).toBeVisible();
-
-      await critical.fill("100");
-      await page.getByRole("button", { name: "Guardar SLA" }).click();
-      await expect(toast(page, "Una prioridad mayor debe tener un plazo igual o menor")).toBeVisible();
-    } finally {
-      await db.from("sla_policies").update({ hours: before!.hours }).eq("org_id", org!.org_id).eq("priority", "critical");
-    }
+  test("the SLA moved to its own page and keeps higher priorities faster", async ({ page }) => {
+    await login(page, USERS.admin, "/configuracion/whatsapp");
+    await page.getByRole("link", { name: "Ir a SLA y escalamiento" }).click();
+    await expect(page).toHaveURL(/\/configuracion\/sla$/);
+    const form = page.getByRole("form", { name: "Configuración del SLA" });
+    await form.getByLabel("Atención general Crítica").fill("500");
+    await expect(form.getByText("Una prioridad mayor debe tener un plazo igual o menor.")).toBeVisible();
+    await expect(form.getByRole("button", { name: "Guardar como nueva versión" })).toBeDisabled();
   });
 
   test("admin names a responsible, invites them and they accept on WhatsApp", async ({ page, request }) => {

@@ -46,6 +46,7 @@ const STATUS_LABELS: Record<string, string> = {
   not_configured: "sin configurar",
   failed: "falló",
   skipped: "sin destinatarios",
+  queued: "en cola",
 };
 
 const FILTERS = [

@@ -3,6 +3,7 @@ import { cronDisabledHere, isAuthorizedCron } from "@/lib/auth/cron";
 import { classifyPending, type ClassifySummary } from "@/lib/ai/classify";
 import { evaluateAlerts } from "@/lib/alerts/evaluate";
 import { processStatsInvalidations } from "@/lib/dashboard/refresh";
+import { runOutbox } from "@/lib/outbox/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Batches stop starting at ~45 s; a smart re-pass and the alert rules add a few seconds.
@@ -31,8 +32,10 @@ export async function GET(request: NextRequest) {
   const admin = createAdminClient();
   const alerts = await evaluateAlerts(admin);
   const invalidations = await processStatsInvalidations(admin);
+  // Alerts just fired go out now (the notify cron retries what fails).
+  const outbox = await runOutbox(admin, { budgetMs: 8_000, max: 50 });
   return NextResponse.json(
-    { ok: !summary.stoppedBy, ...summary, alerts, invalidations },
+    { ok: !summary.stoppedBy, ...summary, alerts, invalidations, outbox },
     { status: summary.stoppedBy ? 502 : 200 },
   );
 }

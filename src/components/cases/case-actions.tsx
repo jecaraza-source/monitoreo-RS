@@ -18,6 +18,8 @@ import { defaultDueAt, formatHours, PRIORITY_LABELS, toLocalInput, type Priority
 const MAX_SUPPORT = 4;
 
 type Person = { user_id: string; name: string; department_id: string };
+/** Deadlines the SLA would give now (sla_terms), to prefill the assignment. */
+export type SlaTerms = { accept_due_at: string; due_at: string; version: number; approved: boolean; mode: "calendar" | "business" } | null;
 /** What the validator needs to see before deciding (current cycle). */
 export type ValidationContext = { updates: number; evidence: number; openTasks: number; cycle: number };
 
@@ -37,6 +39,7 @@ export function CaseActions({
   acceptDueAt,
   commitment,
   sla,
+  slaTerms,
   validation,
 }: {
   caseId: string;
@@ -53,6 +56,7 @@ export function CaseActions({
   acceptDueAt: string | null;
   commitment: string | null;
   sla: SlaHours;
+  slaTerms: SlaTerms;
   validation: ValidationContext;
 }) {
   const router = useRouter();
@@ -108,6 +112,7 @@ export function CaseActions({
               acceptDueAt={acceptDueAt}
               commitment={commitment}
               sla={sla}
+              slaTerms={slaTerms}
               onDone={done}
               onCancel={cancel}
             />
@@ -192,6 +197,7 @@ function AssignForm({
   acceptDueAt,
   commitment: initialCommitment,
   sla,
+  slaTerms,
   onDone,
   onCancel,
 }: {
@@ -207,6 +213,7 @@ function AssignForm({
   acceptDueAt: string | null;
   commitment: string | null;
   sla: SlaHours;
+  slaTerms: SlaTerms;
   onDone: () => void;
   onCancel: () => void;
 }) {
@@ -215,6 +222,8 @@ function AssignForm({
   const [responsible, setResponsible] = useState<string | null>(responsibleUserId);
   const [initial] = useState(() => {
     const now = new Date();
+    // The SLA's deadlines (category, priority, calendar), unless the case keeps future ones.
+    if (slaTerms) return { due: toLocalInput(new Date(slaTerms.due_at)), accept: toLocalInput(new Date(slaTerms.accept_due_at)), min: toLocalInput(now) };
     const due = dueAt && new Date(dueAt).getTime() > now.getTime() ? new Date(dueAt) : defaultDueAt(priority, now, sla);
     const accept = acceptDueAt && new Date(acceptDueAt).getTime() > now.getTime() && new Date(acceptDueAt) <= due ? new Date(acceptDueAt) : defaultAcceptance(due, now);
     return { due: toLocalInput(due), accept: toLocalInput(accept), min: toLocalInput(now) };
@@ -222,6 +231,8 @@ function AssignForm({
   const [due, setDue] = useState(initial.due);
   const [accept, setAccept] = useState(initial.accept);
   const [commitment, setCommitment] = useState(initialCommitment ?? "");
+  // Untouched SLA dates are sent empty: the server computes them at that moment and records the version.
+  const fromSla = Boolean(slaTerms) && due === initial.due && accept === initial.accept;
   const [reason, setReason] = useState("");
   const [pending, startTransition] = useTransition();
   const candidates = people.filter((p) => p.department_id === lead);
@@ -245,8 +256,8 @@ function AssignForm({
         departmentId: lead,
         supportIds: support.filter((d) => d !== lead),
         responsibleUserId: responsible,
-        acceptDueAt: acceptDate.toISOString(),
-        dueAt: dueDate.toISOString(),
+        acceptDueAt: fromSla ? null : acceptDate.toISOString(),
+        dueAt: fromSla ? null : dueDate.toISOString(),
         commitment: commitment.trim(),
         reason: reason.trim(),
       });
@@ -263,6 +274,12 @@ function AssignForm({
         <DialogDescription>
           La dependencia responsable lo verá al instante y, si tiene WhatsApp, recibirá aviso. Plazo (SLA) para prioridad{" "}
           {PRIORITY_LABELS[priority].toLowerCase()}: {formatHours(sla[priority])}.
+          {slaTerms && (
+            <span className="mt-1 block">
+              Plazos del SLA versión {slaTerms.version} ({slaTerms.mode === "business" ? "horas hábiles" : "horas corridas"})
+              {slaTerms.approved ? ", aprobado." : ": valores de referencia, sin acuerdo aprobado."}
+            </span>
+          )}
         </DialogDescription>
       </DialogHeader>
       <div className="flex flex-col gap-1.5">
