@@ -9,12 +9,15 @@ import { CaseManage } from "@/components/cases/case-manage";
 import { CaseMentions } from "@/components/cases/case-mentions";
 import { CaseNotes } from "@/components/cases/case-notes";
 import { CaseStatusBadge } from "@/components/cases/case-status-badge";
+import { CaseTasks } from "@/components/cases/case-tasks";
+import { CaseTimes } from "@/components/cases/case-times";
+import { CaseUpdates } from "@/components/cases/case-updates";
 import { formatDateTime, fromNow } from "@/components/inbox/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireSection } from "@/lib/auth/session";
-import { getCase, getMergeCandidates, getSuggestions } from "@/lib/cases/data";
-import { caseOverdue, OPEN_CASE_STATUSES, type CaseActor } from "@/lib/cases/model";
+import { getCase, getDepartmentPeople, getMergeCandidates, getSuggestions } from "@/lib/cases/data";
+import { caseDueAt, caseOverdue, OPEN_CASE_STATUSES, type CaseActor } from "@/lib/cases/model";
 import { getInboxCatalogs } from "@/lib/inbox/data";
 import { isOverdue, PRIORITY_LABELS, TICKET_LABELS } from "@/lib/inbox/model";
 import { cn } from "@/lib/utils";
@@ -42,16 +45,32 @@ async function CaseView({ params }: { params: PageProps<"/casos/[id]">["params"]
   const actor: CaseActor = editor ? "editor" : member.role === "dependencia" ? "department" : "reader";
   const responsible = member.role === "dependencia" && member.departmentId === c.department_id;
   const isOpen = OPEN_CASE_STATUSES.includes(c.status);
-  const [suggestions, mergeCandidates] = editor && isOpen ? await Promise.all([getSuggestions(c.id), getMergeCandidates(member, c.id)]) : [[], []];
+  const [suggestions, mergeCandidates, people] = await Promise.all([
+    editor && isOpen ? getSuggestions(c.id) : [],
+    editor && isOpen ? getMergeCandidates(member, c.id) : [],
+    editor || responsible ? getDepartmentPeople(member) : [],
+  ]);
 
   const departments = new Map(catalogs.departments.map((d) => [d.id, d.name]));
   const neighborhoods = Object.fromEntries(catalogs.neighborhoods.map((n) => [n.id, n.name]));
-  const names: Record<string, string> = { ...Object.fromEntries(departments), ...neighborhoods, ...Object.fromEntries(c.people.map((p) => [p.user_id, p.name])) };
+  const names: Record<string, string> = {
+    ...Object.fromEntries(departments),
+    ...neighborhoods,
+    ...Object.fromEntries(people.map((p) => [p.user_id, p.name])),
+    ...Object.fromEntries(c.people.map((p) => [p.user_id, p.name])),
+  };
   const lead = c.tickets.find((t) => t.is_primary && t.department_id === c.department_id) ?? null;
   const support = c.tickets.filter((t) => t !== lead && t.status !== "closed");
   const person = c.people.find((p) => p.is_responsible);
   const openedBy = [...c.events].reverse().find((e) => e.operation === "created" || e.operation === "backfill");
-  const overdue = caseOverdue(c.status, c.due_at);
+  const overdue = caseOverdue(c);
+  const due = caseDueAt(c);
+  // Areas that may get a task: those with an active assignment in the case.
+  const areas = c.areas.map((a) => ({ id: a.department_id, name: departments.get(a.department_id) ?? "Dependencia" }));
+  const working = ["assigned", "accepted", "in_progress"].includes(c.status);
+  const canReport =
+    member.role !== "lectura" && (editor ? !["merged", "discarded", "closed"].includes(c.status) : ["assigned", "accepted", "in_progress", "resolved"].includes(c.status));
+  const cycleUpdates = c.updates.filter((u) => u.cycle === c.cycle);
 
   return (
     <div className="flex flex-col gap-5">
@@ -80,9 +99,10 @@ async function CaseView({ params }: { params: PageProps<"/casos/[id]">["params"]
             {c.status_reason ? ` · ${c.status_reason}` : ""}
           </p>
         )}
-        {c.status !== "merged" && c.status_reason && (c.status === "returned" || c.status === "discarded") && (
+        {c.status !== "merged" && c.status_reason && (c.status === "returned" || c.status === "discarded" || c.status === "in_review") && (
           <p className="text-sm text-muted-foreground">Motivo: {c.status_reason}</p>
         )}
+        {c.status === "closed" && c.result && <p className="text-sm">Resultado: {c.result}</p>}
         <div className="flex flex-wrap items-center gap-3">
           <CaseActions
             caseId={c.id}
@@ -92,9 +112,19 @@ async function CaseView({ params }: { params: PageProps<"/casos/[id]">["params"]
             departments={catalogs.departments}
             departmentId={c.department_id}
             supportIds={support.map((t) => t.department_id)}
+            responsibleUserId={c.responsible_user_id}
+            people={people}
             priority={c.priority}
             dueAt={c.due_at}
+            acceptDueAt={c.accept_due_at}
+            commitment={c.commitment}
             sla={catalogs.sla}
+            validation={{
+              cycle: c.cycle,
+              updates: cycleUpdates.length,
+              evidence: cycleUpdates.reduce((n, u) => n + u.evidence.length, 0),
+              openTasks: c.tasks.filter((t) => t.status === "pending" || t.status === "in_progress").length,
+            }}
           />
           {editor && (
             <CaseManage
@@ -137,6 +167,14 @@ async function CaseView({ params }: { params: PageProps<"/casos/[id]">["params"]
           </Card>
           <Card>
             <CardHeader>
+              <CardTitle className="text-base">Avances y evidencia</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CaseUpdates caseId={c.id} updates={c.updates} tasks={c.tasks} canWrite={canReport} coordinator={editor} departments={departments} />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
               <CardTitle className="text-base">Notas</CardTitle>
             </CardHeader>
             <CardContent>
@@ -153,30 +191,74 @@ async function CaseView({ params }: { params: PageProps<"/casos/[id]">["params"]
             <CardContent>
               <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
                 <Row label="Dependencia">{c.department_id ? departments.get(c.department_id) : "Sin asignar"}</Row>
-                {support.length > 0 && <Row label="Apoyo">{support.map((t) => departments.get(t.department_id)).join(", ")}</Row>}
+                {c.areas.some((a) => !a.is_primary) && (
+                  <Row label="Apoyo">
+                    {c.areas
+                      .filter((a) => !a.is_primary)
+                      .map((a) => departments.get(a.department_id))
+                      .join(", ")}
+                  </Row>
+                )}
                 <Row label="Responsable">{person?.name ?? "Sin persona asignada"}</Row>
                 <Row label="Colonia">{c.neighborhood_id ? neighborhoods[c.neighborhood_id] : "Sin colonia"}</Row>
                 {c.category && <Row label="Categoría">{c.category}</Row>}
-                <Row label="Plazo">
+                {c.accept_due_at && (
+                  <Row label="Aceptar antes de">
+                    <span className={cn(overdue && due === c.accept_due_at && "font-medium text-negative")} suppressHydrationWarning>
+                      {formatDateTime(c.accept_due_at)}
+                      {c.status === "assigned" && ` (${fromNow(c.accept_due_at)})`}
+                    </span>
+                  </Row>
+                )}
+                <Row label="Compromiso">
                   {c.due_at ? (
-                    <span className={cn(overdue && "font-medium text-negative")} suppressHydrationWarning>
+                    <span className={cn(overdue && due === c.due_at && "font-medium text-negative")} suppressHydrationWarning>
                       {formatDateTime(c.due_at)} ({fromNow(c.due_at)})
                     </span>
                   ) : (
                     "Sin plazo"
                   )}
                 </Row>
+                {c.commitment && <Row label="Qué hará">{c.commitment}</Row>}
                 {/* The author of the case (who opened it), not of the publications. */}
                 <Row label="Abrió">
                   {openedBy?.actor_name || "—"} · {formatDateTime(c.opened_at)}
                 </Row>
-                {c.assigned_at && <Row label="Asignado">{formatDateTime(c.assigned_at)}</Row>}
-                {c.accepted_at && <Row label="Aceptado">{formatDateTime(c.accepted_at)}</Row>}
-                {c.resolved_at && <Row label="Atendido">{formatDateTime(c.resolved_at)}</Row>}
-                {c.closed_at && <Row label="Cerrado">{formatDateTime(c.closed_at)}</Row>}
+                {c.cycle > 1 && <Row label="Ciclo">{c.cycle} (reabierto)</Row>}
               </dl>
             </CardContent>
           </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Tiempos</CardTitle>
+              <p className="text-xs text-muted-foreground">Por ciclo; una reapertura no borra los anteriores.</p>
+            </CardHeader>
+            <CardContent>
+              <CaseTimes cycles={c.cycles} validations={c.validations} />
+            </CardContent>
+          </Card>
+          {(c.tasks.length > 0 || ((editor || responsible) && working)) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Tareas</CardTitle>
+                <p className="text-xs text-muted-foreground">Responsable principal: {c.department_id ? departments.get(c.department_id) : "sin asignar"}.</p>
+              </CardHeader>
+              <CardContent>
+                <CaseTasks
+                  caseId={c.id}
+                  tasks={c.tasks}
+                  areas={areas}
+                  people={people}
+                  names={names}
+                  departments={departments}
+                  manager={editor || responsible}
+                  userDepartment={member.departmentId}
+                  canAdd={(editor || responsible) && working}
+                  active={working || c.status === "resolved"}
+                />
+              </CardContent>
+            </Card>
+          )}
           {c.tickets.length > 0 && (
             <Card>
               <CardHeader>

@@ -3,7 +3,7 @@
 import { AlarmClock, Building2, FolderKanban, MapPin, MessagesSquare } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CaseStatusBadge } from "@/components/cases/case-status-badge";
-import { caseOverdue } from "@/lib/cases/model";
+import { caseDueAt, caseOverdue } from "@/lib/cases/model";
 import { PRIORITY_LABELS } from "@/lib/inbox/model";
 import type { QueueCase } from "@/lib/inbox/query";
 import { cn } from "@/lib/utils";
@@ -29,7 +29,8 @@ export function CaseCard({
   onSelect: () => void;
   onToggle: () => void;
 }) {
-  const overdue = caseOverdue(item.status, item.due_at);
+  const overdue = caseOverdue(item);
+  const due = caseDueAt(item);
   return (
     <article
       data-case-id={item.id}
@@ -73,10 +74,11 @@ export function CaseCard({
             <MapPin className="size-3" aria-hidden /> {lookups.neighborhoods.get(item.neighborhood_id)}
           </span>
         )}
-        {item.due_at && (
+        {due && (
           <span className={cn("inline-flex items-center gap-1", overdue && "font-medium text-negative")} suppressHydrationWarning>
             {overdue && <AlarmClock className="size-3" aria-hidden />}
-            {overdue ? "venció" : "vence"} {fromNow(item.due_at)}
+            {overdue ? "venció" : "vence"} {item.status === "assigned" && due === item.accept_due_at ? "la aceptación " : ""}
+            {fromNow(due)}
           </span>
         )}
       </footer>

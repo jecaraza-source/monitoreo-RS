@@ -46,6 +46,7 @@ export type CaseRow = {
   department_id: string | null;
   neighborhood_id: string | null;
   due_at: string | null;
+  accept_due_at: string | null;
   opened_at: string;
   updated_at: string;
   mentions: number;
@@ -56,7 +57,7 @@ export async function listCases(member: Member, filters: CaseFilters): Promise<{
   const page = filters.page ?? 1;
   let query = supabase
     .from("cases")
-    .select("id, folio, title, category, status, priority, department_id, neighborhood_id, due_at, opened_at, updated_at, case_mentions(count)", {
+    .select("id, folio, title, category, status, priority, department_id, neighborhood_id, due_at, accept_due_at, opened_at, updated_at, case_mentions(count)", {
       count: "exact",
     })
     .eq("org_id", member.orgId);
@@ -126,6 +127,33 @@ export type CaseEvent = {
 
 export type CaseNote = { id: string; author_name: string; body: string; visibility: "internal" | "department"; created_at: string };
 
+export type CaseTask = Database["public"]["Tables"]["case_tasks"]["Row"];
+export type CaseEvidence = { id: string; mime: string; size_bytes: number; created_at: string };
+export type CaseUpdate = {
+  id: string;
+  cycle: number;
+  kind: "progress" | "reopen";
+  audience: "areas" | "coordination";
+  department_id: string | null;
+  task_id: string | null;
+  author_name: string;
+  body: string;
+  created_at: string;
+  evidence: CaseEvidence[];
+};
+export type CaseValidation = {
+  id: string;
+  cycle: number;
+  decision: "approved" | "rejected";
+  note: string;
+  evidence_sufficient: boolean;
+  updates_count: number;
+  evidence_count: number;
+  validator_name: string;
+  at: string;
+};
+export type CaseCycle = Database["public"]["Views"]["case_cycle_times"]["Row"];
+
 export type CaseDetail = Database["public"]["Tables"]["cases"]["Row"] & {
   mentions: CaseMention[];
   tickets: CaseTicket[];
@@ -133,6 +161,12 @@ export type CaseDetail = Database["public"]["Tables"]["cases"]["Row"] & {
   notes: CaseNote[];
   people: { user_id: string; name: string; is_responsible: boolean }[];
   mergedInto: { id: string; folio: string } | null;
+  tasks: CaseTask[];
+  updates: CaseUpdate[];
+  validations: CaseValidation[];
+  cycles: CaseCycle[];
+  /** Departments with an active assignment (lead first), also for departments that only read their own tickets. */
+  areas: { department_id: string; is_primary: boolean }[];
 };
 
 type RawClassification = { sentiment: Sentiment; topic: string | null; neighborhood_id: string | null };
@@ -159,7 +193,7 @@ export async function getCase(member: Member, id: string): Promise<CaseDetail | 
   if (error) throw new Error(`No se pudo cargar el caso: ${error.message}`);
   if (!row) return null;
 
-  const [mentions, tickets, events, notes, people, merged] = await Promise.all([
+  const [mentions, tickets, events, notes, people, merged, tasks, updates, evidence, validations, cycles, areas] = await Promise.all([
     supabase
       .from("case_mentions")
       .select(
@@ -184,6 +218,22 @@ export async function getCase(member: Member, id: string): Promise<CaseDetail | 
     row.merged_into_id
       ? supabase.from("cases").select("id, folio").eq("id", row.merged_into_id).maybeSingle()
       : Promise.resolve({ data: null }),
+    // Each area gets only what RLS lets it see (its tasks, shared updates and evidence).
+    supabase.from("case_tasks").select("*").eq("case_id", id).order("created_at"),
+    supabase
+      .from("case_updates")
+      .select("id, cycle, kind, audience, department_id, task_id, author_name, body, created_at")
+      .eq("case_id", id)
+      .order("created_at", { ascending: false })
+      .limit(300),
+    supabase.from("case_evidence").select("id, update_id, mime, size_bytes, created_at").eq("case_id", id).order("created_at"),
+    supabase
+      .from("case_validations")
+      .select("id, cycle, decision, note, evidence_sufficient, updates_count, evidence_count, validator_name, at")
+      .eq("case_id", id)
+      .order("at", { ascending: false }),
+    supabase.from("case_cycle_times").select("*").eq("case_id", id).order("cycle", { ascending: false }),
+    supabase.rpc("case_areas", { p_case_id: id }),
   ]);
 
   const list = ((mentions.data ?? []) as unknown as RawMention[])
@@ -216,6 +266,16 @@ export async function getCase(member: Member, id: string): Promise<CaseDetail | 
     notes: (notes.data ?? []) as CaseNote[],
     people: people.data ?? [],
     mergedInto: merged.data ? { id: merged.data.id, folio: merged.data.folio ?? "" } : null,
+    tasks: tasks.data ?? [],
+    updates: ((updates.data ?? []) as Omit<CaseUpdate, "evidence">[]).map((u) => ({
+      ...u,
+      evidence: (evidence.data ?? [])
+        .filter((e) => e.update_id === u.id)
+        .map((e) => ({ id: e.id, mime: e.mime, size_bytes: e.size_bytes, created_at: e.created_at })),
+    })),
+    validations: (validations.data ?? []) as CaseValidation[],
+    cycles: cycles.data ?? [],
+    areas: areas.data ?? [],
   };
 }
 
@@ -261,4 +321,11 @@ export async function getMergeCandidates(member: Member, caseId: string): Promis
     .order("updated_at", { ascending: false })
     .limit(200);
   return (data ?? []).map((c) => ({ ...c, folio: c.folio ?? "" }));
+}
+
+/** People who may be named responsible, by department (coordination: all; a department: its own). */
+export async function getDepartmentPeople(member: Member): Promise<{ user_id: string; name: string; department_id: string }[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("department_people", { p_org_id: member.orgId });
+  return (data ?? []).filter((p): p is { user_id: string; name: string; department_id: string } => Boolean(p.department_id));
 }

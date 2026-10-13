@@ -3,6 +3,34 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Etapa 6 — Atención de casos (13 oct 2026, base `37d6d17`)
+
+- **Antes:**
+  - Los editores podían hacer cualquier paso, incluidos los de la dependencia.
+  - Se cerraba con un botón, sin revisar evidencia ni registrar el resultado.
+  - Reasignar o reabrir borraba las fechas de aceptación y atención.
+  - No había avances con archivos, ni tareas entre áreas, ni plazo de aceptación.
+- **Después:**
+  - Actor por transición en la base (`case_transition_actor`). La coordinación (admin y comunicación, vía `is_case_coordinator`; sin rol nuevo) sólo registra pasos de la dependencia en su nombre y con motivo.
+  - Cerrar sólo con `validate_case`: un avance en el ciclo, sin tareas abiertas, evidencia confirmada y resultado. Devolver exige motivo.
+  - `assign_case` con persona responsable, plazo de aceptación y compromiso. «Vencidas» usa el plazo de aceptación.
+  - Tareas por área, con área líder como responsable principal y visibilidad por RLS.
+  - Avances con audiencia. Evidencia en el bucket privado `case-evidence` (`<org>/<caso>/<uuid>.ext`): se sube con la sesión del usuario, se valida por bytes y por los metadatos de Storage, a las fotos se les quitan EXIF y GPS, y se descarga con un enlace de 60 s.
+  - Reapertura con evidencia y nuevo ciclo. Hitos de sólo agregar (`case_milestones`) y tiempos por ciclo.
+- **Archivos:** ver `docs/etapa-6-atencion-de-casos.md` § 8. Migración `20261030000000_case_attention.sql` y su `down.sql`.
+- **Pruebas:**
+  - lint, typecheck y 336 unitarias;
+  - `db reset` y pgTAP 594/594 (86 de atención, 4 del service role, `cases` ajustado);
+  - reversión, reaplicación y backfill repetido en local, con pgTAP completo después;
+  - build canario + `check:bundle`;
+  - e2e 29/29 (nueva: atención completa con tareas, evidencia, permisos de descarga, devolución, cierre y reapertura).
+- **Conteo previo (sólo lectura):** producción 1 caso «detectado»; preview 0. Ninguno tiene el bucket.
+- **Limitaciones:** PDF sin limpiar metadatos; sin detección de rostros; sin avisos al devolver o validar; huérfanos sin limpieza automática.
+- **Activación / reversión:**
+  - activar: migración, luego deploy;
+  - revertir: commit y `down.sql` (exportar antes; el bucket no se borra).
+- **Pendiente:** Node 22/24; medir gravedad en el eval; avisos de devolución y validación; retención de evidencia.
+
 ## Etapa 5 — Bandeja operativa y revisión humana (13 oct 2026, base `d79a161`)
 
 - **Antes:**

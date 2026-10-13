@@ -65,13 +65,19 @@ test.describe("casos", () => {
       // Obras sees it in its list and moves it forward.
       await login(obras, USERS.obras, "/casos");
       await obras.getByRole("link", { name: new RegExp(TITLE) }).click();
-      for (const step of ["Aceptar", "Iniciar atención", "Marcar atendido"]) {
-        await obras.getByRole("button", { name: step }).click();
+      for (const step of ["Aceptar", "Iniciar atención"]) {
+        await obras.getByRole("main").getByRole("button", { name: step, exact: true }).click();
         await expect(toast(obras, "Estado del caso actualizado.").last()).toBeVisible();
       }
-      await expect(obras.getByText("Atendido, por validar").first()).toBeVisible();
+      // Validation needs at least one progress update in the cycle.
+      await obras.getByRole("main").getByLabel("Avance", { exact: true }).fill("Fuga reparada.");
+      await obras.getByRole("main").getByRole("button", { name: "Reportar avance" }).click();
+      await expect(toast(obras, "Avance registrado.")).toBeVisible();
+      await obras.getByRole("main").getByRole("button", { name: "Solicitar validación" }).click();
+      await expect(toast(obras, "Estado del caso actualizado.").last()).toBeVisible();
+      await expect(obras.getByText("Pendiente de validación").first()).toBeVisible();
       // No internal notes or editor actions for the department.
-      await expect(obras.getByRole("button", { name: "Validar y cerrar" })).toHaveCount(0);
+      await expect(obras.getByRole("button", { name: "Validar" })).toHaveCount(0);
       await expect(obras.getByText("Interna (sólo Comunicación)")).toHaveCount(0);
 
       // Agua Potable is not assigned: the case does not exist for it.
@@ -80,10 +86,14 @@ test.describe("casos", () => {
 
       // Comunicación validates and closes; the history tells the story.
       await com.reload();
-      await com.getByRole("button", { name: "Validar y cerrar" }).click();
-      await expect(toast(com, "Estado del caso actualizado.")).toBeVisible();
+      await com.getByRole("main").getByRole("button", { name: "Validar" }).click();
+      const validation = com.getByRole("dialog");
+      await validation.getByLabel("Resultado de la atención").fill("Fuga reparada.");
+      await validation.getByLabel("Revisé la evidencia y es suficiente para cerrar.").check();
+      await validation.getByRole("button", { name: "Validar y cerrar" }).click();
+      await expect(toast(com, "Caso validado y cerrado.")).toBeVisible();
       const history = com.getByRole("list", { name: "Historial del caso" });
-      await expect(history.getByText("Atendido, por validar → Cerrado")).toBeVisible();
+      await expect(history.getByText("Pendiente de validación → Cerrado")).toBeVisible();
       await expect(history.getByText("Asignado → Aceptado")).toBeVisible();
       await expect(history.getByText(/Enlace Obras Públicas/).first()).toBeVisible();
     } finally {
