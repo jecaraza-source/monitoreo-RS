@@ -2,8 +2,9 @@
 // numbers the database returns. Pure: shared by the evaluator, the rule
 // editor and unit tests.
 import { z } from "zod";
+import { assessClassifier, assessDashboard, assessSource, type HealthSnapshot } from "../health/model.ts";
 
-export const RULE_KINDS = ["spike", "sentiment_drop", "risk_term", "media_negative", "daily_digest"] as const;
+export const RULE_KINDS = ["spike", "sentiment_drop", "risk_term", "media_negative", "daily_digest", "monitor_health"] as const;
 export type RuleKind = (typeof RULE_KINDS)[number];
 export type Severity = "low" | "medium" | "high" | "critical";
 
@@ -13,6 +14,7 @@ export const RULE_KIND_LABELS: Record<RuleKind, string> = {
   risk_term: "Término de riesgo",
   media_negative: "Medio o figura pública en contra",
   daily_digest: "Resumen diario",
+  monitor_health: "Salud del monitoreo",
 };
 
 export const RULE_KIND_HELP: Record<RuleKind, string> = {
@@ -21,6 +23,8 @@ export const RULE_KIND_HELP: Record<RuleKind, string> = {
   risk_term: "Una mención recién clasificada contiene un término del catálogo de riesgo.",
   media_negative: "Un medio o una figura pública publica una mención negativa.",
   daily_digest: "Un resumen de las últimas 24 h, una vez al día a la hora indicada.",
+  monitor_health:
+    "Una fuente falla, se atrasa o pierde cobertura, o el clasificador o el dashboard se detienen (umbrales en Salud). Aplica a todo el municipio.",
 };
 
 export const SEVERITY_LABELS: Record<Severity, string> = { critical: "Crítica", high: "Alta", medium: "Media", low: "Baja" };
@@ -51,6 +55,8 @@ export const CONDITION_SCHEMAS = {
   daily_digest: z.object({
     hour: int(0, 23).default(8),
   }),
+  // Thresholds live with each source and in monitor_settings.
+  monitor_health: z.object({}),
 } satisfies Record<RuleKind, z.ZodType>;
 
 export type Conditions = { [K in RuleKind]: z.infer<(typeof CONDITION_SCHEMAS)[K]> };
@@ -62,6 +68,7 @@ export const DEFAULT_COOLDOWN: Record<RuleKind, number> = {
   risk_term: 360,
   media_negative: 720,
   daily_digest: 1380,
+  monitor_health: 360,
 };
 
 /** Reads a stored condition, filling defaults; null when it does not fit the kind. */
@@ -278,6 +285,8 @@ export function describeRule(kind: RuleKind, raw: unknown): string {
       const c = parseCondition("daily_digest", raw);
       return c ? `Todos los días a las ${c.hour}:00 (hora de la Ciudad de México).` : "Parámetros inválidos.";
     }
+    case "monitor_health":
+      return "Fuentes fallando, atrasadas o con huecos; clasificador detenido o con rezago; dashboard desactualizado.";
   }
 }
 
@@ -286,9 +295,49 @@ export function alertHref(alert: { kind: RuleKind | null; mentionIds: string[]; 
   const day = mxDay.format(new Date(alert.createdAt));
   const base = new URLSearchParams({ from: day, to: day, status: "all" });
   if (alert.kind === "daily_digest") return "/dashboard?periodo=24h";
+  if (alert.kind === "monitor_health") return typeof alert.payload.source_id === "string" ? `/salud?fuente=${alert.payload.source_id}` : "/salud";
   if (alert.kind === "media_negative" && typeof alert.payload.author_id === "string") base.set("author", alert.payload.author_id);
   else if (alert.mentionIds.length === 1) base.set("mention", alert.mentionIds[0]);
   else if (alert.kind === "risk_term" && typeof alert.payload.term === "string") base.set("q", alert.payload.term);
   else if (alert.kind === "sentiment_drop") base.set("sentiment", "negative");
   return `/bandeja?${base}`;
+}
+
+/**
+ * Health of the monitor: one decision per source that fails, falls behind or
+ * loses coverage, and for a stalled classifier or a stale dashboard.
+ * Transient states (one failed run, a source never read yet) do not alert.
+ */
+export function decideHealth(h: HealthSnapshot, now: Date, enabled: (type: string) => boolean = () => true): Decision[] {
+  const decisions: Decision[] = [];
+  for (const s of h.sources) {
+    const a = assessSource(s, now, enabled(s.type));
+    if (a.state === "failing" || a.state === "delayed" || (a.state === "partial" && s.last_run?.gap_from)) {
+      decisions.push({
+        // A new gap is a new alert; a source that keeps failing repeats only after the cooldown.
+        fingerprint: `health:source:${s.id}:${a.state}${a.state === "partial" ? `:${s.last_run?.gap_from}` : ""}`,
+        severity: a.state === "failing" ? "high" : "medium",
+        title: `${a.label}: ${s.name}`,
+        summary: excerpt(a.reason, 280),
+        payload: { source_id: s.id, state: a.state, lag_minutes: a.lagMinutes, action: a.action?.label ?? null },
+        mentionIds: [],
+      });
+    }
+  }
+  const classifier = assessClassifier(h, now);
+  if (classifier.state === "stalled" || classifier.state === "backlog") {
+    decisions.push({
+      fingerprint: `health:classifier:${classifier.state}`,
+      severity: classifier.state === "stalled" ? "high" : "medium",
+      title: `Clasificación: ${classifier.label.toLowerCase()}`,
+      summary: classifier.reason,
+      payload: { pending: h.classifier.pending, oldest_pending_at: h.classifier.oldest_pending_at },
+      mentionIds: [],
+    });
+  }
+  const dashboard = assessDashboard(h, now);
+  if (dashboard.state === "stale") {
+    decisions.push({ fingerprint: "health:dashboard:stale", severity: "low", title: "Dashboard desactualizado", summary: dashboard.reason, payload: {}, mentionIds: [] });
+  }
+  return decisions;
 }

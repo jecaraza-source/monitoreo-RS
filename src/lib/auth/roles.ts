@@ -22,6 +22,7 @@ export type SectionKey =
   | "reports"
   | "assistant"
   | "officials"
+  | "health"
   | "settings";
 
 export type Section = {
@@ -47,6 +48,8 @@ export const SECTIONS: readonly Section[] = [
   { key: "assistant", href: "/asistente", label: "Asistente", roles: ["admin", "comunicacion", "dependencia", "lectura"] },
   // Perception of officials: restricted to members an admin authorizes.
   { key: "officials", href: "/funcionarios", label: "Funcionarios", roles: ["admin", "comunicacion", "lectura"], restricted: true },
+  // Health of the monitor: detail for admin and comunicacion, a freshness summary for lectura.
+  { key: "health", href: "/salud", label: "Salud", roles: ["admin", "comunicacion", "lectura"] },
   { key: "settings", href: "/configuracion", label: "Configuración", roles: ["admin", "comunicacion"] },
 ];
 

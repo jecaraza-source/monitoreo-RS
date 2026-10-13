@@ -6,13 +6,13 @@ describe("sectionsForRole", () => {
   it("gives each role exactly its menu", () => {
     const menu = (role: (typeof ROLES)[number]) => sectionsForRole(role).map((s) => s.label);
     assert.deepEqual(menu("admin"), [
-      "Dashboard", "Bandeja", "Mapa", "Alertas", "Reportes", "Asistente", "Configuración",
+      "Dashboard", "Bandeja", "Mapa", "Alertas", "Reportes", "Asistente", "Salud", "Configuración",
     ]);
     assert.deepEqual(menu("comunicacion"), [
-      "Dashboard", "Bandeja", "Mapa", "Alertas", "Reportes", "Asistente", "Configuración",
+      "Dashboard", "Bandeja", "Mapa", "Alertas", "Reportes", "Asistente", "Salud", "Configuración",
     ]);
     assert.deepEqual(menu("dependencia"), ["Bandeja", "Alertas", "Asistente"]);
-    assert.deepEqual(menu("lectura"), ["Dashboard", "Mapa", "Alertas", "Reportes", "Asistente"]);
+    assert.deepEqual(menu("lectura"), ["Dashboard", "Mapa", "Alertas", "Reportes", "Asistente", "Salud"]);
   });
 
   it("shows Funcionarios only with the explicit grant", () => {
@@ -47,6 +47,11 @@ describe("canAccessPath", () => {
   it("does not confuse prefixes with sections", () => {
     assert.equal(sectionForPath("/mapas"), undefined);
     assert.equal(sectionForPath("/bandeja-vieja"), undefined);
+  });
+
+  it("keeps dependencia out of the monitor's health", () => {
+    assert.equal(canAccessPath("dependencia", "/salud"), false);
+    assert.equal(canAccessPath("lectura", "/salud"), true);
   });
 
   it("blocks dependencia from executive sections", () => {

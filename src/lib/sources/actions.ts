@@ -13,6 +13,8 @@ import { createClient } from "@/lib/supabase/server";
 
 const PATH = "/configuracion/fuentes";
 const EDITORS = ["admin", "comunicacion"] as const;
+/** A source can be read by hand at most once per this many seconds. */
+const MANUAL_GAP_SECONDS = 60;
 /** Same deadline as a source run in the ingest worker. */
 const TEST_TIMEOUT_MS = 25_000;
 
@@ -189,10 +191,18 @@ export async function runSourceNow(sourceId: string): Promise<SourceActionResult
   const member = await editor();
   if (!member) return FORBIDDEN;
   if (!idSchema.safeParse(sourceId).success) return { ok: false, message: "Fuente inválida." };
-  const summary = await runIngest({ trigger: "manual", sourceIds: [sourceId], orgId: member.orgId });
+  // The lease keeps a manual run from overlapping another run of the same
+  // source, and the gap keeps repeated clicks from hammering the provider.
+  const summary = await runIngest({ trigger: "manual", sourceIds: [sourceId], orgId: member.orgId, minGapSeconds: MANUAL_GAP_SECONDS });
   const result = summary.sources[0];
   revalidatePath(PATH);
-  if (!result) return { ok: false, message: "La fuente está pausada, otra corrida la está leyendo o su conector está deshabilitado." };
+  revalidatePath("/salud");
+  if (!result) {
+    return {
+      ok: false,
+      message: `No se pudo leer ahora: está pausada, otra corrida la está leyendo, se leyó hace menos de ${MANUAL_GAP_SECONDS} s o su conector está deshabilitado.`,
+    };
+  }
   if (result.status === "error") return { ok: false, message: result.error ?? "La corrida falló." };
   if (result.status === "skipped") return { ok: false, message: "No alcanzó el tiempo de la corrida; se leerá en la siguiente." };
   const counts = [
@@ -229,5 +239,6 @@ export async function resolveFailure(input: unknown): Promise<SourceActionResult
     return error.code === "42501" ? FORBIDDEN : { ok: false, message: "No se pudo actualizar el fallo." };
   }
   revalidatePath(PATH);
+  revalidatePath("/salud");
   return { ok: true, message: parsed.data.action === "retry" ? "Se reintentará en la siguiente corrida." : "Fallo descartado." };
 }

@@ -1,10 +1,13 @@
 import "server-only";
+import { CONNECTORS } from "@/lib/connectors";
+import type { HealthSnapshot } from "@/lib/health/model";
 import { notify } from "@/lib/notify";
 import { siteUrl } from "@/lib/site-url";
 import { sendAlertWhatsApp } from "@/lib/whatsapp/alerts";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import {
   decideDigest,
+  decideHealth,
   decideMediaNegative,
   decideRiskTerms,
   decideSentimentDrop,
@@ -140,6 +143,12 @@ async function decide(
       const c = parseCondition("media_negative", rule.condition);
       if (!c) throw new Error("condición inválida");
       return decideMediaNegative(await loadCandidates(rule.org_id, rule.department_id, c.window_minutes));
+    }
+    case "monitor_health": {
+      const { data, error } = await admin.rpc("monitor_health", { p_org_id: rule.org_id });
+      if (error) throw new Error(error.message);
+      const enabled = new Map(Object.values(CONNECTORS).map((c) => [c.type as string, c.enabled]));
+      return decideHealth(data as unknown as HealthSnapshot, now, (type) => enabled.get(type) ?? false);
     }
     case "daily_digest": {
       const c = parseCondition("daily_digest", rule.condition);

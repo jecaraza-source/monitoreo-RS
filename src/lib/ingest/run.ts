@@ -64,11 +64,15 @@ export async function runIngest(options: {
   sourceIds?: string[];
   /** Restrict to one org (manual runs from the UI). */
   orgId?: string;
+  /** Manual runs: refuse a source read less than this many seconds ago. */
+  minGapSeconds?: number;
 }): Promise<IngestSummary> {
   const started = Date.now();
   const startedAt = new Date(started).toISOString();
   const runId = randomUUID();
   const admin = createAdminClient();
+  // Only scheduled runs count as the job's heartbeat (a manual run of one source says nothing about the cron).
+  if (options.trigger === "cron") await heartbeat(admin, "start");
 
   const enabledTypes = Object.values(CONNECTORS).filter((c) => c.enabled).map((c) => c.type);
   const { data: rows, error } = await admin.rpc("claim_sources", {
@@ -79,8 +83,12 @@ export async function runIngest(options: {
     p_source_ids: options.sourceIds,
     p_org_id: options.orgId,
     p_respect_backoff: options.trigger === "cron",
+    p_min_gap_seconds: options.minGapSeconds ?? 0,
   });
-  if (error) throw new Error(`No se pudieron reservar las fuentes: ${error.message}`);
+  if (error) {
+    if (options.trigger === "cron") await heartbeat(admin, "finish", error.message);
+    throw new Error(`No se pudieron reservar las fuentes: ${error.message}`);
+  }
   const queue = (rows ?? []) as SourceRow[];
 
   const queryCache = new Map<string, Promise<CompiledQuery[]>>();
@@ -103,6 +111,7 @@ export async function runIngest(options: {
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
   if (results.some((r) => r.inserted > 0 || r.updated > 0)) await refreshMentionStats(admin);
   await logWorkerRuns(admin, runId, options.trigger, startedAt, results, orgOf);
+  if (options.trigger === "cron") await heartbeat(admin, "finish");
 
   return { runId, startedAt, durationMs: Date.now() - started, sources: results };
 }
@@ -320,4 +329,10 @@ async function logWorkerRuns(
   });
   const { error } = await admin.from("worker_runs").insert(rows);
   if (error) console.error("[ingest] worker_runs:", error.message);
+}
+
+/** Persisted "the job ran" mark read by the health page; per-source failures live in the sources themselves. */
+async function heartbeat(admin: Admin, phase: "start" | "finish", error?: string) {
+  const { error: e } = await admin.rpc("record_heartbeat", { p_kind: "ingest", p_phase: phase, p_error: error });
+  if (e) console.error("[ingest] heartbeat:", e.message);
 }
