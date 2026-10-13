@@ -33,10 +33,11 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   const { isMobile, setOpenMobile } = useSidebar();
-  // Configuración sits apart, at the bottom, away from the day-to-day sections.
+  // Configuración and Ayuda sit apart, at the bottom, away from the day-to-day sections.
   const all = sectionsForRole(role, access);
-  const sections = all.filter((s) => s.key !== "settings");
-  const settings = all.find((s) => s.key === "settings");
+  const bottom = new Set(["settings", "help"]);
+  const sections = all.filter((s) => !bottom.has(s.key));
+  const footer = all.filter((s) => bottom.has(s.key));
   // On mobile the menu is a sheet: close it once a section is chosen.
   const closeOnMobile = () => isMobile && setOpenMobile(false);
 
@@ -100,11 +101,11 @@ export function AppSidebar({
       </SidebarContent>
 
       <SidebarFooter>
-        {settings && (
+        {footer.length > 0 && (
           <>
             <SidebarSeparator className="mx-0" />
-            <nav aria-label="Administración">
-              <SidebarMenu>{item(settings)}</SidebarMenu>
+            <nav aria-label="Administración y ayuda">
+              <SidebarMenu>{footer.map(item)}</SidebarMenu>
             </nav>
           </>
         )}

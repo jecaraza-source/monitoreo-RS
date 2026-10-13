@@ -6,10 +6,14 @@ import { BackfillPanel } from "@/components/cases/backfill-panel";
 import { CaseFilters } from "@/components/cases/case-filters";
 import { CaseStatusBadge } from "@/components/cases/case-status-badge";
 import { fromNow } from "@/components/inbox/format";
+import { HelpSheet } from "@/components/help/help-sheet";
 import { PageHeader } from "@/components/layout/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui-kit";
+import { toMxDay } from "@/lib/dashboard/period";
+import { topicsFor } from "@/lib/help/content";
+import { canExport } from "@/lib/retention/model";
 import { requireSection } from "@/lib/auth/session";
 import { CASES_PAGE, listCases, parseCaseFilters, type CaseFilters as Filters } from "@/lib/cases/data";
 import { caseDueAt, caseOverdue } from "@/lib/cases/model";
@@ -31,6 +35,7 @@ const nf = new Intl.NumberFormat("es-MX");
 
 async function Cases({ searchParams }: { searchParams: PageProps<"/casos">["searchParams"] }) {
   const member = await requireSection("/casos");
+  const today = toMxDay(new Date());
   const filters = parseCaseFilters(await searchParams);
   const [catalogs, { rows, total }] = await Promise.all([getInboxCatalogs(member), listCases(member, filters)]);
   const departments = new Map(catalogs.departments.map((d) => [d.id, d.name]));
@@ -45,7 +50,24 @@ async function Cases({ searchParams }: { searchParams: PageProps<"/casos">["sear
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="Casos" description={description} />
+      <PageHeader
+        title="Casos"
+        description={description}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {canExport("casos", member.role) && (
+              <a
+                href={`/api/exportar?${new URLSearchParams({ tipo: "casos", desde: `${today.slice(0, 7)}-01`, hasta: today })}`}
+                download
+                className="inline-flex h-8 items-center rounded-lg border px-3 text-sm"
+              >
+                Exportar mes (CSV)
+              </a>
+            )}
+            <HelpSheet title="Trabajo con casos" sections={topicsFor(member.role, ["recibe", "aceptar", "validar", "reabrir", "notas"])} />
+          </div>
+        }
+      />
       {member.role === "admin" && <BackfillPanel />}
       <CaseFilters departments={catalogs.departments} neighborhoods={catalogs.neighborhoods} showDepartment={member.role !== "dependencia"} />
       <p className="text-sm text-muted-foreground">

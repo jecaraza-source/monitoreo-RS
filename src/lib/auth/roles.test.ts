@@ -6,13 +6,13 @@ describe("sectionsForRole", () => {
   it("gives each role exactly its menu", () => {
     const menu = (role: (typeof ROLES)[number]) => sectionsForRole(role).map((s) => s.label);
     assert.deepEqual(menu("admin"), [
-      "Dashboard", "Bandeja", "Casos", "Mapa", "Alertas", "Reportes", "Asistente", "Salud", "Configuración",
+      "Dashboard", "Bandeja", "Casos", "Mapa", "Alertas", "Reportes", "Asistente", "Salud", "Configuración", "Ayuda",
     ]);
     assert.deepEqual(menu("comunicacion"), [
-      "Dashboard", "Bandeja", "Casos", "Mapa", "Alertas", "Reportes", "Asistente", "Salud", "Configuración",
+      "Dashboard", "Bandeja", "Casos", "Mapa", "Alertas", "Reportes", "Asistente", "Salud", "Configuración", "Ayuda",
     ]);
-    assert.deepEqual(menu("dependencia"), ["Bandeja", "Casos", "Mapa", "Alertas", "Asistente"]);
-    assert.deepEqual(menu("lectura"), ["Dashboard", "Casos", "Mapa", "Alertas", "Reportes", "Asistente", "Salud"]);
+    assert.deepEqual(menu("dependencia"), ["Bandeja", "Casos", "Mapa", "Alertas", "Asistente", "Ayuda"]);
+    assert.deepEqual(menu("lectura"), ["Dashboard", "Casos", "Mapa", "Alertas", "Reportes", "Asistente", "Salud", "Ayuda"]);
   });
 
   it("shows Funcionarios only with the explicit grant", () => {
@@ -41,10 +41,11 @@ describe("canAccessPath", () => {
     assert.equal(canAccessPath("comunicacion", "/configuracion/catalogos"), false);
     assert.equal(canAccessPath("comunicacion", "/configuracion/whatsapp"), false);
     assert.equal(canAccessPath("comunicacion", "/configuracion/identidad"), false);
-    assert.deepEqual(subsectionsForRole("comunicacion").map((s) => s.label), ["Proyectos", "Fuentes", "Autores verificados", "Consumo de IA"]);
+    assert.deepEqual(subsectionsForRole("comunicacion").map((s) => s.label), ["Resumen", "Proyectos", "Fuentes", "Autores verificados", "Consumo de IA"]);
+    assert.equal(canAccessPath("comunicacion", "/configuracion/retencion"), false);
     assert.equal(canAccessPath("lectura", "/configuracion/consumo"), false);
     assert.equal(canAccessPath("dependencia", "/configuracion/autores"), false);
-    assert.deepEqual(subsectionsForRole("admin").map((s) => s.label), ["Proyectos", "Fuentes", "Autores verificados", "Consumo de IA", "Catálogos", "Usuarios", "Identidad", "Emergencias", "WhatsApp", "SLA y escalamiento", "Envíos", "Bitácora"]);
+    assert.deepEqual(subsectionsForRole("admin").map((s) => s.label), ["Resumen", "Proyectos", "Fuentes", "Autores verificados", "Consumo de IA", "Catálogos", "Usuarios", "Identidad", "Emergencias", "WhatsApp", "SLA y escalamiento", "Envíos", "Retención y conciliación", "Bitácora"]);
   });
 
   it("does not confuse prefixes with sections", () => {

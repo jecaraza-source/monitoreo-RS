@@ -1,4 +1,4 @@
-import { Activity, Bell, Bot, FileText, FolderKanban, Inbox, Landmark, LayoutDashboard, Map, Settings, type LucideIcon } from "lucide-react";
+import { Activity, Bell, Bot, CircleHelp, FileText, FolderKanban, Inbox, Landmark, LayoutDashboard, Map, Settings, type LucideIcon } from "lucide-react";
 import type { SectionKey } from "@/lib/auth/roles";
 
 export const SECTION_ICONS: Record<SectionKey, LucideIcon> = {
@@ -12,4 +12,5 @@ export const SECTION_ICONS: Record<SectionKey, LucideIcon> = {
   officials: Landmark,
   health: Activity,
   settings: Settings,
+  help: CircleHelp,
 };

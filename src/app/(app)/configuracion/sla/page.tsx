@@ -2,17 +2,18 @@ import type { Metadata } from "next";
 import { DepartmentContacts } from "@/components/sla/department-contacts";
 import { EscalationForm } from "@/components/sla/escalation-form";
 import { SlaConfigForm } from "@/components/sla/sla-config-form";
+import { SlaReapply } from "@/components/sla/sla-reapply";
 import { SlaVersionCard } from "@/components/sla/sla-version-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireSection } from "@/lib/auth/session";
 import { getInboxCatalogs } from "@/lib/inbox/data";
-import { getSlaSettings } from "@/lib/sla/data";
+import { getSlaReapplyPreview, getSlaSettings } from "@/lib/sla/data";
 
 export const metadata: Metadata = { title: "SLA y escalamiento" };
 
 export default async function SlaPage() {
   const member = await requireSection("/configuracion/sla");
-  const [s, catalogs] = await Promise.all([getSlaSettings(member), getInboxCatalogs(member)]);
+  const [s, catalogs, reapply] = await Promise.all([getSlaSettings(member), getInboxCatalogs(member), getSlaReapplyPreview(member)]);
 
   return (
     <div className="flex flex-col gap-5 pt-4">
@@ -28,6 +29,21 @@ export default async function SlaPage() {
         <CardContent className="flex flex-col gap-6">
           <SlaVersionCard versions={s.versions} />
           <SlaConfigForm calendar={s.calendar} holidays={s.holidays} targets={s.targets} topics={catalogs.topics} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle as="h2" className="text-base">
+            Reaplicar SLA a casos abiertos
+          </CardTitle>
+          <CardDescription>
+            Cambiar el SLA no mueve los compromisos ya asignados. Si el municipio decide aplicar la versión vigente a casos abiertos, elígelos aquí y
+            explica el motivo: cada cambio queda en el historial del caso y en la bitácora, con el plazo anterior y el nuevo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SlaReapply rows={reapply} />
         </CardContent>
       </Card>
 
