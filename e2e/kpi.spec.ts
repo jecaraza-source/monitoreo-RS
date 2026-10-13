@@ -39,8 +39,8 @@ test.describe("indicadores y reportes", () => {
 
     // Coverage and last update are on the page.
     const coverage = main(page).getByRole("region", { name: "Cobertura y actualización" });
-    await expect(coverage.getByText("Corte:")).toBeVisible();
-    await expect(coverage.getByText("Sin clasificar:")).toBeVisible();
+    await expect(coverage.getByText("Corte:", { exact: true })).toBeVisible();
+    await expect(coverage.getByText("Sin clasificar:", { exact: true })).toBeVisible();
     await expect(coverage.getByText(/KPI-\d{4}\.\d{2}/)).toBeVisible();
 
     // The dictionary behind each (i): formula, denominator, treatment of reopened cases.
