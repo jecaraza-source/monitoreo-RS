@@ -179,3 +179,28 @@ export async function previewQuery(expression: string): Promise<ActionResult<Pre
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// Delete (Administración only; enforced by public.delete_project and RLS)
+// ---------------------------------------------------------------------------
+
+export async function deleteProject(projectId: string): Promise<ActionResult<{ mentionsKept: number }>> {
+  const id = z.guid("Proyecto inválido.").safeParse(projectId);
+  if (!id.success) return { ok: false, message: "Proyecto inválido." };
+  const member = await requireMember();
+  if (member.role !== "admin") return { ok: false, message: "Sólo Administración puede borrar proyectos." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("delete_project", { p_project_id: id.data });
+  if (error) {
+    if (error.code === "P0001" || error.code === "42501") return { ok: false, message: error.message };
+    console.error("[projects] delete:", error.message);
+    return { ok: false, message: "No se pudo borrar el proyecto." };
+  }
+  // A deleted active project falls back to the first one; drop the stale choice.
+  const store = await cookies();
+  if (store.get(ACTIVE_PROJECT_COOKIE)?.value === id.data) store.delete(ACTIVE_PROJECT_COOKIE);
+  revalidatePath("/configuracion/proyectos");
+  revalidatePath("/", "layout");
+  return { ok: true, data: { mentionsKept: (data as { mentions_kept: number }).mentions_kept } };
+}

@@ -41,3 +41,23 @@ export function withTextChunk(png: Buffer, key: string, value: string): Buffer {
   const iend = png.length - 12;
   return Buffer.concat([png.subarray(0, iend), chunk("tEXt", Buffer.from(`${key}\0${value}`, "latin1")), png.subarray(iend)]);
 }
+
+/** A noisy RGB PNG that barely compresses: a "heavy" fictitious logo (≈ width × height × 3 bytes). */
+export function noisyPng(width: number, height: number, seed = 7): Buffer {
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.set([8, 2, 0, 0, 0], 8);
+  let s = seed;
+  const raw = Buffer.alloc(height * (1 + width * 3));
+  for (let i = 0; i < raw.length; i++) {
+    s = (s * 1103515245 + 12345) >>> 0;
+    raw[i] = i % (1 + width * 3) === 0 ? 0 : s >>> 24;
+  }
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk("IHDR", header),
+    chunk("IDAT", deflateSync(raw, { level: 0 })),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
+}

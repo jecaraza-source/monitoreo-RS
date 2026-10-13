@@ -1999,6 +1999,9 @@ isOneToOne: false
 "decide_review":
 { Args: { "p_changes"?: Json,"p_decision": string,"p_reason"?: string,"p_review_id": string }; Returns: Json
                            },
+"delete_project":
+{ Args: { "p_project_id": string }; Returns: Json
+                           },
 "department_people":
 { Args: { "p_org_id": string }; Returns: {
               "department_id": string,"name": string,"user_id": string

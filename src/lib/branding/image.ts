@@ -2,7 +2,9 @@
 // first bytes (never from its name or the browser's type), and PNG/JPEG
 // dimensions are read from their headers.
 
-export const LOGO_MAX_BYTES = 1024 * 1024;
+export const LOGO_MAX_BYTES = 5 * 1024 * 1024;
+export const LOGO_MAX_LABEL = "5 MB";
+export const BRANDING_BUCKET = "branding";
 export type LogoFormat = "png" | "jpg";
 
 const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -37,7 +39,7 @@ export function imageSize(bytes: Uint8Array, format: LogoFormat): { width: numbe
 /** Why a logo is rejected, in Spanish, or null when it is fine. */
 export function logoProblem(bytes: Uint8Array): string | null {
   if (!bytes.length) return "Elige una imagen.";
-  if (bytes.length > LOGO_MAX_BYTES) return "La imagen pesa más de 1 MB.";
+  if (bytes.length > LOGO_MAX_BYTES) return `La imagen pesa más de ${LOGO_MAX_LABEL}.`;
   const format = detectLogoFormat(bytes);
   if (!format) return "Usa una imagen PNG o JPG.";
   const size = imageSize(bytes, format);
