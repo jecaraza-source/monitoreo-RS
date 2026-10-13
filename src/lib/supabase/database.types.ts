@@ -369,6 +369,26 @@ isOneToOne: false
       referencedColumns: ["org_id","id"]
     }
                   ]
+                },"monitor_settings": {
+                  Row: {
+                    "classify_backlog_minutes": number,"classify_stale_minutes": number,"dashboard_stale_minutes": number,"org_id": string,"updated_at": string,"updated_by": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "classify_backlog_minutes"?: number,"classify_stale_minutes"?: number,"dashboard_stale_minutes"?: number,"org_id": string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Update: {
+                    "classify_backlog_minutes"?: number,"classify_stale_minutes"?: number,"dashboard_stale_minutes"?: number,"org_id"?: string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "monitor_settings_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: true
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"neighborhoods": {
                   Row: {
                     "created_at": string,"geojson": Json | null,"id": string,"name": string,"org_id": string,"shape_source": string | null
@@ -615,14 +635,14 @@ isOneToOne: false
                   ]
                 },"sources": {
                   Row: {
-                    "config": NonNullable<Json>,"consecutive_failures": number,"covered_until": string | null,"created_at": string,"cursor": NonNullable<Json>,"has_secret": boolean,"id": string,"is_active": boolean,"last_error": string | null,"last_error_at": string | null,"last_run_at": string | null,"last_success_at": string | null,"name": string,"org_id": string,"run_lease_id": string | null,"run_lease_until": string | null,"type": Database["public"]['Enums']["source_type"]
+                    "config": NonNullable<Json>,"consecutive_failures": number,"covered_until": string | null,"created_at": string,"cursor": NonNullable<Json>,"expected_every_minutes": number,"has_secret": boolean,"id": string,"is_active": boolean,"last_error": string | null,"last_error_at": string | null,"last_run_at": string | null,"last_success_at": string | null,"name": string,"org_id": string,"quiet_after_hours": number,"run_lease_id": string | null,"run_lease_until": string | null,"stale_after_minutes": number | null,"type": Database["public"]['Enums']["source_type"]
                   }
                   ComputedFields: never
                   Insert: {
-                    "config"?: NonNullable<Json>,"consecutive_failures"?: number,"covered_until"?: string | null,"created_at"?: string,"cursor"?: NonNullable<Json>,"has_secret"?: boolean,"id"?: string,"is_active"?: boolean,"last_error"?: string | null,"last_error_at"?: string | null,"last_run_at"?: string | null,"last_success_at"?: string | null,"name": string,"org_id": string,"run_lease_id"?: string | null,"run_lease_until"?: string | null,"type": Database["public"]['Enums']["source_type"]
+                    "config"?: NonNullable<Json>,"consecutive_failures"?: number,"covered_until"?: string | null,"created_at"?: string,"cursor"?: NonNullable<Json>,"expected_every_minutes"?: number,"has_secret"?: boolean,"id"?: string,"is_active"?: boolean,"last_error"?: string | null,"last_error_at"?: string | null,"last_run_at"?: string | null,"last_success_at"?: string | null,"name": string,"org_id": string,"quiet_after_hours"?: number,"run_lease_id"?: string | null,"run_lease_until"?: string | null,"stale_after_minutes"?: number | null,"type": Database["public"]['Enums']["source_type"]
                   }
                   Update: {
-                    "config"?: NonNullable<Json>,"consecutive_failures"?: number,"covered_until"?: string | null,"created_at"?: string,"cursor"?: NonNullable<Json>,"has_secret"?: boolean,"id"?: string,"is_active"?: boolean,"last_error"?: string | null,"last_error_at"?: string | null,"last_run_at"?: string | null,"last_success_at"?: string | null,"name"?: string,"org_id"?: string,"run_lease_id"?: string | null,"run_lease_until"?: string | null,"type"?: Database["public"]['Enums']["source_type"]
+                    "config"?: NonNullable<Json>,"consecutive_failures"?: number,"covered_until"?: string | null,"created_at"?: string,"cursor"?: NonNullable<Json>,"expected_every_minutes"?: number,"has_secret"?: boolean,"id"?: string,"is_active"?: boolean,"last_error"?: string | null,"last_error_at"?: string | null,"last_run_at"?: string | null,"last_success_at"?: string | null,"name"?: string,"org_id"?: string,"quiet_after_hours"?: number,"run_lease_id"?: string | null,"run_lease_until"?: string | null,"stale_after_minutes"?: number | null,"type"?: Database["public"]['Enums']["source_type"]
                   }
                   Relationships: [
                     {
@@ -743,6 +763,20 @@ isOneToOne: true
       referencedColumns: ["id"]
     }
                   ]
+                },"worker_heartbeats": {
+                  Row: {
+                    "kind": string,"last_error": string | null,"last_finished_at": string | null,"last_ok_at": string | null,"last_started_at": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "kind": string,"last_error"?: string | null,"last_finished_at"?: string | null,"last_ok_at"?: string | null,"last_started_at"?: string | null
+                  }
+                  Update: {
+                    "kind"?: string,"last_error"?: string | null,"last_finished_at"?: string | null,"last_ok_at"?: string | null,"last_started_at"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"worker_runs": {
                   Row: {
                     "counters": NonNullable<Json>,"finished_at": string,"id": string,"kind": string,"org_id": string,"run_id": string,"started_at": string,"status": string,"stopped_by": string | null,"trigger": string
@@ -810,12 +844,13 @@ isOneToOne: false
             }[]
                            },
 "claim_sources":
-{ Args: { "p_lease_id": string,"p_lease_seconds": number,"p_limit": number,"p_org_id"?: string,"p_respect_backoff"?: boolean,"p_source_ids"?: (string)[],"p_types": (Database["public"]['Enums']["source_type"])[] }; Returns: {
+{ Args: { "p_lease_id": string,"p_lease_seconds": number,"p_limit": number,"p_min_gap_seconds"?: number,"p_org_id"?: string,"p_respect_backoff"?: boolean,"p_source_ids"?: (string)[],"p_types": (Database["public"]['Enums']["source_type"])[] }; Returns: {
               "config": NonNullable<Json>,
 "consecutive_failures": number,
 "covered_until": string | null,
 "created_at": string,
 "cursor": NonNullable<Json>,
+"expected_every_minutes": number,
 "has_secret": boolean,
 "id": string,
 "is_active": boolean,
@@ -825,8 +860,10 @@ isOneToOne: false
 "last_success_at": string | null,
 "name": string,
 "org_id": string,
+"quiet_after_hours": number,
 "run_lease_id": string | null,
 "run_lease_until": string | null,
+"stale_after_minutes": number | null,
 "type": Database["public"]['Enums']["source_type"]
             }[]
                           SetofOptions: {
@@ -878,6 +915,9 @@ isOneToOne: false
               "department_id": string,"hour": string,"interactions": number,"mentions": number,"sentiment": Database["public"]['Enums']["sentiment"]
             }[]
                            },
+"monitor_health":
+{ Args: { "p_org_id": string }; Returns: Json
+                           },
 "neighborhood_detail":
 { Args: { "p_from": string,"p_neighborhood_id": string,"p_org_id": string,"p_to": string }; Returns: Json
                            },
@@ -907,6 +947,9 @@ isOneToOne: false
                            },
 "record_ai_usage":
 { Args: { "p_cache_read_tokens": number,"p_cache_write_tokens": number,"p_cost_usd": number,"p_input_tokens": number,"p_model": string,"p_org_id": string,"p_output_tokens": number,"p_purpose": string }; Returns: undefined
+                           },
+"record_heartbeat":
+{ Args: { "p_error"?: string,"p_kind": string,"p_phase": string }; Returns: undefined
                            },
 "refresh_mention_stats":
 { Args: Record<PropertyKey, never>; Returns: undefined

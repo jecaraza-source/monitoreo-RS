@@ -190,6 +190,7 @@ const FIELDS: Record<RuleKind, Field[]> = {
   risk_term: [{ key: "window_minutes", label: "Revisar las últimas (minutos)", min: 5, max: 1440 }],
   media_negative: [{ key: "window_minutes", label: "Revisar las últimas (minutos)", min: 5, max: 1440 }],
   daily_digest: [{ key: "hour", label: "Hora de envío (0–23, Ciudad de México)", min: 0, max: 23 }],
+  monitor_health: [],
 };
 
 function RuleForm({

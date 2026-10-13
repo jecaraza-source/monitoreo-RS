@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  Activity,
   ArrowUpRight,
   BellOff,
   CalendarClock,
@@ -29,6 +30,7 @@ const KIND_ICON: Record<RuleKind, typeof TrendingUp> = {
   risk_term: ShieldAlert,
   media_negative: Megaphone,
   daily_digest: CalendarClock,
+  monitor_health: Activity,
 };
 
 const SEVERITY_TONE = {

@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import type { HealthSnapshot, SourceSnapshot } from "../health/model.ts";
 import { describe, it } from "node:test";
 import {
   CONDITION_SCHEMAS,
   decideDigest,
+  decideHealth,
   decideMediaNegative,
   decideRiskTerms,
   decideSentimentDrop,
@@ -119,6 +121,51 @@ describe("parsing", () => {
     const member = "00000000-0000-4000-d000-000000000001";
     assert.deepEqual(parseChannels({ email: ["a@b.mx"], whatsapp: ["+5212291234567", member] }), { email: ["a@b.mx"], whatsapp: [member] });
     assert.deepEqual(splitList("a@b.mx, c@d.mx\n a@b.mx"), ["a@b.mx", "c@d.mx"]);
-    assert.equal(defaultRules().length, 5);
+    assert.equal(defaultRules().length, 6);
+  });
+});
+
+describe("monitor health", () => {
+  const NOW = new Date("2026-10-13T18:00:00Z");
+  const ago = (min: number) => new Date(NOW.getTime() - min * 60_000).toISOString();
+  const src = (over: Partial<SourceSnapshot>): SourceSnapshot => ({
+    id: "s", name: "Diario", type: "rss", is_active: true, expected_every_minutes: 60, stale_after_minutes: null, quiet_after_hours: 72,
+    last_run_at: ago(10), last_success_at: ago(10), last_error_at: null, consecutive_failures: 0, last_error: null,
+    covered_until: ago(10), catching_up: false, running: false, last_new_item_at: ago(10), last_run: null, day: null, ...over,
+  });
+  const snap = (sources: SourceSnapshot[], classifier: Partial<HealthSnapshot["classifier"]> = {}): HealthSnapshot => ({
+    as_of: NOW.toISOString(),
+    editor: true,
+    settings: { classify_backlog_minutes: 30, classify_stale_minutes: 20, dashboard_stale_minutes: 30 },
+    heartbeats: {
+      classify: { last_started_at: ago(2), last_finished_at: ago(2), last_ok_at: ago(2), failed: false, last_error: null },
+      dashboard: { last_started_at: ago(2), last_finished_at: ago(2), last_ok_at: ago(2), failed: false, last_error: null },
+    },
+    classifier: { pending: 0, waiting_retry: 0, in_flight: 0, oldest_pending_at: null, failed: 0, open_failures: 0, latest_classified_at: null, ...classifier },
+    sources,
+  });
+
+  it("alerts on failing and delayed sources, not on healthy, paused or one-off errors", () => {
+    const decisions = decideHealth(
+      snap([
+        src({ id: "ok" }),
+        src({ id: "paused", is_active: false, consecutive_failures: 9 }),
+        src({ id: "once", consecutive_failures: 1, last_error_at: ago(5) }),
+        src({ id: "fail", name: "Página", consecutive_failures: 3, last_error_at: ago(5), last_error: "Meta respondió: error" }),
+        src({ id: "late", covered_until: ago(400) }),
+      ]),
+      NOW,
+    );
+    assert.deepEqual(decisions.map((d) => d.fingerprint), ["health:source:fail:failing", "health:source:late:delayed"]);
+    assert.equal(decisions[0].severity, "high");
+    assert.equal(decisions[0].title, "Fallando: Página");
+  });
+
+  it("alerts on a new coverage gap, and on a stalled classifier", () => {
+    const gapRun = { id: "r", status: "partial" as const, trigger: "cron" as const, started_at: ago(10), complete: true, fetched: 1, inserted: 1,
+      duplicates: 0, unmatched: 0, updated: 0, gap_from: ago(300), gap_to: ago(200), limits: [], error: null };
+    const decisions = decideHealth(snap([src({ id: "g", last_run: gapRun })], { pending: 5, oldest_pending_at: ago(60) }), NOW);
+    assert.equal(decisions[0].fingerprint, `health:source:g:partial:${gapRun.gap_from}`);
+    assert.equal(decisions[1].fingerprint, "health:classifier:backlog");
   });
 });

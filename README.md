@@ -188,10 +188,10 @@ Palancas: subir el umbral de escalamiento (`ESCALATE_BELOW_CONFIDENCE`), usar So
 
   | Rol | Secciones |
   |---|---|
-  | admin | Dashboard, Bandeja, Mapa, Alertas, Reportes, Asistente, Configuración (Proyectos, Catálogos, Usuarios) |
-  | comunicacion | Dashboard, Bandeja, Mapa, Alertas, Reportes, Asistente, Configuración (sólo Proyectos) |
+  | admin | Dashboard, Bandeja, Mapa, Alertas, Reportes, Asistente, Salud, Configuración (Proyectos, Catálogos, Usuarios) |
+  | comunicacion | Dashboard, Bandeja, Mapa, Alertas, Reportes, Asistente, Salud, Configuración (sólo Proyectos) |
   | dependencia | Bandeja, Alertas, Asistente (sólo con lo turnado a su dependencia) |
-  | lectura | Dashboard, Mapa, Alertas, Reportes, Asistente |
+  | lectura | Dashboard, Mapa, Alertas, Reportes, Asistente, Salud (sólo el resumen) |
 
   Esto controla la navegación; la visibilidad de los datos la impone RLS.
 
@@ -536,6 +536,36 @@ Webhook: `GET/POST /api/whatsapp/webhook` (verificación con `WHATSAPP_VERIFY_TO
    Sin botones (Meta no acepta una variable al inicio o al final del cuerpo). Ejemplos: `Ayuntamiento de Alvarado`, `Pico de menciones: 50 en 1 hora`,
    `Lo normal son 5 menciones por hora`, `alta`, `https://monitoreo.sigmainteligencia.com/alertas`.
 
+## Salud del monitoreo
+
+`/salud` (admin y comunicación; lectura ve sólo el resumen) muestra, con datos guardados en la base
+(`monitor_health()`, nada de ejemplos), si el monitoreo está escuchando:
+
+- **Resumen:** estado general, hora de corte en hora de la Ciudad de México, hasta cuándo están leídas las
+  fuentes activas, pendientes de clasificar (la más antigua y las fallidas) y frescura del dashboard. Nunca se
+  muestra en verde con cobertura desconocida, sin fuentes activas o sin registro de los procesos.
+- **Por fuente** (`src/lib/health/model.ts`):
+  - **Estados:** Al día · Sin publicaciones nuevas (el proveedor no publicó; no es error) · Cobertura
+    parcial (tope o hueco, con el motivo) · Atrasada · Con errores (1–2 fallos) · Fallando (3+, con espera) ·
+    Pausada (voluntaria) · No disponible · Cobertura desconocida.
+  - **Datos de cada fuente:** último intento y éxito, atraso, próximo intento, errores seguidos y lo que
+    trajo la última corrida (capturadas, nuevas, duplicadas, sin consulta, interacciones actualizadas).
+  - **Siguiente paso** según el error: reconectar el token, revisar la URL, esperar la cuota o reintentar.
+- **Umbrales:**
+  - por fuente: frecuencia de lectura, atraso y horas sin publicaciones;
+  - por municipio (`monitor_settings`): rezago y detención del clasificador, y antigüedad del dashboard.
+  
+  La ingesta respeta la frecuencia de cada fuente.
+- **Reintentar ahora:** usa la reserva con *lease* de la etapa 2. No duplica una corrida en curso y una
+  misma fuente se lee a mano como mucho una vez por minuto (`claim_sources(…, p_min_gap_seconds)`). Lo pueden
+  usar sólo admin y comunicación.
+- **Corridas:** se filtran por fuente, resultado, origen y periodo. El detalle de cada una muestra su
+  ventana, cobertura, topes, huecos, error y el siguiente paso.
+- **Fallos por revisar:** la misma cola de Configuración → Fuentes.
+- **Latidos persistidos** (`worker_heartbeats`): ingesta, clasificación (aunque no haya trabajo) y
+  reconstrucción del dashboard.
+- **Alertas:** el tipo de regla `monitor_health` en Alertas avisa por los canales de la regla.
+
 ## Alertas
 
 `/alertas` lista las alertas de los últimos 30 días y las reglas (admin y comunicación las editan; las
@@ -549,6 +579,7 @@ dependencias ven sólo las alertas de su área). Tipos de regla (`alert_rules.ki
 | `risk_term` | una mención recién clasificada contiene un término del catálogo (inicio de palabra, sin acentos) | una por término |
 | `media_negative` | un medio o figura pública publica una mención negativa | una por medio |
 | `daily_digest` | todos los días desde la hora indicada (Ciudad de México) | una por día |
+| `monitor_health` | una fuente falla (3+ errores seguidos), se atrasa o tiene un hueco nuevo; el clasificador se detiene o se rezaga; el dashboard se desactualiza (umbrales en [Salud](#salud-del-monitoreo)) | una por fuente y estado |
 
 - Se evalúan al final de cada corrida de `/api/cron/classify` (cada 5 min) con `src/lib/alerts/evaluate.ts`.
 - `fire_alert()` aplica el enfriamiento por regla y huella con un candado, así que corridas simultáneas no

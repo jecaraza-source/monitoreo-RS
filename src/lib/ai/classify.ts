@@ -144,7 +144,15 @@ export async function classifyPending(
   const admin = createAdminClient();
   const runId = randomUUID();
   const startedAt = new Date().toISOString();
-  const summary = await classifyLoop(admin, runId, options);
+  await heartbeat(admin, "start");
+  let summary: ClassifySummary;
+  try {
+    summary = await classifyLoop(admin, runId, options);
+  } catch (error) {
+    await heartbeat(admin, "finish", error instanceof Error ? error.message : String(error));
+    throw error;
+  }
+  await heartbeat(admin, "finish", summary.stoppedBy);
   // New sentiment/topic/neighborhood values change the dashboard rollup.
   if (summary.classified > 0) await refreshMentionStats(admin);
   await logWorkerRuns(admin, runId, options.trigger ?? "cron", startedAt, summary);
@@ -331,4 +339,10 @@ async function logWorkerRuns(admin: Admin, runId: string, trigger: "cron" | "man
   if (!rows.length) return;
   const { error } = await admin.from("worker_runs").insert(rows);
   if (error) console.error("[classify] worker_runs:", error.message);
+}
+
+/** Persisted "the classifier ran" mark read by the health page (also when there was nothing to do). */
+async function heartbeat(admin: Admin, phase: "start" | "finish", error?: string) {
+  const { error: e } = await admin.rpc("record_heartbeat", { p_kind: "classify", p_phase: phase, p_error: error?.slice(0, 500) });
+  if (e) console.error("[classify] heartbeat:", e.message);
 }

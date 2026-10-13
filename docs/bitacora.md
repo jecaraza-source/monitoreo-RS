@@ -3,6 +3,49 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Etapa 3 — Salud del monitoreo (13 oct 2026, base `1666fd6`)
+
+- **Antes:**
+  - El estado de las fuentes sólo se veía en Configuración → Fuentes y no distinguía pausa, falta de
+    publicaciones, error y cobertura parcial.
+  - No había umbrales, ni registro persistido de cuándo corrió el clasificador sin trabajo o se reconstruyó el
+    dashboard.
+  - Lectura no tenía un resumen.
+- **Después:**
+  - Sección `/salud`: detalle para admin y comunicación, resumen para lectura (recortado en la base); dependencia
+    sin acceso.
+  - Nueve estados por fuente, con motivo, próximo intento y siguiente paso.
+  - Clasificador y dashboard con umbrales por municipio; frecuencia y umbrales por fuente (la ingesta respeta
+    la frecuencia).
+  - Hora de corte de la Ciudad de México; nunca verde con cobertura desconocida.
+  - Corridas filtrables con detalle.
+  - Reintento manual con *lease* y espera de 60 s.
+  - Latidos persistidos y regla de alerta `monitor_health`.
+- **Archivos:**
+  - `supabase/migrations/20261026000000_monitor_health.sql` y `docs/rollback/…down.sql`;
+  - `src/lib/health/*`, `src/components/health/*`, `src/app/(app)/salud/*`;
+  - alertas (`rules.ts`, `evaluate.ts`, ícono y formulario), `roles.ts`/`nav-icons.ts`;
+  - latidos en ingesta y clasificación, espera manual en `sources/actions.ts`;
+  - pruebas: `health/model.test.ts`, `health.test.sql`, `e2e/health.spec.ts`, ajustes en `rules.test.ts`,
+    `roles.test.ts` y `rls_matrix.test.sql`;
+  - README y `docs/etapa-3-salud-del-monitoreo.md`.
+- **Pruebas:**
+  - lint, typecheck y 307 unitarias;
+  - `db reset` de 19 migraciones y 338 pgTAP;
+  - build canario + `check:bundle`;
+  - e2e 22/22 (en la primera corrida falló la prueba previa del mapa; ver limitaciones);
+  - humo de la alerta de salud con enfriamiento;
+  - reversión y reaplicación probadas.
+- **Hallazgo:** `e2e/map.spec.ts` es intermitente porque el panel de colonia ofrece a lectura un enlace a
+  Bandeja, que redirige. Se propuso corregirlo en una tarea aparte.
+- **Limitaciones:**
+  - el próximo intento es una estimación sobre el cron horario;
+  - los latidos de los crons son globales, no por municipio.
+- **Activación / reversión:**
+  - activar: migración antes del deploy y, opcionalmente, la regla "Salud del monitoreo";
+  - revertir: commit y `down.sql`.
+- **Pendiente:** cuotas y costo de IA, frescura tras correcciones, reportes programados, Node 22/24.
+
 ## Etapa 2 — Cobertura y clasificación confiable (13 oct 2026, base `ea3e9e8`)
 
 - **Antes:**
