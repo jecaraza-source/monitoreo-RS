@@ -52,10 +52,29 @@ export function parsePeriod(params: Record<string, string | string[] | undefined
     to = new Date(dayEnd(hasta));
     if (to.getTime() - from.getTime() > MAX_CUSTOM_DAYS * DAY) from = new Date(to.getTime() - MAX_CUSTOM_DAYS * DAY);
   } else {
-    // Rolling windows end at the next full hour so the rollup's last bucket is included.
+    // Windows end at the next full hour so the rollup's last bucket is included.
     to = new Date(Math.ceil(now.getTime() / HOUR) * HOUR);
-    const span = key === "24h" ? DAY : key === "30d" ? 30 * DAY : 7 * DAY;
-    from = new Date(to.getTime() - span);
+    if (key === "24h") from = new Date(to.getTime() - DAY);
+    else {
+      // 7 and 30 days are whole Mexico City days (today included, up to now),
+      // like the inbox; the previous period is the same days right before and
+      // kpi_snapshot cuts it at the same point of its length.
+      const days = key === "30d" ? 30 : 7;
+      const today = toMxDay(now);
+      from = new Date(new Date(dayStart(today)).getTime() - (days - 1) * DAY);
+      // The previous period must be as long as this one counted in whole days.
+      const length = days * DAY;
+      return {
+        key: key === "30d" ? "30d" : "7d",
+        from,
+        to,
+        prevFrom: new Date(from.getTime() - length),
+        prevTo: from,
+        bucket: "day",
+        fromDay: toMxDay(from),
+        toDay: today,
+      };
+    }
   }
 
   const length = to.getTime() - from.getTime();
@@ -79,4 +98,14 @@ export function periodSearch(key: PeriodKey, desde?: string, hasta?: string): st
     params.set("hasta", hasta);
   }
   return `?${params}`;
+}
+
+const shortDay = new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", timeZone: "America/Mexico_City" });
+
+/** "el periodo anterior (26 sep – 2 oct)": what the arrows compare against. */
+export function previousLabel(period: Pick<Period, "prevFrom" | "prevTo">): string {
+  const last = new Date(period.prevTo.getTime() - 1);
+  const a = shortDay.format(period.prevFrom);
+  const b = shortDay.format(last);
+  return `el periodo anterior (${a === b ? a : `${a} – ${b}`}, al mismo corte)`;
 }

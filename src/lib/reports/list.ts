@@ -39,3 +39,15 @@ export async function getReport(member: Member, id: string): Promise<ReportRow |
   const { data } = await supabase.from("reports").select(REPORT_SELECT).eq("org_id", member.orgId).eq("id", id).maybeSingle();
   return data ? toReport(data as never) : null;
 }
+
+/** The versions around a report: the one it revises and the revision of it, if any. */
+export async function getReportVersions(member: Member, report: ReportRow): Promise<{ previous: { id: string; version: number } | null; next: { id: string; version: number; status: string } | null }> {
+  const supabase = await createClient();
+  const [prev, next] = await Promise.all([
+    report.previousVersionId
+      ? supabase.from("reports").select("id, version").eq("org_id", member.orgId).eq("id", report.previousVersionId).maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase.from("reports").select("id, version, status").eq("org_id", member.orgId).eq("previous_version_id", report.id).maybeSingle(),
+  ]);
+  return { previous: prev.data ?? null, next: next.data ?? null };
+}

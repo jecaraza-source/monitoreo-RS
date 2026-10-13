@@ -10,11 +10,11 @@ $$;
 
 -- Fixtures, written by the server: a draft, an approved and a sent report in
 -- municipality A, and a schedule in municipality B.
-insert into public.reports (id, org_id, period, period_start, period_end, title, content, status, approved_at, sent_at, pdf_path)
+insert into public.reports (id, org_id, period, period_start, period_end, title, content, status, approved_at, sent_at, pdf_path, facts)
 values
-  ('00000000-0000-4000-9100-000000000001', '00000000-0000-4000-a000-000000000001', 'weekly', '2026-10-02', '2026-10-08', 'Borrador', '{"headline":"a"}', 'draft', null, null, null),
-  ('00000000-0000-4000-9100-000000000002', '00000000-0000-4000-a000-000000000001', 'weekly', '2026-09-25', '2026-10-01', 'Aprobado', '{"headline":"a"}', 'approved', now(), null, 'a/2.pdf'),
-  ('00000000-0000-4000-9100-000000000003', '00000000-0000-4000-a000-000000000001', 'weekly', '2026-09-18', '2026-09-24', 'Enviado', '{"headline":"a"}', 'sent', now(), now(), 'a/3.pdf');
+  ('00000000-0000-4000-9100-000000000001', '00000000-0000-4000-a000-000000000001', 'weekly', '2026-10-02', '2026-10-08', 'Borrador', '{"headline":"a"}', 'draft', null, null, null, '{"kpis":[]}'),
+  ('00000000-0000-4000-9100-000000000002', '00000000-0000-4000-a000-000000000001', 'weekly', '2026-09-25', '2026-10-01', 'Aprobado', '{"headline":"a"}', 'approved', now(), null, 'a/2.pdf', '{"kpis":[]}'),
+  ('00000000-0000-4000-9100-000000000003', '00000000-0000-4000-a000-000000000001', 'weekly', '2026-09-18', '2026-09-24', 'Enviado', '{"headline":"a"}', 'sent', now(), now(), 'a/3.pdf', '{"kpis":[]}');
 insert into public.report_schedules (id, org_id, period) values
   ('00000000-0000-4000-9200-00000000000b', '00000000-0000-4000-a000-00000000000b', 'weekly');
 

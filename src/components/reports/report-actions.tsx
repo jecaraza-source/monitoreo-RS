@@ -2,17 +2,17 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Download, Loader2, Send, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, GitBranch, Loader2, RefreshCw, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { approveReport, deleteDraft, resendReport, type ReportActionResult } from "@/lib/reports/actions";
+import { approveReport, deleteDraft, refreshReportFacts, resendReport, reviseReport, type ReportActionResult } from "@/lib/reports/actions";
 import type { ReportStatus } from "@/lib/reports/data";
 
 export function ReportActions({
   report,
   canEdit,
 }: {
-  report: { id: string; status: ReportStatus; pdfPath: string | null; recipients: string[] };
+  report: { id: string; status: ReportStatus; pdfPath: string | null; recipients: string[]; hasRevision: boolean };
   canEdit: boolean;
 }) {
   const router = useRouter();
@@ -35,6 +35,9 @@ export function ReportActions({
       )}
       {canEdit && report.status === "draft" && (
         <>
+          <Button variant="outline" disabled={pending} onClick={() => run(() => refreshReportFacts({ reportId: report.id }))}>
+            <RefreshCw aria-hidden /> Actualizar cifras
+          </Button>
           <Button
             variant="ghost"
             disabled={pending}
@@ -55,6 +58,23 @@ export function ReportActions({
             {pending ? <Loader2 className="animate-spin" aria-hidden /> : <CheckCircle2 aria-hidden />} Aprobar
           </Button>
         </>
+      )}
+      {canEdit && report.status !== "draft" && !report.hasRevision && (
+        <Button
+          variant="outline"
+          disabled={pending}
+          onClick={() =>
+            confirm("Se creará un borrador nuevo (siguiente versión) con las cifras de hoy y este texto como base. La versión aprobada no cambia. ¿Continuar?") &&
+            startTransition(async () => {
+              const r = await reviseReport({ reportId: report.id });
+              if (!r.ok) return void toast.error(r.message);
+              toast.success(r.message);
+              if (r.id) router.push(`/reportes/${r.id}`);
+            })
+          }
+        >
+          <GitBranch aria-hidden /> Crear revisión
+        </Button>
       )}
       {canEdit && report.status !== "draft" && report.recipients.length > 0 && (
         <Button variant="outline" disabled={pending} onClick={() => run(() => resendReport({ reportId: report.id }))}>

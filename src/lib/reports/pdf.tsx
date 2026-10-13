@@ -1,6 +1,7 @@
 import "server-only";
 import { Document, Font, Image, Page, renderToBuffer, StyleSheet, Text, View } from "@react-pdf/renderer";
-import type { Narrative, ReportFacts } from "@/lib/ai/narrative";
+import { isStructured, type AnyNarrative, type Kpi, type ReportFacts } from "@/lib/ai/narrative";
+import { FAMILY_LABELS, KPI_BY_KEY } from "@/lib/kpi/dictionary";
 import type { Logo } from "@/lib/branding/logo";
 
 /** Cover colors and, optionally, the client's logo (Configuración → Identidad). */
@@ -145,7 +146,51 @@ function Bars({ rows }: { rows: { label: string; value: number; display: string;
 
 const nssColor = (v: number) => (v >= 5 ? POSITIVE : v <= -5 ? NEGATIVE : NEUTRAL);
 
-function ReportDocument({ facts, narrative, brand, title }: { facts: ReportFacts; narrative: Narrative; brand: PdfBrand; title: string }) {
+const UNIT_SUFFIX: Record<string, string> = { "%": "%", horas: " h" };
+
+function KpiGrid({ kpis, color }: { kpis: Kpi[]; color: string }) {
+  return (
+    <View style={[s.row, { flexWrap: "wrap" }]}>
+      {kpis.map((k, i) => (
+        <View key={k.key} style={[s.kpi, i % 3 === 2 ? { marginRight: 0 } : {}]} wrap={false}>
+          <Text style={s.muted}>{clean(k.label)}</Text>
+          <Text style={[s.kpiValue, { color }]}>{fmt(k.value, UNIT_SUFFIX[k.unit ?? ""] ?? "")}</Text>
+          <Text style={s.muted}>{k.change == null ? "Sin comparación" : `${signed(k.change, k.change_unit)} vs. anterior (${fmt(k.previous)})`}</Text>
+          {k.unit === "horas" && <Text style={s.muted}>n = {k.n ?? 0}{k.detail ? ` · ${clean(k.detail)}` : ""}</Text>}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** "Datos: Casos vencidos al corte · Caso C-0012": what a statement rests on. */
+function RefLine({ refs, facts }: { refs: string[]; facts: ReportFacts }) {
+  const labels = new Map((facts.references ?? []).map((r) => [r.id, r.label]));
+  if (!refs.length) return null;
+  return <Text style={s.muted}>Datos: {clean(refs.map((r) => labels.get(r) ?? r).join(" · "))}</Text>;
+}
+
+function Statements({ title, items, facts, color }: { title: string; items: { text: string; refs: string[] }[]; facts: ReportFacts; color: string }) {
+  return (
+    <View>
+      <Text style={[s.h2, { color }]}>{title}</Text>
+      {items.length ? (
+        items.map((x, i) => (
+          <View key={i} style={s.card} wrap={false}>
+            <Text style={s.p}>{clean(x.text)}</Text>
+            <RefLine refs={x.refs} facts={facts} />
+          </View>
+        ))
+      ) : (
+        <Text style={s.muted}>Nada que señalar.</Text>
+      )}
+    </View>
+  );
+}
+
+function ReportDocument({ facts, narrative, brand, title }: { facts: ReportFacts; narrative: AnyNarrative; brand: PdfBrand; title: string }) {
+  const structured = isStructured(narrative) ? narrative : null;
+  const legacy = isStructured(narrative) ? null : narrative;
   const kind = { daily: "Reporte diario", weekly: "Reporte semanal", monthly: "Reporte mensual" }[facts.period.kind];
   return (
     <Document title={clean(title)} author="Sigma Pulso" subject={clean(`${kind} de escucha social`)} language="es-MX">
@@ -189,18 +234,20 @@ function ReportDocument({ facts, narrative, brand, title }: { facts: ReportFacts
           <Text style={s.p}>{clean(narrative.executive_summary)}</Text>
 
           <Text style={s.h2}>Indicadores del periodo</Text>
-          <Text style={[s.muted, { marginBottom: 6 }]}>Comparación contra {clean(facts.period.previous_label)}.</Text>
-          <View style={[s.row, { flexWrap: "wrap" }]}>
-            {facts.kpis.map((k, i) => (
-              <View key={k.key} style={[s.kpi, i % 3 === 2 ? { marginRight: 0 } : {}]} wrap={false}>
-                <Text style={s.muted}>{clean(k.label)}</Text>
-                <Text style={[s.kpiValue, { color: brand.primary }]}>{fmt(k.value)}</Text>
-                <Text style={s.muted}>
-                  {k.change == null ? "Sin comparación" : `${signed(k.change, k.change_unit)} vs. anterior (${fmt(k.previous)})`}
-                </Text>
+          <Text style={[s.muted, { marginBottom: 6 }]}>
+            Comparación contra {clean(facts.period.previous_label)}
+            {facts.period.cut ? `, al corte del ${clean(facts.period.cut)}` : ""}. Menciones y casos son unidades distintas.
+          </Text>
+          {facts.facts_version === 2 ? (
+            (["conversacion", "atencion"] as const).map((family) => (
+              <View key={family}>
+                <Text style={[s.muted, { fontFamily: "Helvetica-Bold", marginBottom: 4 }]}>{FAMILY_LABELS[family]}</Text>
+                <KpiGrid kpis={facts.kpis.filter((k) => k.family === family)} color={brand.primary} />
               </View>
-            ))}
-          </View>
+            ))
+          ) : (
+            <KpiGrid kpis={facts.kpis} color={brand.primary} />
+          )}
 
           <Text style={s.h2}>Volumen y tono</Text>
           <VolumeChart series={facts.series} accent={brand.primary} hourly={facts.period.kind === "daily"} />
@@ -214,16 +261,26 @@ function ReportDocument({ facts, narrative, brand, title }: { facts: ReportFacts
 
       <Page size="LETTER" style={s.page}>
         <View style={s.body}>
-          <Text style={[s.h1, { color: brand.primary }]}>Hallazgos</Text>
-          {narrative.findings.map((f, i) => (
-            <View key={i} style={s.card} wrap={false}>
-              <Text style={{ fontFamily: "Helvetica-Bold", marginBottom: 3 }}>
-                {i + 1}. {clean(f.title)}
-              </Text>
-              <Text style={s.p}>{clean(f.evidence)}</Text>
-              <Text style={s.muted}>Impacto: {clean(f.impact)}</Text>
-            </View>
-          ))}
+          {structured ? (
+            <>
+              <Text style={[s.h1, { color: brand.primary }]}>Qué cambió y qué requiere decisión</Text>
+              <Statements title="Qué cambió" items={structured.what_changed} facts={facts} color={brand.primary} />
+              <Statements title="Qué requiere decisión" items={structured.decisions} facts={facts} color={brand.primary} />
+            </>
+          ) : (
+            <>
+              <Text style={[s.h1, { color: brand.primary }]}>Hallazgos</Text>
+              {legacy!.findings.map((f, i) => (
+                <View key={i} style={s.card} wrap={false}>
+                  <Text style={{ fontFamily: "Helvetica-Bold", marginBottom: 3 }}>
+                    {i + 1}. {clean(f.title)}
+                  </Text>
+                  <Text style={s.p}>{clean(f.evidence)}</Text>
+                  <Text style={s.muted}>Impacto: {clean(f.impact)}</Text>
+                </View>
+              ))}
+            </>
+          )}
 
           <Text style={s.h2}>Temas principales</Text>
           <Bars
@@ -237,6 +294,7 @@ function ReportDocument({ facts, narrative, brand, title }: { facts: ReportFacts
           <Text style={s.muted}>Color según sentimiento neto del tema (verde positivo, gris neutral, rojo negativo).</Text>
 
           <Text style={s.h2}>Dependencias por sentimiento neto (NSS)</Text>
+          {facts.facts_version === 2 && <Text style={s.muted}>Sólo dependencias con volumen suficiente para comparar su tono.</Text>}
           <Bars
             rows={facts.departments_by_nss.map((d) => ({
               label: d.department,
@@ -268,25 +326,69 @@ function ReportDocument({ facts, narrative, brand, title }: { facts: ReportFacts
             ))}
           </View>
 
-          <Text style={s.h2}>Tiempos de atención por dependencia</Text>
-          <View style={s.table}>
-            <View style={s.th}>
-              <Text style={{ flex: 3 }}>Dependencia</Text>
-              <Text style={{ flex: 1, textAlign: "right" }}>Turnadas</Text>
-              <Text style={{ flex: 1, textAlign: "right" }}>Resueltas</Text>
-              <Text style={{ flex: 1, textAlign: "right" }}>Vencidas</Text>
-              <Text style={{ flex: 1, textAlign: "right" }}>Horas</Text>
-            </View>
-            {facts.attention.by_department.map((d, i) => (
-              <View key={i} style={s.tr} wrap={false}>
-                <Text style={{ flex: 3 }}>{clean(d.department)}</Text>
-                <Text style={{ flex: 1, textAlign: "right" }}>{nf.format(d.routed)}</Text>
-                <Text style={{ flex: 1, textAlign: "right" }}>{nf.format(d.resolved)}</Text>
-                <Text style={{ flex: 1, textAlign: "right" }}>{nf.format(d.overdue)}</Text>
-                <Text style={{ flex: 1, textAlign: "right" }}>{fmt(d.avg_hours)}</Text>
+          {facts.departments ? (
+            <>
+              <Text style={s.h2}>Casos por dependencia</Text>
+              <Text style={s.muted}>Desglose en orden alfabético, no un ranking. Resolución: mediana · p90 · n de ciclos cerrados.</Text>
+              <View style={s.table}>
+                <View style={s.th}>
+                  <Text style={{ flex: 3 }}>Dependencia</Text>
+                  <Text style={{ flex: 1, textAlign: "right" }}>Nuevos</Text>
+                  <Text style={{ flex: 1, textAlign: "right" }}>Abiertos</Text>
+                  <Text style={{ flex: 1, textAlign: "right" }}>Vencidos</Text>
+                  <Text style={{ flex: 1, textAlign: "right" }}>Cierres</Text>
+                  <Text style={{ flex: 2, textAlign: "right" }}>Resolución</Text>
+                  <Text style={{ flex: 2, paddingLeft: 6 }}>Nota</Text>
+                </View>
+                {facts.departments.map((d, i) => (
+                  <View key={i} style={s.tr} wrap={false}>
+                    <Text style={{ flex: 3 }}>{clean(d.department)}</Text>
+                    <Text style={{ flex: 1, textAlign: "right" }}>{nf.format(d.opened)}</Text>
+                    <Text style={{ flex: 1, textAlign: "right" }}>{nf.format(d.open_at_cut)}</Text>
+                    <Text style={{ flex: 1, textAlign: "right" }}>{nf.format(d.overdue_at_cut)}</Text>
+                    <Text style={{ flex: 1, textAlign: "right" }}>{nf.format(d.validated_closures)}</Text>
+                    <Text style={{ flex: 2, textAlign: "right" }}>
+                      {d.resolution_n ? `${fmt(d.resolution_median_h, " h")} · ${fmt(d.resolution_p90_h, " h")} · ${d.resolution_n}` : "-"}
+                    </Text>
+                    <Text style={{ flex: 2, paddingLeft: 6 }}>{[d.low_volume ? "volumen bajo" : "", d.new_in_catalog ? "nueva" : ""].filter(Boolean).join(", ")}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
+            </>
+          ) : facts.attention ? (
+            <>
+              <Text style={s.h2}>Tiempos de atención por dependencia</Text>
+              <View style={s.table}>
+                <View style={s.th}>
+                  <Text style={{ flex: 3 }}>Dependencia</Text>
+                  <Text style={{ flex: 1, textAlign: "right" }}>Turnadas</Text>
+                  <Text style={{ flex: 1, textAlign: "right" }}>Resueltas</Text>
+                  <Text style={{ flex: 1, textAlign: "right" }}>Vencidas</Text>
+                  <Text style={{ flex: 1, textAlign: "right" }}>Horas</Text>
+                </View>
+                {facts.attention.by_department.map((d, i) => (
+                  <View key={i} style={s.tr} wrap={false}>
+                    <Text style={{ flex: 3 }}>{clean(d.department)}</Text>
+                    <Text style={{ flex: 1, textAlign: "right" }}>{nf.format(d.routed)}</Text>
+                    <Text style={{ flex: 1, textAlign: "right" }}>{nf.format(d.resolved)}</Text>
+                    <Text style={{ flex: 1, textAlign: "right" }}>{nf.format(d.overdue)}</Text>
+                    <Text style={{ flex: 1, textAlign: "right" }}>{fmt(d.avg_hours)}</Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          ) : null}
+
+          {facts.pending_cases && facts.pending_cases.length > 0 && (
+            <>
+              <Text style={s.h2}>Casos vencidos al corte</Text>
+              {facts.pending_cases.map((c) => (
+                <Text key={c.ref} style={{ fontSize: 9, marginBottom: 2 }}>
+                  {clean(`${c.folio} · ${c.category ?? "Sin categoría"} · ${c.department ?? "Sin asignar"}${c.overdue_hours != null ? ` · ${nf.format(c.overdue_hours)} h de atraso` : ""}`)}
+                </Text>
+              ))}
+            </>
+          )}
 
           {facts.peaks.length > 0 && <Text style={s.h2}>Picos de conversación</Text>}
           {facts.peaks.map((p, i) => (
@@ -310,30 +412,60 @@ function ReportDocument({ facts, narrative, brand, title }: { facts: ReportFacts
 
       <Page size="LETTER" style={s.page}>
         <View style={s.body}>
-          <Text style={[s.h1, { color: brand.primary }]}>Riesgos y oportunidades</Text>
-          <Text style={s.h2}>Riesgos</Text>
-          <Bullets items={narrative.risks} />
-          <Text style={s.h2}>Oportunidades</Text>
-          <Bullets items={narrative.opportunities} />
-
-          <Text style={s.h2}>Recomendaciones</Text>
-          <View style={s.table}>
-            <View style={s.th}>
-              <Text style={{ flex: 4 }}>Acción</Text>
-              <Text style={{ flex: 2, paddingLeft: 6 }}>Responsable sugerido</Text>
-              <Text style={{ flex: 1, paddingLeft: 6 }}>Plazo</Text>
-            </View>
-            {narrative.recommendations.map((r, i) => (
-              <View key={i} style={s.tr} wrap={false}>
-                <Text style={{ flex: 4 }}>{clean(r.action)}</Text>
-                <Text style={{ flex: 2, paddingLeft: 6 }}>{clean(r.owner)}</Text>
-                <Text style={{ flex: 1, paddingLeft: 6 }}>{clean(r.deadline)}</Text>
+          {structured ? (
+            <>
+              <Text style={[s.h1, { color: brand.primary }]}>Quién debe actuar y qué sigue pendiente</Text>
+              <View style={s.table}>
+                <View style={s.th}>
+                  <Text style={{ flex: 2 }}>Responsable</Text>
+                  <Text style={{ flex: 4, paddingLeft: 6 }}>Acción</Text>
+                  <Text style={{ flex: 1, paddingLeft: 6 }}>Plazo</Text>
+                </View>
+                {structured.actions.map((a, i) => (
+                  <View key={i} style={s.tr} wrap={false}>
+                    <Text style={{ flex: 2 }}>{clean(a.owner)}</Text>
+                    <View style={{ flex: 4, paddingLeft: 6 }}>
+                      <Text>{clean(a.action)}</Text>
+                      <RefLine refs={a.refs} facts={facts} />
+                    </View>
+                    <Text style={{ flex: 1, paddingLeft: 6 }}>{clean(a.deadline)}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
+              <Statements title="Qué sigue pendiente" items={structured.pending} facts={facts} color={brand.primary} />
+              <Text style={s.h2}>Riesgos</Text>
+              <Bullets items={structured.risks} />
+              <Text style={s.h2}>Mensajes clave para comunicación social</Text>
+              <Bullets items={structured.messaging} />
+            </>
+          ) : (
+            <>
+              <Text style={[s.h1, { color: brand.primary }]}>Riesgos y oportunidades</Text>
+              <Text style={s.h2}>Riesgos</Text>
+              <Bullets items={legacy!.risks} />
+              <Text style={s.h2}>Oportunidades</Text>
+              <Bullets items={legacy!.opportunities} />
 
-          <Text style={s.h2}>Mensajes clave para comunicación social</Text>
-          <Bullets items={narrative.messaging} />
+              <Text style={s.h2}>Recomendaciones</Text>
+              <View style={s.table}>
+                <View style={s.th}>
+                  <Text style={{ flex: 4 }}>Acción</Text>
+                  <Text style={{ flex: 2, paddingLeft: 6 }}>Responsable sugerido</Text>
+                  <Text style={{ flex: 1, paddingLeft: 6 }}>Plazo</Text>
+                </View>
+                {legacy!.recommendations.map((r, i) => (
+                  <View key={i} style={s.tr} wrap={false}>
+                    <Text style={{ flex: 4 }}>{clean(r.action)}</Text>
+                    <Text style={{ flex: 2, paddingLeft: 6 }}>{clean(r.owner)}</Text>
+                    <Text style={{ flex: 1, paddingLeft: 6 }}>{clean(r.deadline)}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <Text style={s.h2}>Mensajes clave para comunicación social</Text>
+              <Bullets items={legacy!.messaging} />
+            </>
+          )}
 
           <Text style={[s.muted, { marginTop: 18 }]}>
             Cifras calculadas por Sigma Pulso con menciones públicas del periodo. La narrativa fue redactada con apoyo de IA a partir de esas cifras y
@@ -342,10 +474,44 @@ function ReportDocument({ facts, narrative, brand, title }: { facts: ReportFacts
         </View>
         <Footer facts={facts} logo={brand.logo} />
       </Page>
+
+      {facts.facts_version === 2 && (
+        <Page size="LETTER" style={s.page}>
+          <View style={s.body}>
+            <Text style={[s.h1, { color: brand.primary }]}>Cobertura y definiciones</Text>
+            {facts.coverage && (
+              <>
+                <Text style={s.p}>
+                  {clean(
+                    `Sin clasificar: ${nf.format(facts.coverage.unclassified)} de ${nf.format(facts.coverage.mentions)} menciones. Clasificadas sin colonia: ${nf.format(facts.coverage.without_neighborhood)}. Casos nuevos sin categoría: ${nf.format(facts.coverage.cases_without_category)}; sin ubicación: ${nf.format(facts.coverage.cases_without_location)}.`,
+                  )}
+                </Text>
+                <Bullets items={[...(facts.coverage.sources_partial.length ? [`Fuentes con lectura parcial: ${facts.coverage.sources_partial.join(", ")}.`] : []), ...facts.coverage.notes]} />
+              </>
+            )}
+            <Text style={s.h2}>Definiciones ({clean(facts.kpi_version ?? "")})</Text>
+            {facts.kpis.map((k) => {
+              const d = KPI_BY_KEY[k.key];
+              return d ? (
+                <View key={k.key} style={{ marginBottom: 5 }} wrap={false}>
+                  <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 9 }}>
+                    {clean(d.label)} ({clean(d.unit)})
+                  </Text>
+                  <Text style={s.muted}>{clean(`${d.formula} Denominador: ${d.denominator} Periodo: ${d.period} Reabiertos: ${d.reopened} Sin dato: ${d.missing}`)}</Text>
+                </View>
+              ) : null;
+            })}
+            <Text style={[s.muted, { marginTop: 8 }]}>
+              {clean(`Cifras de un mismo corte de la base de datos${facts.as_of ? ` (${new Date(facts.as_of).toLocaleString("es-MX", { timeZone: "America/Mexico_City" })})` : ""}. Un reporte aprobado conserva estas cifras aunque los datos cambien después.`)}
+            </Text>
+          </View>
+          <Footer facts={facts} logo={brand.logo} />
+        </Page>
+      )}
     </Document>
   );
 }
 
-export async function renderReportPdf(input: { facts: ReportFacts; narrative: Narrative; brand: PdfBrand; title: string }): Promise<Buffer> {
+export async function renderReportPdf(input: { facts: ReportFacts; narrative: AnyNarrative; brand: PdfBrand; title: string }): Promise<Buffer> {
   return renderToBuffer(<ReportDocument {...input} />);
 }

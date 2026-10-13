@@ -374,6 +374,8 @@ async function getKpis(ctx: ToolContext, r: Resolved): Promise<ToolOutput> {
       anterior: before,
       variacion_menciones_pct: before.menciones ? r1(((now.menciones - before.menciones) / before.menciones) * 100) : null,
       variacion_nss_puntos: r1(now.nss - before.nss),
+      // Units (stage 9): turnos are routed mentions (publications), not incidents.
+      nota_unidades: "Los turnos son menciones turnadas a una dependencia, no incidentes. Los incidentes son casos: ver el dashboard (Atención y cumplimiento).",
       turnos: {
         turnados: t.length,
         abiertos: t.filter((x) => x.status === "open" || x.status === "in_progress").length,

@@ -28,25 +28,29 @@ const kpi = (f, key) => f.kpis.find((k) => k.key === key) ?? { value: null, chan
 
 function narrative(f) {
   const mentions = kpi(f, "mentions");
+  const overdue = kpi(f, "overdue_at_cut");
   const topic = f.top_topics[0];
-  const worst = f.departments_by_nss[0];
   const hood = f.neighborhoods_most_complaints[0];
+  const refs = new Set((f.references ?? []).map((r) => r.id));
+  const has = (id) => (refs.has(id) ? [id] : []);
+  const pending = (f.pending_cases ?? [])[0];
+  const owner = (f.allowed_owners ?? []).includes("Comunicación Social") ? "Comunicación Social" : (f.allowed_owners ?? ["Comunicación Social"])[0];
   return {
     headline: `${nf.format(mentions.value ?? 0)} menciones en el periodo; ${topic ? topic.topic : "sin tema dominante"} concentra la conversación`,
     executive_summary: `Se registraron ${nf.format(mentions.value ?? 0)} menciones con un sentimiento neto de ${nf.format(f.sentiment.nss)}. ${
       topic ? `El tema principal fue ${topic.topic} con ${topic.mentions} menciones.` : ""
-    } ${worst ? `${worst.department} presenta el sentimiento neto más bajo (${nf.format(worst.nss)}).` : ""} Conviene priorizar la atención de quejas pendientes.`,
-    findings: [
-      { title: "Volumen del periodo", evidence: `${nf.format(mentions.value ?? 0)} menciones; negativas ${nf.format(f.sentiment.negative_pct)}%.`, impact: "Define la carga de atención de las dependencias." },
-      ...(topic ? [{ title: `Tema principal: ${topic.topic}`, evidence: `${topic.mentions} menciones, ${nf.format(topic.negative_pct)}% negativas.`, impact: "Requiere seguimiento puntual." }] : []),
-      ...(hood ? [{ title: `Quejas en ${hood.neighborhood}`, evidence: `${hood.complaints} quejas en la colonia.`, impact: "Focalizar cuadrillas en la zona." }] : []),
+    } Conviene priorizar los casos vencidos.`,
+    what_changed: [
+      { text: `${nf.format(mentions.value ?? 0)} menciones; negativas ${nf.format(f.sentiment.negative_pct)}%.`, refs: [...has("kpi:mentions"), ...has("kpi:negative_pct")] },
+      ...(topic ? [{ text: `Tema principal: ${topic.topic}, ${topic.mentions} menciones.`, refs: has(`tema:${topic.topic}`).length ? has(`tema:${topic.topic}`) : has("kpi:mentions") }] : []),
     ],
-    risks: ["Acumulación de quejas sin respuesta.", "Cobertura negativa en medios locales."],
-    opportunities: ["Comunicar las reparaciones concluidas.", "Responder con rapidez en redes."],
-    recommendations: [
-      { action: "Atender las quejas abiertas con mayor antigüedad.", owner: worst?.department ?? "Comunicación Social", deadline: "48 horas" },
-      { action: "Publicar avances de obra y servicios.", owner: "Comunicación Social", deadline: "esta semana" },
+    decisions: hood ? [{ text: `Priorizar cuadrillas en ${hood.neighborhood}.`, refs: has(`colonia:${hood.neighborhood}`) }] : [],
+    actions: [
+      { owner, action: "Publicar avances de obra y servicios.", deadline: "esta semana", refs: has("kpi:mentions") },
+      ...(pending ? [{ owner: pending.department && (f.allowed_owners ?? []).includes(pending.department) ? pending.department : owner, action: `Atender el caso ${pending.folio}.`, deadline: "48 horas", refs: [pending.ref] }] : []),
     ],
+    pending: [{ text: `Casos vencidos al corte: ${nf.format(overdue.value ?? 0)}.`, refs: has("kpi:overdue_at_cut") }],
+    risks: ["Acumulación de quejas sin respuesta."],
     messaging: ["El Ayuntamiento atiende los reportes ciudadanos.", "Consulta los avances en los canales oficiales."],
   };
 }

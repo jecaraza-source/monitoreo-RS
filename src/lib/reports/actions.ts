@@ -2,10 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { narrativeSchema } from "@/lib/ai/narrative";
+import { describeCheck, legacyNarrativeSchema, narrativeSchema, validateNarrative, type AnyNarrative, type ReportFacts } from "@/lib/ai/narrative";
 import { requireRole } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { createReportDraft } from "./data";
+import { createReportDraft, createRevision, REPORT_SELECT, refreshDraftFacts, toReport } from "./data";
 import { sendReport, storeReportPdf } from "./deliver";
 import { REPORT_KINDS } from "./period";
 
@@ -45,7 +45,7 @@ export async function generateReport(input: unknown): Promise<ReportActionResult
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
   try {
     const supabase = await createClient();
-    const reportId = await createReportDraft(supabase, { orgId: m.orgId, ...parsed.data });
+    const reportId = await createReportDraft(supabase, { orgId: m.orgId, createdBy: m.userId, ...parsed.data });
     revalidatePath("/reportes");
     return { ok: true, message: "Borrador listo. Revísalo y edítalo antes de aprobar.", id: reportId };
   } catch (e) {
@@ -54,7 +54,8 @@ export async function generateReport(input: unknown): Promise<ReportActionResult
   }
 }
 
-const saveSchema = z.object({ reportId: id, narrative: narrativeSchema, recipients });
+// Drafts generated before stage 9 keep their format until they are regenerated.
+const saveSchema = z.object({ reportId: id, narrative: z.union([narrativeSchema, legacyNarrativeSchema]), recipients });
 
 export async function saveReport(input: unknown): Promise<ReportActionResult> {
   const m = await editor();
@@ -77,7 +78,12 @@ export async function saveReport(input: unknown): Promise<ReportActionResult> {
   });
   if (recipientsError) return fail(recipientsError, "guardar los destinatarios");
   revalidatePath(`/reportes/${parsed.data.reportId}`);
-  return { ok: true, message: "Cambios guardados." };
+  // Saving with problems is allowed (work in progress); approving is not.
+  const { data: row } = await supabase.from("reports").select("facts").eq("id", parsed.data.reportId).maybeSingle();
+  const check = row ? validateNarrative(parsed.data.narrative as AnyNarrative, row.facts as unknown as ReportFacts) : { ok: true as const };
+  return check.ok
+    ? { ok: true, message: "Cambios guardados." }
+    : { ok: true, message: `Cambios guardados. Antes de aprobar corrige: ${describeCheck(check)}.` };
 }
 
 const approveSchema = z.object({ reportId: id, send: z.boolean().default(true) });
@@ -89,6 +95,18 @@ export async function approveReport(input: unknown): Promise<ReportActionResult>
   const parsed = approveSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
   const supabase = await createClient();
+  // The figures, references and owners of the text must match the frozen facts.
+  const { data: draft } = await supabase
+    .from("reports")
+    .select("facts, content, status")
+    .eq("id", parsed.data.reportId)
+    .eq("org_id", m.orgId)
+    .maybeSingle();
+  if (!draft) return { ok: false, message: "No se encontró el reporte." };
+  if (draft.status === "draft") {
+    const check = validateNarrative(draft.content as unknown as AnyNarrative, draft.facts as unknown as ReportFacts);
+    if (!check.ok) return { ok: false, message: `No se puede aprobar: ${describeCheck(check)}.` };
+  }
   // RLS (editors of this org) and the guard trigger (draft → approved, stamps approver).
   const { data, error } = await supabase
     .from("reports")
@@ -158,6 +176,50 @@ export async function deleteDraft(input: unknown): Promise<ReportActionResult> {
   if (!count) return { ok: false, message: "Sólo se pueden borrar borradores." };
   revalidatePath("/reportes");
   return { ok: true, message: "Borrador eliminado." };
+}
+
+/** New figures for a draft whose period got corrections; the text stays and is re-checked. */
+export async function refreshReportFacts(input: unknown): Promise<ReportActionResult> {
+  const m = await editor();
+  if (!m) return FORBIDDEN;
+  const parsed = sendSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const supabase = await createClient();
+  const { data } = await supabase.from("reports").select(REPORT_SELECT).eq("id", parsed.data.reportId).eq("org_id", m.orgId).maybeSingle();
+  if (!data) return { ok: false, message: "No se encontró el reporte." };
+  const report = toReport(data as never);
+  if (report.status !== "draft") return { ok: false, message: "Un reporte aprobado no cambia: crea una revisión." };
+  try {
+    await refreshDraftFacts(supabase, { id: report.id, orgId: m.orgId, kind: report.kind, endDay: report.endDay });
+  } catch (e) {
+    return { ok: false, message: message(e) };
+  }
+  revalidatePath(`/reportes/${report.id}`);
+  return { ok: true, message: "Cifras actualizadas. Revisa las marcadas en el texto antes de aprobar." };
+}
+
+/** A new version of an approved report (the approved one stays frozen). */
+export async function reviseReport(input: unknown): Promise<ReportActionResult> {
+  const m = await editor();
+  if (!m) return FORBIDDEN;
+  const parsed = sendSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const supabase = await createClient();
+  const { data } = await supabase.from("reports").select(REPORT_SELECT).eq("id", parsed.data.reportId).eq("org_id", m.orgId).maybeSingle();
+  if (!data) return { ok: false, message: "No se encontró el reporte." };
+  const report = toReport(data as never);
+  if (report.status === "draft") return { ok: false, message: "Un borrador se edita directamente." };
+  try {
+    const id = await createRevision(
+      supabase,
+      { id: report.id, orgId: m.orgId, kind: report.kind, endDay: report.endDay, narrative: report.narrative, recipients: report.recipients, title: report.title },
+      m.userId,
+    );
+    revalidatePath("/reportes");
+    return { ok: true, message: `Revisión ${report.version + 1} creada con cifras al día. La versión aprobada no cambia.`, id };
+  } catch (e) {
+    return { ok: false, message: message(e) };
+  }
 }
 
 // ---------------------------------------------------------------------------

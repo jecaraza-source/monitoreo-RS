@@ -1,9 +1,14 @@
-import { AlarmClock, Gauge, MessagesSquare, ThumbsDown, Timer } from "lucide-react";
-import { ChartCard, EmptyState, KpiCard } from "@/components/ui-kit";
+import { CoverageBar } from "@/components/kpi/coverage-bar";
+import { DepartmentsBreakdown } from "@/components/kpi/departments-breakdown";
+import { KpiSection } from "@/components/kpi/kpi-section";
+import { PendingCases } from "@/components/kpi/pending-cases";
+import { ChartCard, EmptyState } from "@/components/ui-kit";
 import type { Member } from "@/lib/auth/session";
 import type { Dashboard } from "@/lib/dashboard/data";
-import { inboxHref, negativeShare, nss } from "@/lib/dashboard/model";
-import type { Period } from "@/lib/dashboard/period";
+import { inboxHref } from "@/lib/dashboard/model";
+import { previousLabel, type Period } from "@/lib/dashboard/period";
+import { MIN_MENTIONS_TO_COMPARE } from "@/lib/kpi/dictionary";
+import { compareDepartments, kpiValues } from "@/lib/kpi/snapshot";
 import { bucketLabel, formatNumber, NSS_ROW_HEIGHT } from "./chart-theme";
 import { DailyReading } from "./daily-reading";
 import { DataTable } from "./data-table";
@@ -12,17 +17,14 @@ import type { MapFeature } from "./neighborhoods-map-canvas";
 import type { NssBar } from "./nss-bars";
 import { TopMedia, TopMentions } from "./rankings";
 
-const INTEGER: Intl.NumberFormatOptions = { maximumFractionDigits: 0 };
-const SCORE: Intl.NumberFormatOptions = { maximumFractionDigits: 0, signDisplay: "exceptZero" };
-const PERCENT: Intl.NumberFormatOptions = { style: "unit", unit: "percent", maximumFractionDigits: 1 };
-const HOURS: Intl.NumberFormatOptions = { style: "unit", unit: "hour", maximumFractionDigits: 1 };
 const signed = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0, signDisplay: "exceptZero" });
 
 const barsHeight = (rows: number) => Math.max(rows, 3) * NSS_ROW_HEIGHT + 32;
 
 export function DashboardContent({ data, period, member }: { data: Dashboard; period: Period; member: Member }) {
-  const { totals, previous } = data;
-  const empty = totals.mentions === 0;
+  const empty = data.series.every((p) => p.positive + p.neutral + p.negative + p.pending === 0);
+  const conversation = kpiValues(data.kpis, "conversacion");
+  const attention = kpiValues(data.kpis, "atencion");
 
   const topicBars: NssBar[] = data.topics.map((t) => ({
     key: t.topic,
@@ -33,7 +35,9 @@ export function DashboardContent({ data, period, member }: { data: Dashboard; pe
     negative: t.negative,
     href: inboxHref(period, { topic: t.topic }),
   }));
-  const departmentBars: NssBar[] = data.departments.map((d) => ({
+  // An NSS over a handful of mentions is not comparable: those departments are listed apart.
+  const thinDepartments = data.departments.filter((d) => d.total < MIN_MENTIONS_TO_COMPARE);
+  const departmentBars: NssBar[] = data.departments.filter((d) => d.total >= MIN_MENTIONS_TO_COMPARE).map((d) => ({
     key: d.id,
     label: d.name,
     nss: d.nss,
@@ -62,64 +66,10 @@ export function DashboardContent({ data, period, member }: { data: Dashboard; pe
 
   return (
     <>
-      {/* Section headings keep the outline h1 → h2 → h3 for screen readers. */}
-      <h2 className="sr-only">Indicadores</h2>
-      <section aria-label="Indicadores" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
-        <KpiCard
-          index={0}
-          label="Menciones"
-          info="Publicaciones públicas sobre el municipio, sus funcionarios y programas que se recolectaron en el periodo (redes, medios y RSS). La flecha compara con el periodo anterior de la misma duración."
-          value={totals.mentions}
-          previousValue={previous.mentions}
-          higherIsBetter={null}
-          formatOptions={INTEGER}
-          icon={<MessagesSquare />}
-        />
-        <KpiCard
-          index={1}
-          label="Net Sentiment Score"
-          info="Tono general, de -100 a +100: (positivas − negativas) ÷ menciones clasificadas × 100. Arriba de 0 predomina lo positivo; abajo, lo negativo. El cambio se expresa en puntos."
-          value={nss(totals.positive, totals.negative, totals.classified)}
-          previousValue={previous.classified ? nss(previous.positive, previous.negative, previous.classified) : null}
-          deltaMode="points"
-          formatOptions={SCORE}
-          icon={<Gauge />}
-        />
-        <KpiCard
-          index={2}
-          label="% negativo"
-          info="Qué parte de las menciones clasificadas tiene tono negativo. Que baje es buena señal. El cambio se expresa en puntos porcentuales."
-          value={negativeShare(totals)}
-          previousValue={previous.classified ? negativeShare(previous) : null}
-          deltaMode="points"
-          higherIsBetter={false}
-          formatOptions={PERCENT}
-          icon={<ThumbsDown />}
-        />
-        <KpiCard
-          index={3}
-          label="Quejas abiertas"
-          info="Menciones turnadas a una dependencia en el periodo que siguen abiertas o en proceso. Cada dependencia turnada (principal o de apoyo) cuenta su propio turno."
-          value={totals.openTickets}
-          previousValue={previous.openTickets}
-          higherIsBetter={false}
-          formatOptions={INTEGER}
-          icon={<AlarmClock />}
-        />
-        <KpiCard
-          index={4}
-          label="Tiempo medio de atención"
-          info="Horas promedio entre que se turna una mención y la dependencia la marca resuelta, para los turnos resueltos en el periodo. Menos es mejor."
-          value={totals.attentionHours ?? 0}
-          previousValue={totals.attentionHours == null ? undefined : previous.attentionHours}
-          higherIsBetter={false}
-          formatOptions={HOURS}
-          comparisonLabel={totals.attentionHours == null ? undefined : "vs. periodo anterior"}
-          icon={<Timer />}
-          className="col-span-2 lg:col-span-1"
-        />
-      </section>
+      <CoverageBar snapshot={data.kpis} previousLabel={previousLabel(period)} />
 
+      {/* Two families with different units: mentions (conversation) and cases (attention). */}
+      <KpiSection family="conversacion" values={conversation} keys={["mentions", "nss", "negative_pct", "complaints", "interactions"]} />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
         <div className="lg:col-span-4">
           <DailyReading index={5} member={member} />
@@ -164,7 +114,9 @@ export function DashboardContent({ data, period, member }: { data: Dashboard; pe
           index={8}
           title="Dependencias por NSS"
           info="El tono de lo que se dice sobre cada dependencia (según la clasificación de cada mención), del peor al mejor. Sirve para ver qué áreas generan más inconformidad."
-          description="Tono de lo que se dice de cada dependencia. Clic para ver sus menciones."
+          description={`Tono de lo que se dice de cada dependencia (con ${MIN_MENTIONS_TO_COMPARE} menciones o más). Clic para ver sus menciones.${
+            thinDepartments.length ? ` Con menos menciones, sin ordenar: ${thinDepartments.map((d) => `${d.name} (${d.total})`).join(", ")}.` : ""
+          }`}
           height={barsHeight(departmentBars.length)}
           footer={
             <DataTable
@@ -210,6 +162,22 @@ export function DashboardContent({ data, period, member }: { data: Dashboard; pe
           <TopMedia media={data.topMedia} period={period} index={11} />
         </div>
       </div>
+
+      <KpiSection
+        family="atencion"
+        values={attention}
+        keys={["cases_opened", "open_at_cut", "overdue_at_cut", "first_attention_h", "resolution_h", "validated_closures", "reopenings"]}
+        startIndex={12}
+      >
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+          <div className="xl:col-span-8">
+            <DepartmentsBreakdown rows={compareDepartments(data.kpis)} period={period} />
+          </div>
+          <div className="xl:col-span-4">
+            <PendingCases cases={data.kpis.pendingCases} />
+          </div>
+        </div>
+      </KpiSection>
     </>
   );
 }

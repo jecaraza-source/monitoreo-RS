@@ -6,13 +6,15 @@ import { parsePeriod, periodSearch } from "./period.ts";
 describe("parsePeriod", () => {
   const now = new Date("2026-10-09T18:20:00Z");
 
-  it("defaults to 7 days ending at the next full hour, with the previous 7 days", () => {
+  it("defaults to 7 whole Mexico City days (today up to the next full hour), with the 7 days before", () => {
     const p = parsePeriod({}, now);
     assert.equal(p.key, "7d");
     assert.equal(p.to.toISOString(), "2026-10-09T19:00:00.000Z");
-    assert.equal(p.from.toISOString(), "2026-10-02T19:00:00.000Z");
-    assert.equal(p.prevFrom.toISOString(), "2026-09-25T19:00:00.000Z");
+    // 12:20 in CDMX on the 9th: from the 3rd at 00:00 CDMX (06:00 UTC).
+    assert.equal(p.from.toISOString(), "2026-10-03T06:00:00.000Z");
+    assert.equal(p.prevFrom.toISOString(), "2026-09-26T06:00:00.000Z");
     assert.equal(p.prevTo.toISOString(), p.from.toISOString());
+    assert.deepEqual([p.fromDay, p.toDay], ["2026-10-03", "2026-10-09"]);
     assert.equal(p.bucket, "day");
   });
 
