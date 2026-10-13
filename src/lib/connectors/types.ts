@@ -53,6 +53,8 @@ export type ConnectorContext = {
   };
   /** Upper bound of items to return in one run. */
   limit: number;
+  /** Cancels the run (source timeout, caller gone): in-flight requests and body reads stop. */
+  signal?: AbortSignal;
 };
 
 export type Connector<C = unknown> = {
@@ -86,5 +88,6 @@ export function resolveContext(ctx: Partial<ConnectorContext> = {}): ConnectorCo
       metaGraphVersion: process.env.META_GRAPH_VERSION,
     },
     limit: ctx.limit ?? 200,
+    signal: ctx.signal,
   };
 }

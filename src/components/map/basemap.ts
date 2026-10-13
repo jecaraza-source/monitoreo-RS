@@ -1,6 +1,6 @@
 "use client";
 
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 import type { StyleSpecification } from "maplibre-gl";
 
 // Street basemap from OpenFreeMap: OpenStreetMap data, free, no API key and

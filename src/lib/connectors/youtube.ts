@@ -47,7 +47,7 @@ function apiUrl(ctx: ConnectorContext, path: string, params: Record<string, stri
 }
 
 async function getApi<T extends ApiError>(ctx: ConnectorContext, url: string): Promise<T> {
-  const { status, body } = await fetchJson<T>(ctx.fetch, url);
+  const { status, body } = await fetchJson<T>(ctx.fetch, url, { signal: ctx.signal });
   if (body.error || status >= 400) {
     const reason = body.error?.errors?.[0]?.reason;
     if (reason === "quotaExceeded" || reason === "dailyLimitExceeded") {

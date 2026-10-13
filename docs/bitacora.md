@@ -3,6 +3,45 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Etapa 1 — Endurecimiento (13 oct 2026, base `9ac734a`)
+
+- **Antes:**
+  - El feed RSS aceptaba cualquier `http(s)` (loopback, red privada, metadatos) y seguía redirecciones sin
+    revisarlas.
+  - El tope de 5 MB se medía después de leer todo, en caracteres.
+  - El timeout de la fuente no cancelaba la petición.
+  - Un editor podía, por la API, insertar reportes aprobados o enviados, borrar aprobados, escribir
+    aprobador, envío o PDF y cambiar destinatarios sin rastro.
+  - maplibre-gl 5.24 tenía un aviso crítico.
+- **Después:**
+  - `safe-fetch.ts` valida la IP en el `lookup` del socket (sin rebinding) y en cada redirección (máx. 5), con
+    `RSS_ALLOWED_HOSTS` opcional.
+  - Lectura en streaming con tope en bytes y cancelación.
+  - `signal` en los conectores; `withDeadline` aborta la ingesta y "Probar fuente".
+  - Migración `20261024000000_reports_hardening.sql`: políticas por operación, columnas, transiciones
+    explícitas y RPC auditada `set_report_recipients`.
+  - maplibre-gl 6.14 con `setWorkerUrl`.
+- **Archivos:**
+  - nuevos: `src/lib/connectors/safe-fetch.ts` y `safe-fetch.test.ts`, `src/components/map/maplibre.ts`,
+    la migración, `docs/rollback/20261024000000_reports_hardening.down.sql`,
+    `supabase/tests/database/reports_workflow.test.sql` y `reports_server.test.sql`,
+    `docs/etapa-1-endurecimiento.md`;
+  - modificados: `http.ts`, `types.ts`, `rss.ts`, `meta.ts`, `youtube.ts`, `ingest/run.ts`,
+    `sources/actions.ts`, `catalogs/actions.ts`, `reports/actions.ts`, los dos mapas, `e2e/map.spec.ts`,
+    `reports.test.sql`, `database.types.ts`, `package.json`/lock, README y `.env.example`.
+- **Pruebas:** lint, typecheck, 268 unitarias, build canario + `check:bundle`, `db reset` de 17 migraciones,
+  264 pgTAP, 17 e2e. Además, la reversión aplicada hace fallar 15 de 19 pruebas nuevas.
+- **Hallazgo:** los triggers no pueden llamar a `private.*` porque `service_role` no tiene USAGE. pgTAP lo ocultó
+  por un plan en caché; ahora las pruebas del servidor corren en sesión propia.
+- **Limitaciones:**
+  - 9 avisos altos sólo de desarrollo (`braces` vía `fast-glob`, sin versión corregida);
+  - el demo RSS no funciona contra `localhost`;
+  - el fondo de calles del mapa no se pudo ver en el sandbox.
+- **Activación / reversión:**
+  - activar: migración primero (preview y producción), luego deploy y, si se desea, `RSS_ALLOWED_HOSTS`;
+  - revertir: commit y `down.sql`.
+- **Pendiente:** orden de etapas y Node 22/24 (de la etapa 0).
+
 ## Etapa 0 — Línea base (13 oct 2026, base `918838d`)
 
 - **Antes:** sin matriz de los 13 hallazgos; el seed tenía un solo municipio y `rls_matrix.test.sql` contaba tablas

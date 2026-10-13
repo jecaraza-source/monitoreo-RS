@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth/session";
 import { parseNeighborhoodsGeoJson, type NeighborhoodGeometry } from "@/lib/geo/neighborhoods-geojson";
+import { readCapped } from "@/lib/connectors/http";
+import { ConnectorError } from "@/lib/connectors/types";
 import { approximateZones, OVERPASS_URL, overpassQuery, parseOverpass, type OsmZone } from "@/lib/geo/osm";
 import { parseAliases } from "@/lib/officials/model";
 import { normalizeText } from "@/lib/query/normalize";
@@ -174,6 +176,9 @@ const placeName = z
  * (Overpass API, from the server) and returns them as polygons for the
  * preview. Nothing is saved until the admin imports the selection.
  */
+/** Overpass answers for a whole municipality; anything larger is cut off while streaming. */
+const OVERPASS_MAX_BYTES = 30 * 1024 * 1024;
+
 export async function previewOsmNeighborhoods(input: unknown): Promise<OsmPreview> {
   const orgId = await adminOrg();
   if (!orgId) return { ok: false, message: FORBIDDEN.message };
@@ -182,20 +187,22 @@ export async function previewOsmNeighborhoods(input: unknown): Promise<OsmPrevie
 
   let json: unknown;
   try {
+    const signal = AbortSignal.timeout(75_000);
     const res = await fetch(OVERPASS_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "SigmaPulso/1.0 (monitoreo municipal)" },
       body: new URLSearchParams({ data: overpassQuery(parsed.data.municipality, parsed.data.state) }),
-      signal: AbortSignal.timeout(75_000),
+      signal,
       cache: "no-store",
     });
     if (res.status === 429 || res.status === 504) {
       return { ok: false, message: "OpenStreetMap está saturado. Intenta de nuevo en un minuto." };
     }
     if (!res.ok) return { ok: false, message: `OpenStreetMap respondió ${res.status}.` };
-    json = await res.json();
+    json = JSON.parse(await readCapped(res, OVERPASS_MAX_BYTES, signal));
   } catch (error) {
     console.error("[catalogs] overpass:", error instanceof Error ? error.message : error);
+    if (error instanceof ConnectorError) return { ok: false, message: `${error.message} Prueba con un municipio más pequeño.` };
     return { ok: false, message: "No se pudo consultar OpenStreetMap. Intenta de nuevo." };
   }
 

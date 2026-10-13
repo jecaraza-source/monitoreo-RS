@@ -70,6 +70,7 @@ tipo *Sensitive*); el build de CI comprueba que ninguna aparezca en el bundle de
 | `ALERTS_FROM_EMAIL` · `REPORTS_FROM_EMAIL` | config | Remitentes (dominio verificado en Resend) |
 | `META_APP_SECRET` · `META_GRAPH_VERSION` | **secreto** · config | Conector de Facebook/Instagram |
 | `YOUTUBE_API_KEY` | **secreto** | Conector de YouTube |
+| `RSS_ALLOWED_HOSTS` | config | Opcional: hosts de feeds permitidos (`diario.mx`, `.diario.mx` para subdominios) |
 | `WHATSAPP_TOKEN` · `WHATSAPP_PHONE_NUMBER_ID` · `WHATSAPP_TEMPLATE_LANG` | **secreto** · config | Canal de WhatsApp con funcionarios (ver [WhatsApp](#whatsapp)) |
 | `WHATSAPP_APP_SECRET` · `WHATSAPP_VERIFY_TOKEN` | **secreto** | Firma y verificación del webhook de WhatsApp (por omisión la firma usa `META_APP_SECRET`) |
 | `WHATSAPP_DISPLAY_PHONE` · `WHATSAPP_QUIET_HOURS` | config | Número que se muestra (por omisión +52 56 2133 9211) · horario sin recordatorios ni escalamientos (por omisión `22-7`, hora de CDMX; `off` los envía a cualquier hora) |
@@ -253,6 +254,13 @@ menciones normalizadas sin tocar la base:
 | `x` | Deshabilitado: requiere plan de pago de la API de X | — |
 
 Los autores de comentarios (ciudadanos) no se guardan; sólo medios y páginas oficiales.
+
+Las URL de feeds las escriben los usuarios, así que el conector RSS usa `safe-fetch.ts`: sólo `http(s)`,
+sin credenciales en la URL, a direcciones públicas (bloquea loopback, redes privadas, link-local, metadatos
+de nube y rangos reservados en IPv4 e IPv6, también dentro de IPv6 mapeado, NAT64 y 6to4). La IP se valida
+en la resolución DNS que usa el propio socket (sin ventana para *DNS rebinding*) y en cada redirección (máx. 5).
+Toda respuesta se lee en streaming con tope de bytes (5 MB) y se cancela con el timeout de la fuente (25 s).
+Por eso el demo `/api/demo/rss` sólo funciona como fuente desde la URL pública de la app, no desde `localhost`.
 
 **Cron:** `vercel.json` programa `/api/cron/ingest` cada hora (requiere plan Pro de Vercel; en Hobby
 sólo se permiten crons diarios). La ruta exige `Authorization: Bearer $CRON_SECRET`. En cada corrida:

@@ -2,6 +2,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { fetchText } from "./http.ts";
+import { feedFetch } from "./safe-fetch.ts";
 import { clampText, decodeEntities, htmlToText, joinTitleAndBody } from "./text.ts";
 import { ConnectorError, resolveContext, type Connector, type NormalizedMention } from "./types.ts";
 
@@ -80,6 +81,17 @@ export function parseFeed(xml: string): ParsedFeed {
   return { title, items };
 }
 
+/** Item links are shown as anchors: only http(s) survives (no javascript:, data:…). */
+function webLink(link: string | null): string | null {
+  if (!link) return null;
+  try {
+    const url = new URL(link);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function externalIdOf(item: FeedItem): string {
   const id = item.id ? decodeEntities(item.id).trim() : "";
   if (id) return id.slice(0, 500);
@@ -97,9 +109,11 @@ export const rssConnector: Connector<RssConfig> = {
   defaultRequireMatch: true,
 
   async fetchSince(source, since, ctxInput) {
-    const ctx = resolveContext(ctxInput);
+    // Feed URLs are typed by users: the default fetch refuses internal destinations.
+    const ctx = resolveContext({ ...ctxInput, fetch: ctxInput?.fetch ?? feedFetch() });
     const { status, text } = await fetchText(ctx.fetch, source.config.url, {
       accept: "application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.5",
+      signal: ctx.signal,
     });
     if (status >= 400) throw new ConnectorError(`El feed respondió HTTP ${status}.`);
     const feed = parseFeed(text);
@@ -116,7 +130,7 @@ export const rssConnector: Connector<RssConfig> = {
       if (!text) continue;
       mentions.push({
         externalId: externalIdOf(item),
-        url: item.link,
+        url: webLink(item.link),
         text,
         publishedAt: (item.publishedAt && item.publishedAt < now ? item.publishedAt : now).toISOString(),
         kind: "article",

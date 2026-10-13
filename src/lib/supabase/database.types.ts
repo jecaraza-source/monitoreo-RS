@@ -849,6 +849,9 @@ isOneToOne: false
         isOneToOne: true
         isSetofReturn: false
       } },
+"set_report_recipients":
+{ Args: { "p_recipients": (string)[],"p_report_id": string }; Returns: (string)[]
+                           },
 "set_source_secret":
 { Args: { "p_secret": string,"p_source_id": string }; Returns: undefined
                            },
