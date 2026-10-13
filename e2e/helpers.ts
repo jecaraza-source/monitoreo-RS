@@ -23,9 +23,15 @@ export function admin() {
  * mints a one-time token_hash and the app's /auth/confirm exchanges it.
  */
 export async function login(page: Page, email: string, next = "/") {
-  const { data, error } = await admin().auth.admin.generateLink({ type: "magiclink", email });
-  if (error || !data.properties?.hashed_token) throw new Error(`No se pudo generar el enlace para ${email}: ${error?.message}`);
-  await page.goto(`/auth/confirm?token_hash=${data.properties.hashed_token}&type=magiclink&next=${encodeURIComponent(next)}`);
+  // On a preview the one-time token is occasionally gone by the time the app
+  // verifies it (Auth answers "One-time token not found"): a fresh link, once.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { data, error } = await admin().auth.admin.generateLink({ type: "magiclink", email });
+    if (error || !data.properties?.hashed_token) throw new Error(`No se pudo generar el enlace para ${email}: ${error?.message}`);
+    await page.goto(`/auth/confirm?token_hash=${data.properties.hashed_token}&type=magiclink&next=${encodeURIComponent(next)}`);
+    if (attempt === 0 && /\/login\?error=link/.test(page.url())) continue;
+    break;
+  }
   await expect(page).not.toHaveURL(/\/login/);
 }
 

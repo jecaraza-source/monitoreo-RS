@@ -141,7 +141,8 @@ test.describe("accesibilidad", () => {
       await page.keyboard.press("Tab");
       const info = await page.evaluate(() => {
         const el = document.activeElement as HTMLElement | null;
-        if (!el || el === document.body) return null;
+        // Custom elements injected by tooling (e.g. the deployment's feedback toolbar) are not the app.
+        if (!el || el === document.body || el.tagName.includes("-")) return null;
         const s = getComputedStyle(el);
         const ring = (s.outlineStyle !== "none" && parseFloat(s.outlineWidth) > 0) || (s.boxShadow && s.boxShadow !== "none");
         return { ring, name: `${el.tagName.toLowerCase()} «${(el.getAttribute("aria-label") ?? el.textContent ?? "").trim().slice(0, 40)}»` };
