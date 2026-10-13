@@ -11,7 +11,8 @@ test.describe("reportes", () => {
     // Admin uploads the client's logo in Configuración → Identidad.
     const settings = await browser.newPage();
     await login(settings, USERS.admin, "/configuracion/identidad");
-    await settings.locator("#logo-file").setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: solidPng(240, 80, [3, 42, 80]) });
+    // Scoped to <main>: earlier pages stay in the DOM, hidden by <Activity>.
+    await settings.getByRole("main").locator("#logo-file").setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: solidPng(240, 80, [3, 42, 80]) });
     await expect(toast(settings, "Logotipo guardado")).toBeVisible();
     await expect(settings.getByRole("img", { name: "Logotipo del cliente" }).first()).toBeVisible();
     await settings.close();
@@ -33,12 +34,12 @@ test.describe("reportes", () => {
 async function generateApproveAndDownload(page: import("@playwright/test").Page) {
   await login(page, USERS.comunicacion, "/reportes");
   await page.getByRole("button", { name: "Generar reporte" }).click();
-  await expect(page.getByText(/^Periodo:/)).toBeVisible();
+  await expect(page.getByRole("dialog").getByText(/^Periodo:/)).toBeVisible();
   await page.getByRole("button", { name: "Generar borrador" }).click();
   await page.waitForURL(/\/reportes\/[0-9a-f-]{36}$/, { timeout: 120_000 });
   await expect(page.getByRole("heading", { name: "Narrativa" })).toBeVisible();
 
-  await page.getByLabel("Titular").fill("Reporte e2e: titular editado");
+  await page.getByRole("main").getByLabel("Titular").fill("Reporte e2e: titular editado");
   await page.getByRole("button", { name: "Guardar cambios" }).click();
   await expect(toast(page, "Cambios guardados")).toBeVisible();
 

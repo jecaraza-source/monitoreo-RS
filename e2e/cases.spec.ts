@@ -47,7 +47,8 @@ test.describe("casos", () => {
     try {
       await login(com, USERS.comunicacion, `/casos/${caseId}`);
       await expect(com.getByRole("heading", { name: TITLE })).toBeVisible();
-      await expect(com.getByText("18 menciones", { exact: true })).toBeVisible();
+      // Scoped to <main>: earlier pages stay in the DOM, hidden by <Activity>.
+      await expect(com.getByRole("main").getByText("18 menciones", { exact: true })).toBeVisible();
 
       // Assign to Obras Públicas.
       await com.getByRole("button", { name: "Asignar" }).click();
@@ -106,7 +107,7 @@ test.describe("casos", () => {
       await dialog.getByLabel("Título").fill(TITLE);
       await dialog.getByRole("button", { name: "Crear caso" }).click();
       await expect(toast(page, "Caso creado con 1 mención.")).toBeVisible();
-      await expect(page.locator('aside[aria-label="Detalle de la mención"]').getByText(/Parte del caso C-\d{5}/)).toBeVisible();
+      await expect(page.getByRole("main").locator('aside[aria-label="Detalle de la mención"]').getByText(/Parte del caso C-\d{5}/)).toBeVisible();
     } finally {
       const { data } = await db.from("case_mentions").select("case_id").eq("mention_id", mention.id);
       await cleanup((data ?? []).map((r) => r.case_id), [mention]);
