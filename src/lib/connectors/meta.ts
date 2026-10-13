@@ -3,9 +3,19 @@
 import { createHmac } from "node:crypto";
 import { z } from "zod";
 import { fetchJson, redactUrl } from "./http.ts";
-import { mergeRecent, readRecent, type RecentItem } from "./recent.ts";
+import { MAX_RECENT, mergeRecent, readRecent, type RecentItem } from "./recent.ts";
 import { clampText } from "./text.ts";
-import { ConnectorError, resolveContext, type AuthorRef, type Connector, type ConnectorContext, type NormalizedMention } from "./types.ts";
+import {
+  ConnectorError,
+  resolveContext,
+  timeUp,
+  type AuthorRef,
+  type Connector,
+  type ConnectorContext,
+  type CoverageLimit,
+  type NormalizedMention,
+} from "./types.ts";
+import { exclusiveEnd, readNewestFirst } from "./window.ts";
 
 export const metaConfigSchema = z.object({
   pageId: z
@@ -18,11 +28,13 @@ export const metaConfigSchema = z.object({
 export type MetaConfig = z.infer<typeof metaConfigSchema>;
 
 const DEFAULT_GRAPH_VERSION = "v23.0";
-const MAX_POST_PAGES = 4;
-const MAX_COMMENT_PAGES = 3;
+const MAX_POST_PAGES = 10;
+const POSTS_PER_PAGE = 100;
+const MAX_COMMENT_PAGES = 5;
+const COMMENTS_PER_PAGE = 100;
 
 type GraphError = { error?: { message?: string; code?: number; type?: string } };
-type Paged<T> = GraphError & { data?: T[]; paging?: { next?: string } };
+type Paged<T> = GraphError & { data?: T[]; paging?: { next?: string; cursors?: { before?: string; after?: string } } };
 type GraphPost = {
   id: string;
   message?: string;
@@ -79,7 +91,7 @@ export const metaConnector: Connector<MetaConfig> = {
     const ctx = resolveContext(ctxInput);
     if (!ctx.secret) throw new ConnectorError("Falta el token de la página.");
     const { pageId, includeComments } = source.config;
-    const sinceUnix = String(Math.floor(since.getTime() / 1000));
+    const until = ctx.until ?? ctx.now();
 
     const page = await getGraph<GraphPage>(ctx, graphUrl(ctx, pageId, { fields: "id,name,username,followers_count" }));
     const author: AuthorRef = {
@@ -90,54 +102,98 @@ export const metaConnector: Connector<MetaConfig> = {
       kind: "public_figure",
     };
 
+    // Posts come newest first; since/until bound the window and the read
+    // resumes at the oldest post reached when a cap stops it.
+    const posts = await readNewestFirst<GraphPost>({
+      ctx,
+      since,
+      maxPages: MAX_POST_PAGES,
+      label: "Publicaciones",
+      timeOf: (post) => new Date(post.created_time),
+      fetchPage: async (next) => {
+        const url =
+          next ??
+          graphUrl(ctx, `${page.id}/posts`, {
+            fields:
+              "id,message,created_time,permalink_url,shares,reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0)",
+            since: String(Math.floor(since.getTime() / 1000)),
+            until: String(Math.floor(exclusiveEnd(until).getTime() / 1000)),
+            limit: String(POSTS_PER_PAGE),
+          });
+        const body = await getGraph<Paged<GraphPost>>(ctx, url);
+        return { items: body.data ?? [], next: body.paging?.next };
+      },
+    });
+
     const mentions: NormalizedMention[] = [];
     const newPosts: RecentItem[] = [];
-    let url: string | undefined = graphUrl(ctx, `${page.id}/posts`, {
-      fields:
-        "id,message,created_time,permalink_url,shares,reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0)",
-      since: sinceUnix,
-      limit: "25",
-    });
-    for (let pageNo = 0; url && pageNo < MAX_POST_PAGES && mentions.length < ctx.limit; pageNo++) {
-      const body: Paged<GraphPost> = await getGraph<Paged<GraphPost>>(ctx, url);
-      for (const post of body.data ?? []) {
-        newPosts.push({ id: post.id, publishedAt: post.created_time });
-        if (!post.message?.trim() || new Date(post.created_time) <= since) continue;
-        mentions.push({
-          externalId: post.id,
-          url: post.permalink_url ?? null,
-          text: clampText(post.message.trim()),
-          publishedAt: new Date(post.created_time).toISOString(),
-          kind: "post",
-          author,
-          metrics: {
-            likes: post.reactions?.summary?.total_count ?? 0,
-            shares: post.shares?.count ?? 0,
-            comments: post.comments?.summary?.total_count ?? 0,
-          },
-        });
-      }
-      url = body.paging?.next;
+    for (const post of posts.items) {
+      newPosts.push({ id: post.id, publishedAt: post.created_time });
+      if (!post.message?.trim()) continue;
+      mentions.push({
+        externalId: post.id,
+        url: post.permalink_url ?? null,
+        text: clampText(post.message.trim()),
+        publishedAt: new Date(post.created_time).toISOString(),
+        kind: "post",
+        author,
+        metrics: {
+          likes: post.reactions?.summary?.total_count ?? 0,
+          shares: post.shares?.count ?? 0,
+          comments: post.comments?.summary?.total_count ?? 0,
+        },
+      });
     }
 
-    const recent = mergeRecent(readRecent(source.cursor, "recentPosts"), newPosts, ctx.now());
-    if (includeComments) {
-      for (const post of recent) {
-        let next: string | undefined = graphUrl(ctx, `${post.id}/comments`, {
-          fields: "id,message,created_time,permalink_url,like_count",
-          filter: "stream",
-          order: "reverse_chronological",
-          limit: "100",
-        });
-        for (let pageNo = 0; next && pageNo < MAX_COMMENT_PAGES; pageNo++) {
-          const body: Paged<GraphComment> = await getGraph<Paged<GraphComment>>(ctx, next);
-          let reachedOld = false;
-          for (const comment of body.data ?? []) {
-            if (new Date(comment.created_time) <= since) {
-              reachedOld = true;
+    const limits: CoverageLimit[] = [...posts.limits];
+    let interruptedBy = posts.interruptedBy;
+    const previous = readRecent(source.cursor, "recentPosts");
+    // Posts tracked before per-post cursors existed: their older comments were already read.
+    const legacy = new Set(previous.filter((p) => !p.after).map((p) => p.id));
+    const { items: recent, dropped } = mergeRecent(previous, newPosts, ctx.now());
+    if (dropped) {
+      limits.push({ kind: "recent", detail: `Comentarios: sólo se siguen las ${MAX_RECENT} publicaciones más recientes; ${dropped} dejaron de seguirse.` });
+    }
+
+    if (includeComments && !interruptedBy) {
+      // Comments are read oldest first from each post's stored cursor, so a
+      // run that stops early continues next time where it left off.
+      posts: for (const post of recent) {
+        for (let pageNo = 0; ; pageNo++) {
+          if (timeUp(ctx)) {
+            limits.push({ kind: "time", detail: "Comentarios: se acabó el tiempo; continúan en la siguiente corrida." });
+            break posts;
+          }
+          if (pageNo >= MAX_COMMENT_PAGES) {
+            limits.push({ kind: "comments", detail: `Comentarios de ${post.id}: ${MAX_COMMENT_PAGES} páginas leídas; continúan en la siguiente corrida.` });
+            break;
+          }
+          let body: Paged<GraphComment>;
+          try {
+            body = await getGraph<Paged<GraphComment>>(
+              ctx,
+              graphUrl(ctx, `${post.id}/comments`, {
+                fields: "id,message,created_time,permalink_url,like_count",
+                filter: "stream",
+                order: "chronological",
+                limit: String(COMMENTS_PER_PAGE),
+                ...(post.after ? { after: post.after } : {}),
+              }),
+            );
+          } catch (error) {
+            if (post.after) {
+              // An expired cursor: read this post's comments from the start next run (dedupe absorbs repeats).
+              delete post.after;
+              limits.push({ kind: "error", detail: `Comentarios de ${post.id}: el cursor ya no es válido; se releerán.` });
               break;
             }
+            interruptedBy = error instanceof ConnectorError ? error.message : "Error inesperado del proveedor.";
+            limits.push({ kind: "error", detail: `Comentarios de ${post.id}: falló la lectura.` });
+            break posts;
+          }
+          for (const comment of body.data ?? []) {
             if (!comment.message?.trim()) continue;
+            if (legacy.has(post.id) && new Date(comment.created_time) <= since) continue;
             // Commenters are citizens: their identity is not stored.
             mentions.push({
               externalId: comment.id,
@@ -149,12 +205,20 @@ export const metaConnector: Connector<MetaConfig> = {
               metrics: { likes: comment.like_count ?? 0 },
             });
           }
-          next = reachedOld ? undefined : body.paging?.next;
+          post.after = body.paging?.cursors?.after ?? post.after;
+          if (!body.paging?.next || mentions.length >= ctx.limit) break;
         }
         if (mentions.length >= ctx.limit) break;
       }
     }
 
-    return { mentions: mentions.slice(0, ctx.limit), cursor: { recentPosts: recent } };
+    return {
+      mentions: mentions.slice(0, ctx.limit),
+      cursor: { recentPosts: recent },
+      complete: posts.complete,
+      resumeUntil: posts.resumeUntil,
+      limits,
+      interruptedBy,
+    };
   },
 };

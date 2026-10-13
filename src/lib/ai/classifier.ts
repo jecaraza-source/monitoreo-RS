@@ -265,7 +265,14 @@ export function needsEscalation(c: Classification): boolean {
 
 /** The subset of the SDK client this module uses (lets tests pass a fake). */
 export type MessagesClient = {
-  beta: { messages: { create(params: Anthropic.Beta.Messages.MessageCreateParamsNonStreaming): Promise<Anthropic.Beta.Messages.BetaMessage> } };
+  beta: {
+    messages: {
+      create(
+        params: Anthropic.Beta.Messages.MessageCreateParamsNonStreaming,
+        options?: { signal?: AbortSignal },
+      ): Promise<Anthropic.Beta.Messages.BetaMessage>;
+    };
+  };
 };
 
 export type ModelPlan = { fast: string; smart: string };
@@ -302,9 +309,11 @@ async function callOnce(
   mentions: MentionInput[],
   correction: string | undefined,
   calls: CallRecord[],
+  signal: AbortSignal | undefined,
 ): Promise<ParseOutcome> {
   const fallback = FALLBACK_MODELS.has(model);
-  const message = await client.beta.messages.create({
+  const message = await client.beta.messages.create(
+    {
     model,
     // ~120 tokens per item plus thinking headroom.
     max_tokens: role === "fast" ? 8000 : 16000,
@@ -317,7 +326,9 @@ async function callOnce(
     tool_choice: { type: "auto", disable_parallel_tool_use: true },
     messages: [{ role: "user", content: buildUserMessage(mentions, correction) }],
     ...(fallback ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
-  });
+    },
+    { signal },
+  );
   const usage = usageOf(message);
   calls.push({ model: message.model ?? model, usage, costUsd: estimateCost(message.model ?? model, usage) });
   return parseResponse(message, ctx, mentions.length);
@@ -331,8 +342,9 @@ async function classifyPass(
   ctx: ClassifierContext,
   mentions: MentionInput[],
   calls: CallRecord[],
+  signal?: AbortSignal,
 ): Promise<ParseOutcome> {
-  const first = await callOnce(client, model, role, ctx, mentions, undefined, calls);
+  const first = await callOnce(client, model, role, ctx, mentions, undefined, calls, signal);
   if (first.ok) return first;
   return callOnce(
     client,
@@ -342,6 +354,7 @@ async function classifyPass(
     mentions,
     `Tu respuesta anterior no fue válida (${first.error}). Llama a ${TOOL_NAME} con exactamente ${mentions.length} elementos, ref de 1 a ${mentions.length}, y sólo valores de los catálogos.`,
     calls,
+    signal,
   );
 }
 
@@ -354,6 +367,7 @@ export async function classifyBatch(
   models: ModelPlan,
   ctx: ClassifierContext,
   mentions: MentionInput[],
+  options: { signal?: AbortSignal } = {},
 ): Promise<BatchResult> {
   if (mentions.length === 0 || mentions.length > MAX_BATCH) {
     throw new Error(`classifyBatch takes 1..${MAX_BATCH} mentions, got ${mentions.length}`);
@@ -361,7 +375,7 @@ export async function classifyBatch(
   const calls: CallRecord[] = [];
   const results = new Map<string, Classification & { model: string }>();
 
-  const fast = await classifyPass(client, models.fast, "fast", ctx, mentions, calls);
+  const fast = await classifyPass(client, models.fast, "fast", ctx, mentions, calls, options.signal);
   if (!fast.ok) {
     return { results, failed: mentions.map((m) => ({ id: m.id, error: fast.error })), calls, escalated: 0 };
   }
@@ -370,7 +384,7 @@ export async function classifyBatch(
   const toEscalate = mentions.filter((m) => needsEscalation(results.get(m.id)!));
   if (toEscalate.length && models.smart !== models.fast) {
     try {
-      const smart = await classifyPass(client, models.smart, "smart", ctx, toEscalate, calls);
+      const smart = await classifyPass(client, models.smart, "smart", ctx, toEscalate, calls, options.signal);
       // If the smart pass fails twice, the fast result stands.
       if (smart.ok) toEscalate.forEach((m, i) => results.set(m.id, { ...smart.byRef.get(i + 1)!, model: models.smart }));
     } catch (error) {

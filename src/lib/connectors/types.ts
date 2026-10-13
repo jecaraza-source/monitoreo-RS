@@ -1,8 +1,10 @@
 // Common contract for every ingestion connector.
 //
-// fetchSince(source, since) returns the public items published after `since`,
-// already normalized. Connectors never touch the database: the ingest worker
-// dedupes, assigns queries and stores what they return.
+// fetchSince(source, since, { until }) returns the public items published in
+// the window (since, until], already normalized, and says how much of the
+// window it really covered. Connectors never touch the database: the ingest
+// worker dedupes, assigns queries, stores what they return and moves the
+// source's coverage watermark only over what was read (src/lib/ingest/coverage.ts).
 
 import type { z } from "zod";
 
@@ -29,10 +31,29 @@ export type NormalizedMention = {
   metrics: Partial<Record<"likes" | "shares" | "comments" | "views", number>>;
 };
 
+/** A cap the run reached. Reported in ingest_runs.limits; what it left behind is read next run or reported as a gap. */
+export type CoverageLimit = {
+  kind: "pages" | "items" | "time" | "tie" | "comments" | "recent" | "feed_window" | "error";
+  detail: string;
+};
+
 export type FetchResult = {
   mentions: NormalizedMention[];
   /** Connector progress to persist for the next run (e.g. recent posts to poll for comments). */
   cursor?: Record<string, unknown>;
+  /** Every item of the window was returned (or deliberately filtered). */
+  complete: boolean;
+  /**
+   * When incomplete: the provider lists newest first and the read stopped at
+   * this publication time; items published up to it (inclusive) are still
+   * unread. The next run reads (since, resumeUntil].
+   */
+  resumeUntil?: string;
+  /** Items the provider can no longer return (e.g. a feed that rolled past them): reported, not retried. */
+  gap?: { from: string; to: string };
+  limits: CoverageLimit[];
+  /** A request failed after some pages were read: what was read is kept and the rest is resumed. */
+  interruptedBy?: string;
 };
 
 export type ConnectorSource<C> = {
@@ -51,11 +72,20 @@ export type ConnectorContext = {
     metaAppSecret?: string;
     metaGraphVersion?: string;
   };
-  /** Upper bound of items to return in one run. */
+  /** Upper bound of items to return (previews); a run is bounded by pages and time instead. */
   limit: number;
+  /** End of the window (inclusive). Defaults to now. */
+  until?: Date;
+  /** Soft deadline (epoch ms): no new request starts after it; the connector returns what it has. */
+  deadline?: number;
   /** Cancels the run (source timeout, caller gone): in-flight requests and body reads stop. */
   signal?: AbortSignal;
 };
+
+/** Time left before the soft deadline is over: stop starting requests. */
+export function timeUp(ctx: Pick<ConnectorContext, "deadline">): boolean {
+  return ctx.deadline !== undefined && Date.now() >= ctx.deadline;
+}
 
 export type Connector<C = unknown> = {
   type: SourceType;
@@ -87,7 +117,9 @@ export function resolveContext(ctx: Partial<ConnectorContext> = {}): ConnectorCo
       metaAppSecret: process.env.META_APP_SECRET,
       metaGraphVersion: process.env.META_GRAPH_VERSION,
     },
-    limit: ctx.limit ?? 200,
+    limit: ctx.limit ?? Number.POSITIVE_INFINITY,
+    until: ctx.until,
+    deadline: ctx.deadline,
     signal: ctx.signal,
   };
 }

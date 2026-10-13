@@ -12,6 +12,7 @@
 //   POST /__mock/faults {"model":"claude-desconocido"} answers with another model id
 //     (to test cost for a model missing from the price table);
 //   DELETE /__mock/faults clears everything; GET /__mock/calls counts calls per target.
+//   GET /__mock/classified: how many times each mention text was sent to classify.
 import { createServer } from "node:http";
 
 const port = Number(process.env.MOCK_ANTHROPIC_PORT ?? 4010);
@@ -63,6 +64,8 @@ function reading(f) {
 
 function classify(body) {
   const text = body.messages.map((m) => (typeof m.content === "string" ? m.content : "")).join("\n");
+  // Which mention texts were sent to the model, and how many times (concurrency checks).
+  for (const [, mention] of text.matchAll(/<mencion>\n([\s\S]*?)\n<\/mencion>/g)) classified.set(mention, (classified.get(mention) ?? 0) + 1);
   const count = (text.match(/^\[\d+\]/gm) ?? []).length;
   const props = body.tools[0].input_schema.properties.clasificaciones.items.properties;
   const pick = (p) => (p.enum ? p.enum[0] : p.anyOf ? null : null);
@@ -85,6 +88,7 @@ const emails = [];
 const whatsapp = [];
 let faults = {};
 const calls = { anthropic: 0, resend: 0, whatsapp: 0 };
+const classified = new Map();
 
 /** Applies an injected fault for `target`; true when the response was already sent. */
 async function injected(target, res) {
@@ -117,6 +121,11 @@ async function handle(req, res, raw) {
     if (req.url === "/__mock/faults") {
       faults = req.method === "POST" ? JSON.parse(raw || "{}") : {};
       res.writeHead(204).end();
+      return;
+    }
+    if (req.url === "/__mock/classified" && req.method === "GET") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify(Object.fromEntries(classified)));
       return;
     }
     if (req.url === "/__mock/calls" && req.method === "GET") {

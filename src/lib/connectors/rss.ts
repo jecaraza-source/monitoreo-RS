@@ -4,7 +4,10 @@ import { z } from "zod";
 import { fetchText } from "./http.ts";
 import { feedFetch } from "./safe-fetch.ts";
 import { clampText, decodeEntities, htmlToText, joinTitleAndBody } from "./text.ts";
-import { ConnectorError, resolveContext, type Connector, type NormalizedMention } from "./types.ts";
+import { ConnectorError, resolveContext, type Connector, type CoverageLimit, type NormalizedMention } from "./types.ts";
+
+/** How far before the window an item may be dated and still be taken (late indexing, wrong feed dates). */
+const LATE_TOLERANCE_MS = 7 * 86_400_000;
 
 export const rssConfigSchema = z.object({
   url: z.url("Escribe la URL del feed.").refine((u) => /^https?:\/\//i.test(u), "La URL debe empezar con http(s)://"),
@@ -121,11 +124,17 @@ export const rssConnector: Connector<RssConfig> = {
     const host = new URL(source.config.url).hostname.replace(/^www\./, "");
     const outlet = source.config.outletName || feed.title || host;
     const now = ctx.now();
+    // A feed is a window of its latest items: there is nothing to paginate.
+    // Items published before the window but indexed late are still taken
+    // within LATE_TOLERANCE (dedupe makes re-reading them harmless).
+    const floor = since.getTime() - LATE_TOLERANCE_MS;
 
     const mentions: NormalizedMention[] = [];
+    let oldestDated: number | null = null;
     for (const item of feed.items) {
+      if (item.publishedAt) oldestDated = Math.min(oldestDated ?? Infinity, item.publishedAt.getTime());
       // Items without a date are kept (dedupe makes re-reading them harmless).
-      if (item.publishedAt && item.publishedAt <= since) continue;
+      if (item.publishedAt && item.publishedAt.getTime() <= floor) continue;
       const text = clampText(joinTitleAndBody(item.title, item.body));
       if (!text) continue;
       mentions.push({
@@ -137,8 +146,23 @@ export const rssConnector: Connector<RssConfig> = {
         author: { platform: "rss", handle: host, displayName: outlet, followers: null, kind: "media" },
         metrics: {},
       });
-      if (mentions.length >= ctx.limit) break;
     }
-    return { mentions };
+
+    const limits: CoverageLimit[] = [];
+    let gap: { from: string; to: string } | undefined;
+    // Even the oldest item of the feed is newer than the window start: the
+    // feed rolled past items published in between, and a feed cannot return them.
+    if (oldestDated !== null && oldestDated > since.getTime()) {
+      gap = { from: since.toISOString(), to: new Date(oldestDated).toISOString() };
+      limits.push({
+        kind: "feed_window",
+        detail: `El feed sólo conserva sus ${feed.items.length} notas más recientes; pudo haber notas entre ${gap.from} y ${gap.to} que ya no publica.`,
+      });
+    }
+    if (mentions.length > ctx.limit) {
+      limits.push({ kind: "items", detail: `Vista previa: ${ctx.limit} de ${mentions.length} notas.` });
+      return { mentions: mentions.slice(0, ctx.limit), complete: false, limits, gap };
+    }
+    return { mentions, complete: true, limits, gap };
   },
 };

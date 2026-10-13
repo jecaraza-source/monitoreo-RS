@@ -192,11 +192,42 @@ export async function runSourceNow(sourceId: string): Promise<SourceActionResult
   const summary = await runIngest({ trigger: "manual", sourceIds: [sourceId], orgId: member.orgId });
   const result = summary.sources[0];
   revalidatePath(PATH);
-  if (!result) return { ok: false, message: "La fuente está pausada o su conector está deshabilitado." };
+  if (!result) return { ok: false, message: "La fuente está pausada, otra corrida la está leyendo o su conector está deshabilitado." };
   if (result.status === "error") return { ok: false, message: result.error ?? "La corrida falló." };
-  return {
-    ok: true,
-    message: `${result.inserted} nuevas, ${result.duplicates} repetidas${result.unmatched ? `, ${result.unmatched} sin consulta` : ""}.`,
-    data: result,
-  };
+  if (result.status === "skipped") return { ok: false, message: "No alcanzó el tiempo de la corrida; se leerá en la siguiente." };
+  const counts = [
+    `${result.inserted} nuevas`,
+    `${result.duplicates} repetidas`,
+    result.updated ? `${result.updated} con interacciones actualizadas` : "",
+    result.unmatched ? `${result.unmatched} sin consulta` : "",
+  ].filter(Boolean);
+  const partial =
+    result.status === "partial"
+      ? result.complete === false
+        ? " Lectura parcial: lo que falta se lee en la siguiente corrida."
+        : " Con avisos de cobertura (ver corridas recientes)."
+      : "";
+  return { ok: true, message: `${counts.join(", ")}.${partial}`, data: result };
+}
+
+// ---------------------------------------------------------------------------
+// Review queue: failed classifications and sources that keep failing
+// ---------------------------------------------------------------------------
+
+const failureSchema = z.object({ failureId: idSchema, action: z.enum(["retry", "dismiss"]) });
+
+export async function resolveFailure(input: unknown): Promise<SourceActionResult> {
+  const member = await editor();
+  if (!member) return FORBIDDEN;
+  const parsed = failureSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Solicitud inválida." };
+  const supabase = await createClient();
+  // The function checks the role and the org of the failure itself.
+  const { error } = await supabase.rpc("resolve_pipeline_failure", { p_failure_id: parsed.data.failureId, p_action: parsed.data.action });
+  if (error) {
+    console.error("[sources] resolve failure:", error.code, error.message);
+    return error.code === "42501" ? FORBIDDEN : { ok: false, message: "No se pudo actualizar el fallo." };
+  }
+  revalidatePath(PATH);
+  return { ok: true, message: parsed.data.action === "retry" ? "Se reintentará en la siguiente corrida." : "Fallo descartado." };
 }
