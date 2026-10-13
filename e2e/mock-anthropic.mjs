@@ -88,6 +88,7 @@ function classify(body) {
 }
 
 const emails = [];
+const sentByKey = new Map();
 const whatsapp = [];
 let faults = {};
 const calls = { anthropic: 0, resend: 0, whatsapp: 0 };
@@ -143,9 +144,18 @@ async function handle(req, res, raw) {
     }
     if (req.url === "/emails" && req.method === "POST") {
       if (await injected("resend", res)) return;
-      emails.push(JSON.parse(raw));
+      // Like Resend: the same Idempotency-Key returns the first message, without sending again.
+      const key = req.headers["idempotency-key"];
+      if (key && sentByKey.has(key)) {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ id: sentByKey.get(key) }));
+        return;
+      }
+      emails.push({ ...JSON.parse(raw), idempotencyKey: key ?? null });
+      const id = `email_mock_${emails.length}`;
+      if (key) sentByKey.set(key, id);
       res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ id: `email_mock_${emails.length}` }));
+      res.end(JSON.stringify({ id }));
       return;
     }
     if (req.url === "/whatsapp/sent" && req.method === "GET") {

@@ -97,8 +97,9 @@ const assignSchema = z.object({
   departmentId: id,
   supportIds: z.array(id).max(4, "Máximo 4 dependencias de apoyo.").default([]),
   responsibleUserId: id.nullable().default(null),
-  acceptDueAt: date,
-  dueAt: date,
+  // Null: the SLA computes them (and the case records its version).
+  acceptDueAt: date.nullable().default(null),
+  dueAt: date.nullable().default(null),
   commitment: z.string().trim().max(1000, "El compromiso es muy largo.").default(""),
   reason: z.string().trim().max(500, "El motivo es muy largo.").default(""),
 });
@@ -113,8 +114,9 @@ export async function assignCase(input: unknown): Promise<AttentionResult> {
   const { data, error } = await supabase.rpc("assign_case", {
     p_case_id: v.caseId,
     p_department_id: v.departmentId,
-    p_due_at: v.dueAt,
-    p_accept_due_at: v.acceptDueAt,
+    // The generated types do not model SQL nulls; null means "from the SLA".
+    p_due_at: v.dueAt as string,
+    p_accept_due_at: v.acceptDueAt as string,
     p_support_ids: v.supportIds,
     p_responsible_user_id: v.responsibleUserId ?? undefined,
     p_commitment: v.commitment || undefined,

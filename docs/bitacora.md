@@ -3,6 +3,33 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Etapa 7 — SLA con calendario, escalamiento, outbox y reportes programados (13 oct 2026, base `0206063`)
+
+- **Antes:**
+  - SLA sólo por prioridad y en horas corridas, sin versión ni calendario.
+  - Escalamiento sólo de turnos por WhatsApp, a un contacto único.
+  - Alertas y reportes enviados en directo, sin reintentos ni id del proveedor.
+  - Reportes programados con `last_run_at` no atómico: dos crons podían generar dos reportes, y una falla dejaba el día como «ya corrió».
+- **Después:**
+  - SLA por categoría y prioridad (aceptación y atención), en horas corridas u hábiles, con días inhábiles y zona CDMX. Cada versión es de referencia hasta que un admin la aprueba; el caso guarda la versión y los plazos aplicados.
+  - Recordatorio y escalamiento a enlace, titular y coordinación, con destinatarios de configuración verificada. Cada paso se registra una vez, con motivo, plazo, destinatario y resultado. Las emergencias son críticas.
+  - Outbox con clave idempotente, estados, lease, backoff, límite de intentos y un registro por intento con el id del proveedor. El correo envía `Idempotency-Key` a Resend; WhatsApp con resultado desconocido queda «incierto».
+  - Preferencias de canal y silencio por persona, y límite por hora. Lo crítico no espera.
+  - `report_jobs` único por municipio, tipo y periodo, con etapas, reintentos y presupuesto de tiempo. Se marca enviado sólo cuando el correo fue aceptado. La aprobación humana sigue siendo la opción por omisión.
+- **Archivos:** ver `docs/etapa-7-sla-escalamiento-envios.md` § 7. Migración `20261031000000_sla_outbox.sql` y su `down.sql`.
+- **Pruebas:**
+  - lint, typecheck y 351 unitarias;
+  - pgTAP 691/691 tras `db reset` (SLA 27, outbox 33, escalamiento 21, report jobs 16);
+  - reversión, reaplicación y siembra repetida;
+  - build canario + `check:bundle`;
+  - e2e 33/33 (nueva `delivery.spec.ts`: crons concurrentes, Resend caído, silencio contra emergencia, SLA hábil).
+- **Conteo previo en producción (sólo lectura):** 1 municipio, 0 programaciones de reporte, 0 casos abiertos, SLA 12/24/72/168 h, 5 reglas de alerta activas, 2 dependencias con enlace.
+- **Limitaciones:** WhatsApp sin idempotencia (queda «incierto»); plantilla `sigma_caso_aviso` pendiente; inhábiles capturados a mano; los turnos de menciones sueltas siguen con el seguimiento anterior.
+- **Activación / reversión:**
+  - activar: migración, deploy, y revisar el SLA, los enlaces y los titulares;
+  - revertir: commit y `down.sql`.
+- **Pendiente:** Node 22/24; medir gravedad en el eval; aprobar la versión del SLA con el acuerdo real; plantilla de WhatsApp para casos.
+
 ## Etapa 6 — Atención de casos (13 oct 2026, base `37d6d17`)
 
 - **Antes:**

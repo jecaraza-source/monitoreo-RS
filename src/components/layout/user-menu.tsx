@@ -1,6 +1,7 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { BellRing, LogOut } from "lucide-react";
 import { signOut } from "@/app/login/actions";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { buttonVariants } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import { cn } from "@/lib/utils";
 
 export function UserMenu({ email, role }: { email: string; role: Role }) {
   const initial = email.charAt(0).toUpperCase() || "?";
+  const router = useRouter();
 
   return (
     <DropdownMenu>
@@ -37,6 +39,9 @@ export function UserMenu({ email, role }: { email: string; role: Role }) {
           </DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => router.push("/preferencias")}>
+          <BellRing aria-hidden /> Mis avisos
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => void signOut()}>
           <LogOut aria-hidden /> Cerrar sesión
         </DropdownMenuItem>

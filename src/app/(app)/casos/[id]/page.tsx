@@ -16,7 +16,7 @@ import { formatDateTime, fromNow } from "@/components/inbox/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireSection } from "@/lib/auth/session";
-import { getCase, getDepartmentPeople, getMergeCandidates, getSuggestions } from "@/lib/cases/data";
+import { getCase, getDepartmentPeople, getMergeCandidates, getSlaTerms, getSlaVersion, getSuggestions } from "@/lib/cases/data";
 import { caseDueAt, caseOverdue, OPEN_CASE_STATUSES, type CaseActor } from "@/lib/cases/model";
 import { getInboxCatalogs } from "@/lib/inbox/data";
 import { isOverdue, PRIORITY_LABELS, TICKET_LABELS } from "@/lib/inbox/model";
@@ -45,10 +45,12 @@ async function CaseView({ params }: { params: PageProps<"/casos/[id]">["params"]
   const actor: CaseActor = editor ? "editor" : member.role === "dependencia" ? "department" : "reader";
   const responsible = member.role === "dependencia" && member.departmentId === c.department_id;
   const isOpen = OPEN_CASE_STATUSES.includes(c.status);
-  const [suggestions, mergeCandidates, people] = await Promise.all([
+  const [suggestions, mergeCandidates, people, slaTerms, slaVersion] = await Promise.all([
     editor && isOpen ? getSuggestions(c.id) : [],
     editor && isOpen ? getMergeCandidates(member, c.id) : [],
     editor || responsible ? getDepartmentPeople(member) : [],
+    editor && isOpen ? getSlaTerms(member, c.category, c.priority) : null,
+    c.sla_version_id ? getSlaVersion(c.sla_version_id) : null,
   ]);
 
   const departments = new Map(catalogs.departments.map((d) => [d.id, d.name]));
@@ -119,6 +121,7 @@ async function CaseView({ params }: { params: PageProps<"/casos/[id]">["params"]
             acceptDueAt={c.accept_due_at}
             commitment={c.commitment}
             sla={catalogs.sla}
+            slaTerms={slaTerms}
             validation={{
               cycle: c.cycle,
               updates: cycleUpdates.length,
@@ -220,6 +223,12 @@ async function CaseView({ params }: { params: PageProps<"/casos/[id]">["params"]
                   )}
                 </Row>
                 {c.commitment && <Row label="Qué hará">{c.commitment}</Row>}
+                {slaVersion && (
+                  <Row label="SLA">
+                    Versión {slaVersion.version} · {slaVersion.approved ? "acuerdo aprobado" : "valores de referencia, sin acuerdo aprobado"}
+                    {(c.sla_terms as { overridden?: boolean } | null)?.overridden ? " · plazos ajustados al asignar" : ""}
+                  </Row>
+                )}
                 {/* The author of the case (who opened it), not of the publications. */}
                 <Row label="Abrió">
                   {openedBy?.actor_name || "—"} · {formatDateTime(c.opened_at)}

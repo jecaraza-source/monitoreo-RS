@@ -175,6 +175,8 @@ export async function createReportDraft(
     endDay?: string;
     recipients?: string[];
     scheduleId?: string | null;
+    /** The report job that drafts it (scheduled reports): one report per job. */
+    jobId?: string | null;
     anthropic?: Anthropic;
   },
 ): Promise<string> {
@@ -204,6 +206,7 @@ export async function createReportDraft(
       model,
       recipients: input.recipients ?? [],
       schedule_id: input.scheduleId ?? null,
+      ...(input.jobId ? { job_id: input.jobId } : {}),
     })
     .select("id")
     .single();

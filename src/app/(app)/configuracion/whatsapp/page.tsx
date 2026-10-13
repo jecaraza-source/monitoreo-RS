@@ -5,14 +5,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EmptyState } from "@/components/ui-kit";
 import { EscalationForm } from "@/components/whatsapp/escalation-form";
 import { ResponsiblesTable, type ContactStatus } from "@/components/whatsapp/responsibles-table";
-import { SlaForm } from "@/components/whatsapp/sla-form";
+import Link from "next/link";
 import { requireSection } from "@/lib/auth/session";
-import { slaFromRows } from "@/lib/inbox/model";
 import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 import { formatPhone, maskPhone } from "@/lib/whatsapp/phone";
 
-export const metadata: Metadata = { title: "WhatsApp y SLA" };
+export const metadata: Metadata = { title: "WhatsApp" };
 
 const when = new Intl.DateTimeFormat("es-MX", { dateStyle: "short", timeStyle: "short", timeZone: "America/Mexico_City" });
 
@@ -27,8 +26,7 @@ const MESSAGE_STATUS: Record<string, string> = {
 export default async function WhatsAppSettingsPage() {
   const member = await requireSection("/configuracion/whatsapp");
   const supabase = await createClient();
-  const [sla, departments, members, contacts, messages, settings, site] = await Promise.all([
-    supabase.from("sla_policies").select("priority, hours").eq("org_id", member.orgId),
+  const [departments, members, contacts, messages, settings, site] = await Promise.all([
     supabase.from("departments").select("id, name, responsible_user_id").eq("org_id", member.orgId).order("name"),
     supabase.rpc("org_members", { p_org_id: member.orgId }),
     supabase.from("whatsapp_contacts").select("id, user_id, phone, status").eq("org_id", member.orgId),
@@ -105,13 +103,16 @@ export default async function WhatsAppSettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle as="h2">SLA por prioridad</CardTitle>
+          <CardTitle as="h2">SLA y escalamiento</CardTitle>
           <CardDescription>
-            Plazo común para atender una mención turnada, según su prioridad. Define la fecha límite sugerida al turnar.
+            Los plazos (horas corridas u hábiles, días inhábiles, por categoría y prioridad) y los niveles de escalamiento de los casos se configuran en
+            su propia sección.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <SlaForm sla={slaFromRows(sla.data ?? [])} />
+          <Link href="/configuracion/sla" className="text-sm font-medium underline">
+            Ir a SLA y escalamiento
+          </Link>
         </CardContent>
       </Card>
 

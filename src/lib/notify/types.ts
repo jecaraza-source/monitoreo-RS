@@ -11,7 +11,7 @@ export type AlertMessage = {
   url: string;
 };
 
-export type DeliveryStatus = "sent" | "not_configured" | "failed" | "skipped";
+export type DeliveryStatus = "sent" | "not_configured" | "failed" | "skipped" | "queued";
 export type DeliveryResult = { status: DeliveryStatus; detail?: string };
 
 export type NotifyEnv = Record<string, string | undefined>;

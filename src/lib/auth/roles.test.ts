@@ -42,7 +42,7 @@ describe("canAccessPath", () => {
     assert.equal(canAccessPath("comunicacion", "/configuracion/whatsapp"), false);
     assert.equal(canAccessPath("comunicacion", "/configuracion/identidad"), false);
     assert.deepEqual(subsectionsForRole("comunicacion").map((s) => s.label), ["Proyectos", "Fuentes"]);
-    assert.deepEqual(subsectionsForRole("admin").map((s) => s.label), ["Proyectos", "Fuentes", "Catálogos", "Usuarios", "Identidad", "Emergencias", "WhatsApp y SLA", "Bitácora"]);
+    assert.deepEqual(subsectionsForRole("admin").map((s) => s.label), ["Proyectos", "Fuentes", "Catálogos", "Usuarios", "Identidad", "Emergencias", "WhatsApp", "SLA y escalamiento", "Envíos", "Bitácora"]);
   });
 
   it("does not confuse prefixes with sections", () => {

@@ -426,6 +426,23 @@ siguen contando una por una. Detalle en [docs/etapa-4-casos.md](docs/etapa-4-cas
 - **Turnos anteriores:** admin, en `/casos` → «Migrar turnos existentes», primero simula y luego aplica.
   Se crea un caso por mención turnada; se puede repetir sin duplicar.
 
+## SLA, escalamiento y envíos
+
+Detalle en [docs/etapa-7-sla-escalamiento-envios.md](docs/etapa-7-sla-escalamiento-envios.md).
+
+- **SLA** (Configuración → SLA y escalamiento, admin):
+  - plazos de aceptación y atención por prioridad y, si se quiere, por categoría;
+  - horas corridas u hábiles, con días hábiles, horario y días inhábiles, en hora de la Ciudad de México.
+  - Cada guardado es una versión; es valor de referencia hasta que un admin la aprueba con el acuerdo que la respalda.
+  - Al asignar, el caso guarda la versión y los plazos aplicados.
+- **Escalamiento:** recordatorio al enlace antes de vencer; después, enlace, titular y coordinación. Cada paso se envía una sola vez y queda en `notification_events`. Los casos críticos son emergencias y no esperan.
+- **Envíos:**
+  - alertas, reportes y avisos salen de un outbox durable, con clave idempotente, reintentos con backoff y registro por intento;
+  - Configuración → Envíos muestra el estado y permite reintentar;
+  - cada persona elige sus canales y su horario de silencio en «Mis avisos».
+- **Reportes programados:** un trabajo por municipio, tipo y periodo, que se retoma por etapas. Requieren aprobación humana salvo que la programación diga lo contrario.
+- **Cron** `/api/cron/notify` cada 5 min.
+
 ## Dashboard
 
 `/dashboard` es la vista ejecutiva (admin, comunicación y lectura):
@@ -504,7 +521,8 @@ Canal directo con los funcionarios de las dependencias (nunca con ciudadanos), c
   **responder** al aviso agrega una nota. En la bandeja, el turno muestra *Avisado por WhatsApp* y las notas
   llevan la marca *por WhatsApp* (`mention_notes.channel`, la pone la base de datos). Un turno cerrado por
   Comunicación ya no se cambia desde WhatsApp.
-- **Seguimiento** (`/api/cron/whatsapp`, cada 15 min): al **75 % del plazo** el responsable recibe
+- **Seguimiento de turnos de menciones sueltas** (`/api/cron/whatsapp`, cada 15 min; los turnos de casos los sigue
+  el escalamiento por caso, ver «SLA, escalamiento y envíos»): al **75 % del plazo** el responsable recibe
   `sigma_recordatorio`; al **vencer**, el mismo aviso como turno vencido y `sigma_escalamiento` a la persona de
   **escalamiento** (`whatsapp_settings.escalation_user_id`: Comunicación o admin, con su WhatsApp aceptado).
   `claim_whatsapp_followups()` marca cada turno antes de enviar (`tickets.whatsapp_reminded_at` /
@@ -665,9 +683,10 @@ comparado contra el periodo anterior de la misma duración.
    Configuración → Identidad; el logo también va al pie de cada página), lo guarda en el bucket privado
    `reports/<org>/<id>.pdf` y lo envía por Resend como adjunto a los destinatarios. La descarga usa un enlace
    firmado de 5 minutos.
-5. **Envío programado.** `report_schedules` por tipo; `/api/cron/reports` (13:00 UTC = 7:00 CDMX) prepara el
-   diario cada día, el semanal los lunes y el mensual el día 1. Con *aprobar sin revisión* se envía de inmediato;
-   si no, espera la aprobación en `/reportes`.
+5. **Envío programado.** `report_schedules` por tipo; `/api/cron/reports` (13:00 UTC = 7:00 CDMX) encola un
+   trabajo único (`report_jobs`) para el diario cada día, el semanal los lunes y el mensual el día 1, y lo avanza
+   por etapas (borrador, aprobación, PDF, envío por el outbox). Con *aprobar sin revisión* se envía; si no, espera
+   la aprobación en `/reportes`. Un fallo se reintenta desde la etapa en que quedó.
 
 **Logotipo del cliente.**
 - Se sube en Configuración → Identidad (sólo admin): PNG o JPG de hasta 1 MB, entre 64 × 32 y 4000 px.

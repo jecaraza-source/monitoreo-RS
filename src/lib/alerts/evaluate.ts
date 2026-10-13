@@ -1,9 +1,9 @@
 import "server-only";
 import { CONNECTORS } from "@/lib/connectors";
 import type { HealthSnapshot } from "@/lib/health/model";
-import { notify } from "@/lib/notify";
 import { siteUrl } from "@/lib/site-url";
-import { sendAlertWhatsApp } from "@/lib/whatsapp/alerts";
+import type { AlertMessage, DeliveryResult } from "@/lib/notify/types";
+import { whatsappConfigured } from "@/lib/whatsapp/client";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import {
   decideDigest,
@@ -200,7 +200,7 @@ async function fire(admin: Admin, rule: RuleRow, kind: RuleKind, d: Decision): P
   if (error) throw new Error(error.message);
   if (!eventId) return null;
 
-  const message = {
+  const message: AlertMessage = {
     title: d.title,
     summary: d.summary,
     severity: d.severity,
@@ -208,12 +208,51 @@ async function fire(admin: Admin, rule: RuleRow, kind: RuleKind, d: Decision): P
     orgName: rule.organizations?.name ?? "",
     url: `${siteUrl()}/alertas?alerta=${eventId}`,
   };
+  // Durable delivery: one outbox message per recipient and channel, keyed by
+  // the alert event, sent by the outbox worker (retries, limits, quiet hours;
+  // critical alerts are never held back).
   const channels = parseChannels(rule.channels);
-  const [delivered, whatsapp] = await Promise.all([
-    notify(message, { email: channels.email }),
-    sendAlertWhatsApp(admin, rule.org_id, channels.whatsapp, message),
-  ]);
-  const notifications = { ...delivered, whatsapp };
+  const urgency = d.severity === "critical" ? "critical" : "normal";
+  const queue = async (key: string, channel: "email" | "whatsapp", address: string, userId?: string) => {
+    const { error: queueError } = await admin.rpc("enqueue_outbox", {
+      p_org_id: rule.org_id,
+      p_key: key,
+      p_kind: "alert",
+      p_channel: channel,
+      p_address: address,
+      p_payload: message as never,
+      p_urgency: urgency,
+      p_recipient_user_id: userId,
+      p_alert_event_id: eventId,
+    });
+    if (queueError) throw new Error(`No se pudo encolar la alerta: ${queueError.message}`);
+  };
+
+  let email: DeliveryResult = { status: "skipped" };
+  if (channels.email.length && !(process.env.RESEND_API_KEY && process.env.ALERTS_FROM_EMAIL)) {
+    email = { status: "not_configured", detail: "Faltan RESEND_API_KEY o ALERTS_FROM_EMAIL." };
+  } else if (channels.email.length) {
+    for (const address of channels.email) await queue(`alert:${eventId}:email:${address.toLowerCase()}`, "email", address);
+    email = { status: "queued", detail: `${channels.email.length} en cola` };
+  }
+
+  let whatsapp: DeliveryResult = { status: "skipped" };
+  if (channels.whatsapp.length && !whatsappConfigured(process.env)) {
+    whatsapp = { status: "not_configured", detail: "WhatsApp no está configurado." };
+  } else if (channels.whatsapp.length) {
+    const { data: contacts } = await admin
+      .from("whatsapp_contacts")
+      .select("user_id, phone")
+      .eq("org_id", rule.org_id)
+      .eq("status", "active")
+      .in("user_id", channels.whatsapp);
+    for (const c of contacts ?? []) await queue(`alert:${eventId}:whatsapp:${c.user_id}`, "whatsapp", c.phone, c.user_id);
+    whatsapp = contacts?.length
+      ? { status: "queued", detail: `${contacts.length} en cola` }
+      : { status: "skipped", detail: "Ningún destinatario ha aceptado WhatsApp." };
+  }
+
+  const notifications = { in_app: { status: "sent" }, email, whatsapp };
   const { error: updateError } = await admin.from("alert_events").update({ notifications: notifications as never }).eq("id", eventId);
   if (updateError) console.error("[alerts] notifications:", updateError.message);
   return { ruleId: rule.id, eventId, title: d.title, notifications };

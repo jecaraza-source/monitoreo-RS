@@ -329,3 +329,17 @@ export async function getDepartmentPeople(member: Member): Promise<{ user_id: st
   const { data } = await supabase.rpc("department_people", { p_org_id: member.orgId });
   return (data ?? []).filter((p): p is { user_id: string; name: string; department_id: string } => Boolean(p.department_id));
 }
+
+/** Deadlines the SLA would give a case assigned now (category, priority, calendar, current version). */
+export async function getSlaTerms(member: Member, category: string | null, priority: Priority) {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("sla_terms", { p_org_id: member.orgId, p_category: category as string, p_priority: priority });
+  return (data ?? null) as { accept_due_at: string; due_at: string; version: number; approved: boolean; mode: "calendar" | "business" } | null;
+}
+
+/** The SLA version a case was assigned with. */
+export async function getSlaVersion(versionId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase.from("sla_versions").select("version, approved").eq("id", versionId).maybeSingle();
+  return data;
+}
