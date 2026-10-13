@@ -12,7 +12,7 @@ Ver `CLAUDE.md` para el stack, las convenciones y los límites éticos.
 
 ## Instalación local
 
-Requisitos: Node 22, Docker y Git.
+Requisitos: Node 24 (el runtime de producción y de CI), Docker y Git.
 
 ```bash
 npm ci
@@ -43,7 +43,7 @@ npm run dev                   # http://localhost:3000
 | `npm run test:e2e` | Playwright: login, bandeja, turnado y reporte (`e2e/`) |
 | `npm run check:bundle` | Verifica que ningún secreto llegue al bundle del navegador (después de `build`) |
 | `npm run ai:cost` | Costo de IA de los últimos 7 días y proyección a 30 (lee `ai_usage`) |
-| `npm run eval:classify` | Precisión del clasificador con 30 menciones etiquetadas (usa la API de Claude) |
+| `npm run eval:classify` | Precisión del clasificador: 30 menciones de desarrollo, o `-- --holdout` para las 48 de validación (usa la API de Claude) |
 | `npm run db:reset` · `npm run db:types` | Recrea la base local · regenera los tipos de Supabase |
 | `supabase db push` | Aplica `supabase/migrations` al proyecto remoto enlazado |
 
@@ -181,6 +181,32 @@ Palancas: subir el umbral de escalamiento (`ESCALATE_BELOW_CONFIDENCE`), usar So
   - `docs/onboarding.md` (lista de puesta en operación, también en Resumen);
   - `docs/ejercicio-operativo.md`.
 - Detalle: `docs/etapa-11-configuracion.md`.
+
+## Validación, activación y piloto (etapa 12)
+
+- **Pruebas de punta a punta** (`e2e/journey.spec.ts`): enlace mágico real, cuatro roles, dos municipios, de la
+  fuente al PDF.
+- **Permisos sin menú** (`e2e/api-permissions.spec.ts`).
+- **Fallas inyectadas** (`e2e/resilience.spec.ts`): proveedor, timeout, worker interrumpido, concurrencia,
+  corrección humana y Storage.
+- **Accesibilidad** (`e2e/accessibility.spec.ts`): contraste AA en ambos temas, móvil, teclado y errores.
+- **Mediciones con volumen:** sólo en local, con `supabase/perf/map_scale.sql` cargado:
+
+  ```bash
+  PERF=1 npx playwright test e2e/perf-stage12.spec.ts
+  ```
+
+  Resultado en `test-results/perf-stage12.json`. Los de la etapa están en
+  `docs/evidencia/etapa-12-mediciones.json`.
+- **Métricas del piloto** (sólo lectura):
+
+  ```bash
+  psql "$DB_URL" -v org=<uuid> -v days=7 -f supabase/pilot/pilot_metrics.sql
+  ```
+- **Documentos:**
+  - `docs/etapa-12-validacion.md` (informe, matriz de cierre y decisión);
+  - `docs/etapa-12-activacion.md`;
+  - `docs/etapa-12-piloto.md`.
 
 ## Seguridad
 
@@ -392,8 +418,20 @@ ANTHROPIC_API_KEY=... CLAUDE_MODEL_FAST=claude-haiku-5-5 CLAUDE_MODEL_SMART=clau
 npm run eval:classify -- --fast   # sólo el modelo rápido, sin escalar
 ```
 
-Reporta precisión por campo, precisión/exhaustividad por clase, tokens y costo, y guarda el detalle en
+Reporta precisión por campo, precisión/exhaustividad/F1 por clase, tokens y costo, y guarda el detalle en
 `evals/classify/results/` (ignorado por git).
+
+`evals/classify/holdout.json` (etapa 12) tiene 48 menciones de **validación**, separadas del conjunto de desarrollo:
+sarcasmo, ambigüedad, riesgo, inyección y control. No se usa para ajustar el prompt.
+
+`npm run eval:classify -- --holdout` agrega:
+
+- resultados por grupo;
+- exhaustividad de riesgo y resistencia a inyección;
+- los umbrales de aceptación propuestos y el dictamen;
+- una hoja CSV para validación humana.
+
+Contra el simulador local la corrida se marca SIMULADO y no emite dictamen. Ver `docs/etapa-12-validacion.md` § 4.
 
 ## Bandeja
 

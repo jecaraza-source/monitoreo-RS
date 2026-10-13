@@ -1,0 +1,209 @@
+{
+  "at": "2026-10-13T20:19:25.310Z",
+  "runs": 7,
+  "volume": {
+    "mentions": 107208,
+    "classifications": 107208,
+    "cases": 20000,
+    "neighborhoods": 1510,
+    "case_events": 0
+  },
+  "results": [
+    {
+      "name": "captura (500 menciones por lote)",
+      "unit": "ms",
+      "n": 7,
+      "median": 208,
+      "p95": 226,
+      "min": 163,
+      "max": 226,
+      "note": "≈ 2404 menciones/s"
+    },
+    {
+      "name": "clasificación de 200 menciones, 1 worker (modelo simulado sin latencia)",
+      "unit": "ms",
+      "n": 3,
+      "median": 6349,
+      "p95": 13867,
+      "min": 5998,
+      "max": 13867
+    },
+    {
+      "name": "clasificación de 200 menciones, 2 workers simultáneos (modelo simulado sin latencia)",
+      "unit": "ms",
+      "n": 3,
+      "median": 7983,
+      "p95": 8621,
+      "min": 7547,
+      "max": 8621
+    },
+    {
+      "name": "clasificación de 80 menciones con 1.5 s simulados por llamada",
+      "unit": "ms",
+      "n": 1,
+      "median": 12523,
+      "p95": 12523,
+      "min": 12523,
+      "max": 12523,
+      "note": "una corrida"
+    },
+    {
+      "name": "bandeja: respuesta del servidor",
+      "unit": "ms",
+      "n": 7,
+      "median": 2043,
+      "p95": 2733,
+      "min": 1851,
+      "max": 2733,
+      "note": "276 kB"
+    },
+    {
+      "name": "bandeja: hasta visible en el navegador",
+      "unit": "ms",
+      "n": 7,
+      "median": 2370,
+      "p95": 2634,
+      "min": 2282,
+      "max": 2634
+    },
+    {
+      "name": "bandeja: 10 solicitudes simultáneas",
+      "unit": "ms",
+      "n": 10,
+      "median": 6362,
+      "p95": 6936,
+      "min": 5608,
+      "max": 6936
+    },
+    {
+      "name": "mapa: casos 30 días: respuesta del servidor",
+      "unit": "ms",
+      "n": 7,
+      "median": 748,
+      "p95": 817,
+      "min": 606,
+      "max": 817,
+      "note": "2612 kB"
+    },
+    {
+      "name": "mapa: casos 30 días: hasta visible en el navegador",
+      "unit": "ms",
+      "n": 7,
+      "median": 1851,
+      "p95": 2094,
+      "min": 1342,
+      "max": 2094
+    },
+    {
+      "name": "mapa: casos 30 días: 10 solicitudes simultáneas",
+      "unit": "ms",
+      "n": 10,
+      "median": 5050,
+      "p95": 5133,
+      "min": 4945,
+      "max": 5133
+    },
+    {
+      "name": "mapa: conversación 30 días: respuesta del servidor",
+      "unit": "ms",
+      "n": 7,
+      "median": 880,
+      "p95": 1050,
+      "min": 764,
+      "max": 1050,
+      "note": "4078 kB"
+    },
+    {
+      "name": "mapa: conversación 30 días: hasta visible en el navegador",
+      "unit": "ms",
+      "n": 7,
+      "median": 2509,
+      "p95": 2864,
+      "min": 2178,
+      "max": 2864
+    },
+    {
+      "name": "mapa: conversación 30 días: 10 solicitudes simultáneas",
+      "unit": "ms",
+      "n": 10,
+      "median": 5975,
+      "p95": 6171,
+      "min": 5933,
+      "max": 6171
+    },
+    {
+      "name": "dashboard: respuesta del servidor",
+      "unit": "ms",
+      "n": 7,
+      "median": 1256,
+      "p95": 1428,
+      "min": 1156,
+      "max": 1428,
+      "note": "2563 kB"
+    },
+    {
+      "name": "dashboard: hasta visible en el navegador",
+      "unit": "ms",
+      "n": 7,
+      "median": 1701,
+      "p95": 1994,
+      "min": 1590,
+      "max": 1994
+    },
+    {
+      "name": "dashboard: 10 solicitudes simultáneas",
+      "unit": "ms",
+      "n": 10,
+      "median": 7548,
+      "p95": 7607,
+      "min": 3445,
+      "max": 7607
+    },
+    {
+      "name": "reportes (lista): respuesta del servidor",
+      "unit": "ms",
+      "n": 7,
+      "median": 133,
+      "p95": 165,
+      "min": 90,
+      "max": 165,
+      "note": "107 kB"
+    },
+    {
+      "name": "reportes (lista): hasta visible en el navegador",
+      "unit": "ms",
+      "n": 7,
+      "median": 272,
+      "p95": 404,
+      "min": 238,
+      "max": 404
+    },
+    {
+      "name": "reportes (lista): 10 solicitudes simultáneas",
+      "unit": "ms",
+      "n": 10,
+      "median": 606,
+      "p95": 610,
+      "min": 592,
+      "max": 610
+    },
+    {
+      "name": "indicadores de 30 días (kpi_snapshot)",
+      "unit": "ms",
+      "n": 7,
+      "median": 1225,
+      "p95": 1323,
+      "min": 1074,
+      "max": 1323
+    },
+    {
+      "name": "borrador de reporte (datos + narrativa simulada)",
+      "unit": "ms",
+      "n": 3,
+      "median": 1602,
+      "p95": 1749,
+      "min": 1487,
+      "max": 1749
+    }
+  ]
+}
