@@ -80,7 +80,8 @@ Supabase administrado y funciones de Vercel. Sirven para comparar y detectar cue
   11. el admin del municipio B no ve el caso ni la mención.
 
   También comprueba que hay 1 clasificación, 1 turno, 1 vínculo y 1 evento de creación. Pasó 3 de 3 corridas
-  locales.
+  locales y en CI. Tras la revisión (§ 11) cubre además **Consulta** (ve el caso cerrado y descarga el PDF aprobado,
+  sin botones de acción) y **Administración** del municipio A.
 
 - **`e2e/api-permissions.spec.ts`: permisos sin menú.** Cada rol llama directo a PostgREST, a las RPC y a Storage
   con su propia sesión:
@@ -408,3 +409,54 @@ entrada siguientes. Hoy no se cumplen; todas dependen de acciones fuera de este 
 - la migración no está en las instancias;
 - staging no se ha ejercitado;
 - faltan usuarios para dos roles.
+
+## 11. Revisión senior (después del merge `98473c8`)
+
+Hecha con el prompt «Para revisar una etapa antes de avanzar». Contrastó el diff, el esquema, RLS, rutas y
+pruebas con los criterios.
+
+**Evidencia de CI** en el commit final (`d58e545`, Node 24):
+
+- `lint-build`, `db` y `e2e` locales: 67 pasaron y 11 omitidas, que son sólo las mediciones manuales;
+- `journey`, `api-permissions`, `resilience` y `accessibility` **corrieron**, no se omitieron;
+- `e2e-preview` en verde contra el despliegue con la migración aplicada.
+
+**Defectos encontrados y corregidos:**
+
+| Defecto | Corrección |
+|---|---|
+| El informe decía «cuatro roles», pero el recorrido sólo usaba comunicación, dependencia y el admin del municipio B. Faltaban consulta y la administración del municipio A | `journey.spec` agrega consulta (lectura sin acciones y descarga del PDF aprobado) y administración A. El municipio B ahora comprueba la página 404 |
+| En el preview, `org-config` fallaba por una redirección tardía (ya fallaba en `main`) | Espera la URL final (`d58e545`) |
+| En el preview, `accessibility` contaba la barra de Vercel como elemento sin foco | Ignora elementos personalizados ajenos a la app (`d58e545`) |
+| En el preview, el inicio de sesión de prueba fallaba ocasionalmente («One-time token not found») | Un reintento con enlace nuevo en el helper (`d58e545`). Si el enlace mágico se rompiera de verdad, el segundo intento también falla y la prueba lo detecta |
+
+**Hallazgos sin corregir** (pendientes reales, sin falla medida):
+
+- **Otras tablas que crecen con el volumen conservan la verificación por fila:**
+  - `authors`, `case_events`, `alert_events`, `mention_notes`;
+  - las tablas de atención del caso (`case_updates`, `case_evidence`, `case_tasks`…);
+  - `ingest_runs` y `worker_runs`.
+
+  Ninguna fue cuello de botella en las mediciones (§ 5). Si el piloto rebasa decenas de miles de casos o autores,
+  hay que medirlas y aplicar el mismo patrón de `rls_scale`.
+- **Realtime evalúa la política en cada cambio.** Con el nuevo patrón, para una dependencia con muchos turnos el
+  conjunto se recalcula por evento. No se midió con miles de turnos por dependencia.
+
+**Veredicto por criterio:**
+
+| Criterio de la etapa | Estado |
+|---|---|
+| Lint, tipos, unitarias, build y pgTAP en el runtime objetivo | **Cumplido** |
+| E2E con enlace mágico, cuatro roles y dos organizaciones, de la fuente a la descarga | **Cumplido** (tras esta revisión) |
+| Fallos de proveedor, timeout, worker, concurrencia, Storage y correo; recuperación, sin duplicados, correcciones protegidas y contadores conciliados | **Cumplido** |
+| Permisos por API/SQL/Storage independientes del menú | **Cumplido** |
+| Tiempos con volumen representativo y entorno documentado | **Parcial**: local; falta staging |
+| Móvil, teclado, contraste y estados de error | **Cumplido** en lo automatizado; lector de pantalla y zoom **pendientes** |
+| Evaluación de IA con dataset separado, por campo/clase, y validación humana | **Parcial**: arnés y dataset listos; resultados reales y validación humana **pendientes** |
+| Umbrales propuestos para aprobación | **Cumplido** (propuestos); aprobación **pendiente** |
+| Checklist de staging, respaldos, observabilidad, activación, migraciones y reversión | **Cumplido** como documento; ejecución en staging **pendiente** |
+| Decisión listo/no listo con evidencia | **Cumplido**: no listo, con 6 condiciones |
+| Piloto con responsables, métricas y condiciones de pausa | **Cumplido** como plan; responsables con nombre **pendientes** (acta del municipio) |
+
+Ningún flujo se declara listo con base sólo en un mock de interfaz. La clasificación y la redacción usan el
+simulador sólo para probar el sistema; la exactitud del modelo sigue pendiente (§ 4).

@@ -2,7 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { solidPng } from "./fixtures-png";
 import { admin, login, toast, USERS, USERS_B } from "./helpers";
 
-// Stage 12: one fictitious problem from end to end, with a real magic link:
+// Stage 12: one fictitious problem from end to end, with a real magic link and
+// the four roles (comunicación, dependencia, consulta, administración):
 // source → ingestion → classification → case → assignment → acceptance →
 // evidence → validation → close → report → PDF download; the second
 // municipality never sees it. Local stack only (CRON_SECRET, simulated AI and
@@ -43,6 +44,8 @@ test.describe("recorrido completo", () => {
     const com = await browser.newPage();
     const obras = await browser.newPage();
     const otherOrg = await browser.newPage();
+    const reader = await browser.newPage();
+    const adminA = await browser.newPage();
     try {
       // 1) Magic link: the login form sends a real email (local catcher) and its link opens a session.
       const since = new Date();
@@ -145,15 +148,32 @@ test.describe("recorrido completo", () => {
       expect(pdf.status()).toBe(200);
       expect((await pdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
 
-      // 9) Counters reconcile: one mention, one classification, one case, one turn, and the
+      // 9) Consulta (lectura) sees the closed case and downloads the approved report, but cannot act;
+      //    Administración sees the same case and keeps the coordination actions.
+      await login(reader, USERS.lectura, `/casos/${caseId}`);
+      await expect(main(reader).getByRole("heading", { name: /Recorrido e2e/ })).toBeVisible();
+      await expect(main(reader).getByText("Luminaria sustituida.").first()).toBeVisible();
+      for (const action of ["Reabrir", "Asignar", "Validar", "Reportar avance"]) {
+        await expect(main(reader).getByRole("button", { name: action, exact: true })).toHaveCount(0);
+      }
+      await reader.goto(`/reportes/${reportIds[0]}`);
+      const readerPdf = await reader.request.get((await main(reader).getByRole("link", { name: "Descargar PDF" }).getAttribute("href"))!);
+      expect(readerPdf.status()).toBe(200);
+      expect((await readerPdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
+      await login(adminA, USERS.admin, `/casos/${caseId}`);
+      await expect(main(adminA).getByRole("heading", { name: /Recorrido e2e/ })).toBeVisible();
+      await expect(main(adminA).getByRole("button", { name: "Reabrir", exact: true })).toBeVisible();
+
+      // 10) Counters reconcile: one mention, one classification, one case, one turn, and the
       //    closed case appears in the attention figures of the period.
       expect((await db.from("case_mentions").select("case_id").eq("mention_id", mentionId)).data).toHaveLength(1);
       expect((await db.from("case_events").select("operation").eq("case_id", caseId).eq("operation", "created")).data).toHaveLength(1);
 
-      // 10) The other municipality never sees it, not even by its id.
+      // 11) The other municipality never sees it, not even by its id.
       const orgB = await db.from("organizations").select("id").eq("id", "00000000-0000-4000-a000-00000000000b").maybeSingle();
       if (orgB.data) {
         await login(otherOrg, USERS_B.admin, `/casos/${caseId}`);
+        await expect(main(otherOrg).getByRole("heading", { name: "No encontramos esta página" })).toBeVisible();
         await expect(main(otherOrg).getByText(text)).toHaveCount(0);
         await expect(main(otherOrg).getByRole("heading", { name: /Recorrido e2e/ })).toHaveCount(0);
         await otherOrg.goto(`/bandeja?mention=${mentionId}&status=all`);
@@ -175,7 +195,7 @@ test.describe("recorrido completo", () => {
         await db.from("mentions").delete().eq("source_id", sourceId);
         await db.from("sources").delete().eq("id", sourceId);
       }
-      await Promise.all([com.close(), obras.close(), otherOrg.close()]);
+      await Promise.all([com.close(), obras.close(), otherOrg.close(), reader.close(), adminA.close()]);
     }
   });
 });
