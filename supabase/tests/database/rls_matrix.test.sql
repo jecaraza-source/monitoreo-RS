@@ -129,8 +129,9 @@ select is((select string_agg(s.t, ', ' order by s.t) from seen s
            where s.role = 'obras' and s.n > 0
              and s.t not in ('mentions', 'classifications', 'tickets', 'authors', 'departments', 'neighborhoods',
                              'organizations', 'memberships', 'mention_notes', 'sla_policies',
-                             'sla_calendars', 'sla_holidays', 'sla_targets', 'sla_versions')), null,
-  'dependencia sees no reports, rules, sources, projects, costs or other org-wide tables (only its SLA)');
+                             'sla_calendars', 'sla_holidays', 'sla_targets', 'sla_versions',
+                             'case_categories', 'department_capabilities')), null,
+  'dependencia sees no reports, rules, sources, projects, costs or other org-wide tables (only its SLA and the case categories)');
 select ok((select n from seen where role = 'obras' and t = 'mentions')
           = (select count(distinct mention_id) from public.tickets where department_id = '00000000-0000-4000-b000-000000000001'),
   'dependencia sees exactly the mentions routed to its department');

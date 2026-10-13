@@ -117,3 +117,24 @@ export async function getMyPreferences(member: Member) {
     whatsappActive: contact.data?.status === "active",
   };
 }
+
+export type ReapplyRow = {
+  case_id: string;
+  folio: string;
+  status: string;
+  version_from: number | null;
+  version_to: number | null;
+  due_from: string | null;
+  due_to: string | null;
+  overridden: boolean;
+  applies: boolean;
+};
+
+/** Open cases whose commitment would change with the current SLA version (admin). */
+export async function getSlaReapplyPreview(member: Member): Promise<ReapplyRow[]> {
+  if (member.role !== "admin") return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("sla_reapply_preview", { p_org_id: member.orgId, p_include_overridden: true });
+  if (error) throw new Error(`No se pudo calcular la vista previa del SLA: ${error.message}`);
+  return ((data ?? []) as ReapplyRow[]).filter((r) => r.due_from !== r.due_to || r.version_from !== r.version_to);
+}

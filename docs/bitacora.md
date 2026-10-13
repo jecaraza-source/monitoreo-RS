@@ -3,6 +3,55 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Etapa 11 — Configuración por municipio, ayuda por rol, manuales, retención y puesta en operación (13 oct 2026, base `9ad3389`)
+
+- **Antes:**
+  - La configuración estaba repartida en varias páginas sin decir quién podía editar cada cosa.
+  - Calendario, días inhábiles y metas del SLA, y límites y facturas de IA, se cambiaban sin auditoría por tabla.
+  - No había forma auditada de aplicar un SLA nuevo a casos abiertos.
+  - La retención era global (24 meses) y borraba menciones de casos.
+  - No había ayuda en la app, manuales, exportación para conciliación ni lista de puesta en operación.
+- **Después:**
+  - Catálogo de categorías de caso con capacidades por dependencia.
+  - Auditoría de toda la configuración sensible con antes/después, actor y fecha.
+  - Configuración → Resumen: quién edita cada elemento y su último cambio.
+  - «Reaplicar SLA» explícito, con vista previa, motivo y registro por caso.
+  - Retención por municipio:
+    - con el acuerdo que la respalda;
+    - con conservaciones que la bloquean;
+    - con vista previa y pausa;
+    - nunca borra menciones de casos.
+  - Exportación autorizada de casos, consumo de IA y bitácora, cada descarga auditada.
+  - Ayuda por rol en `/ayuda` y en Casos.
+  - Manual operativo, onboarding y ejercicio por rol.
+  - Menú con Ayuda.
+- **Archivos:** ver `docs/etapa-11-configuracion.md` § 5. Migración `20261104000000_org_config.sql` y su `down.sql`.
+- **Pruebas:**
+  - lint, typecheck y 415 unitarias, incluida una que verifica que toda página revisa la sesión y su sección;
+  - pgTAP 890/890 tras `db reset`, con `org_config` (38);
+  - reversión y reaplicación;
+  - build canario + `check:bundle` (253 archivos);
+  - e2e 50 en verde y 3 omitidas (las mismas que en main):
+    - menú por cada rol: cada entrada abre y cada subsección ajena redirige;
+    - administración configura con auditoría;
+    - el enlace completa la atención con la ayuda.
+- **Hallazgos corregidos antes de entregar:**
+  - la purga anterior borraba menciones que pertenecían a un caso (ahora se conservan);
+  - el texto de ayuda no coincidía con el flujo real («Solicitar validación»);
+  - una etiqueta «Nombre» chocaba con el catálogo de funcionarios en la misma página;
+  - durante el cierre de la etapa 10, la prueba de concurrencia dependía del municipio B, que no existe en
+    preview (corregida en `e4a41ba`).
+- **Consulta previa (sólo lectura):**
+  - producción: 1 caso, 1 categoría que se creará con el backfill;
+  - preview: 3 casos, 0 categorías;
+  - ninguna instancia tiene menciones de más de 24 meses.
+- **Limitaciones:** ayuda y manuales en código; CSV hasta 50 000 filas por archivo; la purga de WhatsApp sigue
+  global; los municipios no se pueden eliminar desde la app.
+- **Activación / reversión:**
+  - activar: migración en preview y producción, deploy, y luego política de retención y lista en Resumen;
+  - revertir: deploy anterior y `down.sql`.
+- **Pendiente:** Node 22/24; asistente con casos; retención configurable de mensajes de WhatsApp.
+
 ## Etapa 10 — Cuotas y presupuesto de IA, costos versionados, asistente cancelable y autores verificados (13 oct 2026, base `27137bd`)
 
 - **Antes:**

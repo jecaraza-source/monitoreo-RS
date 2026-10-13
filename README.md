@@ -74,7 +74,7 @@ tipo *Sensitive*); el build de CI comprueba que ninguna aparezca en el bundle de
 | `WHATSAPP_TOKEN` · `WHATSAPP_PHONE_NUMBER_ID` · `WHATSAPP_TEMPLATE_LANG` | **secreto** · config | Canal de WhatsApp con funcionarios (ver [WhatsApp](#whatsapp)) |
 | `WHATSAPP_APP_SECRET` · `WHATSAPP_VERIFY_TOKEN` | **secreto** | Firma y verificación del webhook de WhatsApp (por omisión la firma usa `META_APP_SECRET`) |
 | `WHATSAPP_DISPLAY_PHONE` · `WHATSAPP_QUIET_HOURS` | config | Número que se muestra (por omisión +52 56 2133 9211) · horario sin recordatorios ni escalamientos (por omisión `22-7`, hora de CDMX; `off` los envía a cualquier hora) |
-| `RETENTION_MONTHS` | config | Meses que se conservan las menciones (por omisión 24) |
+| `RETENTION_MONTHS` | config | Meses por omisión para municipios sin política propia (24; valor operativo, no plazo legal) |
 | `ERROR_WEBHOOK_URL` | **secreto** | Webhook tipo Slack para avisar errores (opcional) |
 
 Sólo para pruebas: `ANTHROPIC_BASE_URL`, `RESEND_BASE_URL`, `WHATSAPP_API_URL`, `E2E_BASE_URL`, `E2E_SUPABASE_URL`,
@@ -161,6 +161,27 @@ Palancas: subir el umbral de escalamiento (`ESCALATE_BELOW_CONFIDENCE`), usar So
   para un modelo nuevo se agrega una versión de tarifa.
 - Detalle: `docs/etapa-10-ia-autores.md`.
 
+## Configuración del municipio, ayuda y operación (etapa 11)
+
+- **Configuración → Resumen:** cada elemento configurable, quién puede cambiarlo y su último cambio (persona y
+  fecha). Todo cambio sensible queda en la Bitácora con antes/después.
+- **Categorías de caso con capacidades por dependencia** (Catálogos).
+- **«Reaplicar SLA»:** la única forma de mover compromisos ya asignados. Es explícita, con motivo, y queda
+  registrada por caso.
+- **Retención y conciliación:**
+  - política por municipio respaldada por un acuerdo (la app no supone plazos legales);
+  - conservaciones que bloquean la eliminación;
+  - vista previa;
+  - exportación CSV auditada de casos, consumo de IA y bitácora.
+  - La depuración nunca borra menciones que pertenecen a un caso.
+- **Ayuda** (`/ayuda` y botón en Casos): guía por rol, diccionario de estados, matriz de responsabilidades y
+  procedimientos.
+- **Manuales:**
+  - `docs/manual-operativo.md`;
+  - `docs/onboarding.md` (lista de puesta en operación, también en Resumen);
+  - `docs/ejercicio-operativo.md`.
+- Detalle: `docs/etapa-11-configuracion.md`.
+
 ## Seguridad
 
 ### Checklist
@@ -182,8 +203,9 @@ Palancas: subir el umbral de escalamiento (`ESCALATE_BELOW_CONFIDENCE`), usar So
 - [x] **Bitácora de auditoría** (`audit_log`, Configuración → Bitácora, sólo admin): triggers registran quién
       creó, modificó o eliminó usuarios, catálogos, proyectos, consultas, fuentes, reglas, reportes y turnos
       (con valores anterior y nuevo), y la app registra descargas y envíos de PDF.
-- [x] **Retención:** `/api/cron/retention` borra a diario las menciones con más de `RETENTION_MONTHS` meses
-      (y sus clasificaciones, turnos y notas) y deja constancia en la bitácora.
+- [x] **Retención:** `/api/cron/retention` aplica a diario la política de cada municipio (Configuración →
+      Retención, con el acuerdo que la respalda; sin política, `RETENTION_MONTHS`). Nunca borra menciones que
+      pertenecen a un caso ni las cubiertas por una conservación, y deja constancia en la bitácora.
 - [x] **Monitoreo de errores:** `instrumentation.ts` (`onRequestError`) y los error boundaries guardan los
       errores en `app_errors` sin cabeceras ni secretos y avisan a `ERROR_WEBHOOK_URL`.
 - [x] **Pruebas e2e** con Playwright (login, bandeja, turnado, reporte, mapa y WhatsApp) en cada PR contra el

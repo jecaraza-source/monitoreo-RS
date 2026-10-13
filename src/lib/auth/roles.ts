@@ -24,7 +24,8 @@ export type SectionKey =
   | "assistant"
   | "officials"
   | "health"
-  | "settings";
+  | "settings"
+  | "help";
 
 export type Section = {
   key: SectionKey;
@@ -55,11 +56,15 @@ export const SECTIONS: readonly Section[] = [
   // Health of the monitor: detail for admin and comunicacion, a freshness summary for lectura.
   { key: "health", href: "/salud", label: "Salud", roles: ["admin", "comunicacion", "lectura"] },
   { key: "settings", href: "/configuracion", label: "Configuración", roles: ["admin", "comunicacion"] },
+  // Role guides, operating manual and procedures: everyone.
+  { key: "help", href: "/ayuda", label: "Ayuda", roles: ["admin", "comunicacion", "dependencia", "lectura"] },
 ];
 
 // Pages inside a section with a narrower audience than the section itself.
 // Comunicación manages projects and queries; users and catalogs are admin-only.
 export const SUBSECTIONS: readonly { href: string; label: string; roles: readonly Role[] }[] = [
+  // What is configured, who may change it, last change and the start-of-operation checklist.
+  { href: "/configuracion/municipio", label: "Resumen", roles: ["admin", "comunicacion"] },
   { href: "/configuracion/proyectos", label: "Proyectos", roles: ["admin", "comunicacion"] },
   { href: "/configuracion/fuentes", label: "Fuentes", roles: ["admin", "comunicacion"] },
   // Catalog of verified media and public figures (with evidence and who verified).
@@ -76,6 +81,8 @@ export const SUBSECTIONS: readonly { href: string; label: string; roles: readonl
   // SLA calendar and targets, escalation levels; the outbox and report jobs monitor.
   { href: "/configuracion/sla", label: "SLA y escalamiento", roles: ["admin"] },
   { href: "/configuracion/envios", label: "Envíos", roles: ["admin"] },
+  // Retention policy, conservation holds and authorized exports for reconciliation.
+  { href: "/configuracion/retencion", label: "Retención y conciliación", roles: ["admin"] },
   { href: "/configuracion/bitacora", label: "Bitácora", roles: ["admin"] },
   // Human review of doubtful classifications: editorial work.
   { href: "/bandeja/revision", label: "Revisión", roles: ["admin", "comunicacion"] },

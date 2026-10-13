@@ -183,6 +183,7 @@ export const EVENT_LABELS: Record<string, string> = {
   location_confirmed: "Confirmó la ubicación",
   location_corrected: "Corrigió la ubicación",
   location_cleared: "Quitó la ubicación",
+  sla_reapplied: "Reaplicó el SLA vigente (cambió el plazo)",
 };
 
 export const FIELD_LABELS: Record<string, string> = {

@@ -261,6 +261,32 @@ isOneToOne: false
       referencedColumns: ["org_id","id"]
     }
                   ]
+                },"case_categories": {
+                  Row: {
+                    "active": boolean,"created_at": string,"default_department_id": string | null,"description": string,"id": string,"name": string,"org_id": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "active"?: boolean,"created_at"?: string,"default_department_id"?: string | null,"description"?: string,"id"?: string,"name": string,"org_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "active"?: boolean,"created_at"?: string,"default_department_id"?: string | null,"description"?: string,"id"?: string,"name"?: string,"org_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "case_categories_org_id_default_department_id_fkey"
+      columns: ["org_id","default_department_id"]
+isOneToOne: false
+      referencedRelation: "departments"
+      referencedColumns: ["org_id","id"]
+    },{
+      foreignKeyName: "case_categories_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"case_counters": {
                   Row: {
                     "last_number": number,"org_id": string
@@ -725,6 +751,38 @@ isOneToOne: true
       referencedColumns: ["id"]
     }
                   ]
+                },"department_capabilities": {
+                  Row: {
+                    "category_id": string,"created_at": string,"department_id": string,"org_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "category_id": string,"created_at"?: string,"department_id": string,"org_id": string
+                  }
+                  Update: {
+                    "category_id"?: string,"created_at"?: string,"department_id"?: string,"org_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "department_capabilities_org_id_category_id_fkey"
+      columns: ["org_id","category_id"]
+isOneToOne: false
+      referencedRelation: "case_categories"
+      referencedColumns: ["org_id","id"]
+    },{
+      foreignKeyName: "department_capabilities_org_id_department_id_fkey"
+      columns: ["org_id","department_id"]
+isOneToOne: false
+      referencedRelation: "departments"
+      referencedColumns: ["org_id","id"]
+    },{
+      foreignKeyName: "department_capabilities_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"departments": {
                   Row: {
                     "created_at": string,"head_user_id": string | null,"id": string,"name": string,"org_id": string,"responsible_user_id": string | null,"short_name": string | null
@@ -1033,6 +1091,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"onboarding_checks": {
+                  Row: {
+                    "done_at": string,"done_by": string,"key": string,"note": string,"org_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "done_at"?: string,"done_by": string,"key": string,"note": string,"org_id": string
+                  }
+                  Update: {
+                    "done_at"?: string,"done_by"?: string,"key"?: string,"note"?: string,"org_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "onboarding_checks_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"organizations": {
                   Row: {
                     "brand_accent": string,"brand_primary": string,"created_at": string,"id": string,"logo_path": string | null,"logo_updated_at": string | null,"name": string,"slug": string,"state": string | null
@@ -1302,6 +1380,46 @@ isOneToOne: false
       columns: ["schedule_id"]
 isOneToOne: false
       referencedRelation: "report_schedules"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"retention_holds": {
+                  Row: {
+                    "covers_from": string | null,"covers_to": string | null,"created_at": string,"created_by": string,"id": string,"org_id": string,"reason": string,"reference": string | null,"release_reason": string | null,"released_at": string | null,"released_by": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "covers_from"?: string | null,"covers_to"?: string | null,"created_at"?: string,"created_by": string,"id"?: string,"org_id": string,"reason": string,"reference"?: string | null,"release_reason"?: string | null,"released_at"?: string | null,"released_by"?: string | null
+                  }
+                  Update: {
+                    "covers_from"?: string | null,"covers_to"?: string | null,"created_at"?: string,"created_by"?: string,"id"?: string,"org_id"?: string,"reason"?: string,"reference"?: string | null,"release_reason"?: string | null,"released_at"?: string | null,"released_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "retention_holds_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"retention_policies": {
+                  Row: {
+                    "agreement_date": string | null,"agreement_reference": string | null,"mention_months": number | null,"notes": string,"org_id": string,"paused": boolean,"updated_at": string,"updated_by": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "agreement_date"?: string | null,"agreement_reference"?: string | null,"mention_months"?: number | null,"notes"?: string,"org_id": string,"paused"?: boolean,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Update: {
+                    "agreement_date"?: string | null,"agreement_reference"?: string | null,"mention_months"?: number | null,"notes"?: string,"org_id"?: string,"paused"?: boolean,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "retention_policies_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: true
+      referencedRelation: "organizations"
       referencedColumns: ["id"]
     }
                   ]
@@ -1929,6 +2047,9 @@ isOneToOne: false
 "log_event":
 { Args: { "p_action": string,"p_details"?: Json,"p_entity": string,"p_entity_id": string,"p_org_id": string }; Returns: undefined
                            },
+"log_export":
+{ Args: { "p_filters": Json,"p_kind": string,"p_org_id": string,"p_rows": number }; Returns: undefined
+                           },
 "map_case_rows":
 { Args: { "p_filters"?: Json,"p_org_id": string }; Returns: {
               "category": string,"department_id": string,"folio": string,"id": string,"lat": number,"lng": number,"location_confidence": number,"location_status": string,"neighborhood_id": string,"opened_at": string,"overdue": boolean,"priority": Database["public"]['Enums']["priority"],"status": Database["public"]['Enums']["case_status"]
@@ -1976,10 +2097,16 @@ isOneToOne: false
 "purge_old_whatsapp_messages":
 { Args: { "p_months": number }; Returns: number
                            },
+"purge_org_mentions":
+{ Args: { "p_basis"?: string,"p_batch"?: number,"p_months": number,"p_org_id": string }; Returns: number
+                           },
 "rate_limit_hit":
 { Args: { "p_key": string,"p_limit": number,"p_window_seconds": number }; Returns: {
               "allowed": boolean,"remaining": number,"reset_at": string
             }[]
+                           },
+"reapply_sla":
+{ Args: { "p_case_ids": (string)[],"p_include_overridden"?: boolean,"p_org_id": string,"p_reason": string }; Returns: number
                            },
 "record_ai_usage":
 { Args: { "p_cache_read_tokens": number,"p_cache_write_tokens": number,"p_cost_usd": number,"p_input_tokens": number,"p_model": string,"p_org_id": string,"p_output_tokens": number,"p_purpose": string }; Returns: undefined
@@ -2021,6 +2148,9 @@ isOneToOne: false
                            },
 "resolve_pipeline_failure":
 { Args: { "p_action": string,"p_failure_id": string }; Returns: undefined
+                           },
+"retention_preview":
+{ Args: { "p_months": number,"p_org_id": string }; Returns: Json
                            },
 "retry_outbox":
 { Args: { "p_id": string }; Returns: undefined
@@ -2075,6 +2205,11 @@ isOneToOne: false
                            },
 "sla_deadline":
 { Args: { "p_hours": number,"p_org_id": string,"p_start": string }; Returns: string
+                           },
+"sla_reapply_preview":
+{ Args: { "p_case_ids"?: (string)[],"p_include_overridden"?: boolean,"p_org_id": string }; Returns: {
+              "accept_from": string,"accept_to": string,"applies": boolean,"case_id": string,"due_from": string,"due_to": string,"folio": string,"overridden": boolean,"status": Database["public"]['Enums']["case_status"],"version_from": number,"version_to": number
+            }[]
                            },
 "sla_terms":
 { Args: { "p_category": string,"p_org_id": string,"p_priority": Database["public"]['Enums']["priority"],"p_start"?: string }; Returns: Json

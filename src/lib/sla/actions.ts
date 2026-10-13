@@ -31,6 +31,7 @@ function fail(error: { code?: string; message: string }, what: string): SlaResul
 
 const refresh = () => {
   revalidatePath("/configuracion/sla");
+  revalidatePath("/casos");
   revalidatePath("/configuracion/envios");
 };
 
@@ -191,4 +192,33 @@ export async function saveMyPreferences(input: unknown): Promise<SlaResult> {
   if (error) return fail(error, "guardar tus preferencias");
   revalidatePath("/preferencias");
   return { ok: true, message: "Preferencias guardadas." };
+}
+
+const reapplySchema = z.object({
+  caseIds: z.array(id).min(1, "Elige al menos un caso.").max(500),
+  reason: z.string().trim().min(10, "Explica el motivo (al menos 10 caracteres): queda en el historial de cada caso.").max(500),
+  includeOverridden: z.boolean().default(false),
+});
+
+/**
+ * Applies the current SLA version to the chosen open cases (explicit and
+ * audited: case history + audit_log with before/after). Saving a new SLA never
+ * changes commitments by itself.
+ */
+export async function reapplySla(input: unknown): Promise<SlaResult> {
+  const m = await admin();
+  if (!m) return FORBIDDEN;
+  const parsed = reapplySchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("reapply_sla", {
+    p_org_id: m.orgId,
+    p_case_ids: parsed.data.caseIds,
+    p_reason: parsed.data.reason,
+    p_include_overridden: parsed.data.includeOverridden,
+  });
+  if (error) return fail(error, "reaplicar el SLA");
+  refresh();
+  const n = data ?? 0;
+  return { ok: true, message: n === 1 ? "Se actualizó 1 caso; quedó en su historial." : `Se actualizaron ${n} casos; quedó en su historial.` };
 }

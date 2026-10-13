@@ -13,12 +13,14 @@ import { CaseStatusBadge } from "@/components/cases/case-status-badge";
 import { CaseTasks } from "@/components/cases/case-tasks";
 import { CaseTimes } from "@/components/cases/case-times";
 import { CaseUpdates } from "@/components/cases/case-updates";
+import { HelpSheet } from "@/components/help/help-sheet";
 import { formatDateTime, fromNow } from "@/components/inbox/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireSection } from "@/lib/auth/session";
 import { getCase, getDepartmentPeople, getMergeCandidates, getSlaTerms, getSlaVersion, getSuggestions } from "@/lib/cases/data";
 import { caseDueAt, caseOverdue, OPEN_CASE_STATUSES, type CaseActor } from "@/lib/cases/model";
+import { topicsFor } from "@/lib/help/content";
 import { getInboxCatalogs } from "@/lib/inbox/data";
 import { isOverdue, PRIORITY_LABELS, TICKET_LABELS } from "@/lib/inbox/model";
 import { cn } from "@/lib/utils";
@@ -86,6 +88,9 @@ async function CaseView({ params }: { params: PageProps<"/casos/[id]">["params"]
           <span className="font-mono text-sm text-muted-foreground">{c.folio}</span>
           <CaseStatusBadge status={c.status} />
           <span className="text-xs text-muted-foreground">Prioridad {PRIORITY_LABELS[c.priority].toLowerCase()}</span>
+          <span className="ml-auto">
+            <HelpSheet title="Cómo atender un caso" sections={topicsFor(member.role, ["recibe", "aceptar", "evidencia", "validar", "reabrir", "notas"])} />
+          </span>
           {overdue && (
             <span className="inline-flex items-center gap-1 text-xs font-medium text-negative">
               <AlarmClock className="size-3.5" aria-hidden /> Plazo vencido
