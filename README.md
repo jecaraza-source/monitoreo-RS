@@ -188,8 +188,8 @@ Palancas: subir el umbral de escalamiento (`ESCALATE_BELOW_CONFIDENCE`), usar So
 
   | Rol | Secciones |
   |---|---|
-  | admin | Dashboard, Bandeja, Casos, Mapa, Alertas, Reportes, Asistente, Salud, Configuración (Proyectos, Catálogos, Usuarios, Identidad) |
-  | comunicacion | Dashboard, Bandeja, Casos, Mapa, Alertas, Reportes, Asistente, Salud, Configuración (sólo Proyectos) |
+  | admin | Dashboard, Bandeja (con Revisión), Casos, Mapa, Alertas, Reportes, Asistente, Salud, Configuración (Proyectos, Catálogos, Usuarios, Identidad, Emergencias) |
+  | comunicacion | Dashboard, Bandeja (con Revisión), Casos, Mapa, Alertas, Reportes, Asistente, Salud, Configuración (sólo Proyectos) |
   | dependencia | Bandeja, Casos, Alertas, Asistente (sólo con lo turnado o asignado a su dependencia) |
   | lectura | Dashboard, Casos (sólo consulta), Mapa, Alertas, Reportes, Asistente, Salud (sólo el resumen) |
 
@@ -366,8 +366,19 @@ Funciones:
   ticket, estado y avisos por WhatsApp (a la de apoyo le dice a quién apoya); una mención tiene una sola
   principal (`tickets.is_primary`, índice único) y sólo Comunicación o admin la cambian. Turnar de nuevo con
   otra principal deja a la anterior como apoyo.
-- Acciones masivas: turnar, crear caso o agregar a uno, marcar revisadas y descartar (con deshacer).
-- Atajos: `j`/`k` navegar, `Enter` abrir, `x` seleccionar, `t` turnar, `c` caso, `d` descartar, `r` revisada,
+- **Vistas operativas** (`?view=`):
+  - Nuevas, Urgentes, Sin responsable, Por aceptar, Vencidas y Por validar.
+  - Mezclan menciones y casos, en orden de urgencia, plazo y antigüedad.
+  - Cada contador sale de la misma función SQL que su lista (`inbox_counts` / `inbox_queue`, con RLS).
+  - Detalle en [docs/etapa-5-bandeja-operativa.md](docs/etapa-5-bandeja-operativa.md).
+- **Revisión** (`/bandeja/revision`, admin y comunicación):
+  - Cola de clasificaciones de baja confianza, posible emergencia, riesgo alto o con señales contradictorias.
+  - Se confirman, corrigen o descartan con motivo; la versión previa se conserva.
+- **Gravedad y atención:**
+  - Gravedad, tipo de incidente y necesidad de atención van aparte del sentimiento: una crítica negativa no es una emergencia.
+  - Antes de turnar una emergencia se muestra la política de Configuración → Emergencias (canal institucional).
+- Acciones masivas: turnar, crear caso o agregar a uno, marcar revisadas y descartar (con deshacer). Informan cuántas se actualizaron y cuáles no, con su motivo.
+- Atajos: `j`/`k` navegar, `Enter` abrir, `x` seleccionar, `t` turnar, `c` caso, `d` descartar, `r` revisada, `u` actualizar la vista,
   `/` buscar, `?` ayuda.
 - Tiempo real con Supabase Realtime (`mentions`, `classifications`, `tickets`, `mention_notes` en la
   publicación `supabase_realtime`): cada cambio llega filtrado por RLS, la tarjeta entra animada y a la

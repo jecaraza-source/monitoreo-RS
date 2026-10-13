@@ -29,10 +29,12 @@ export type ReportRow = {
   approvedAt: string | null;
   sentAt: string | null;
   delivery: Record<string, unknown>;
+  /** A draft whose period got corrections after it was generated. */
+  factsStaleAt: string | null;
 };
 
 export const REPORT_SELECT =
-  "id, org_id, period, status, title, period_start, period_end, facts, content, recipients, pdf_path, model, created_at, approved_at, sent_at, delivery";
+  "id, org_id, period, status, title, period_start, period_end, facts, content, recipients, pdf_path, model, created_at, approved_at, sent_at, delivery, facts_stale_at";
 
 type Raw = {
   id: string;
@@ -51,6 +53,7 @@ type Raw = {
   approved_at: string | null;
   sent_at: string | null;
   delivery: Json;
+  facts_stale_at?: string | null;
 };
 
 export function toReport(r: Raw): ReportRow {
@@ -71,6 +74,7 @@ export function toReport(r: Raw): ReportRow {
     approvedAt: r.approved_at,
     sentAt: r.sent_at,
     delivery: (r.delivery ?? {}) as Record<string, unknown>,
+    factsStaleAt: r.facts_stale_at ?? null,
   };
 }
 

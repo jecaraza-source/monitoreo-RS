@@ -25,7 +25,10 @@ select is((select triage::text from public.mentions where id = (select id from t
 select is((select created_by from public.tickets where mention_id = (select id from target)),
   '00000000-0000-4000-d000-000000000002'::uuid, 'the ticket records who routed it');
 
-update public.classifications set sentiment = 'positive', corrected_by = null where mention_id = (select id from target);
+-- Always a real change: an update that changes nothing is not a correction.
+update public.classifications
+set sentiment = case sentiment when 'positive' then 'negative'::public.sentiment else 'positive'::public.sentiment end, corrected_by = null
+where mention_id = (select id from target);
 select is((select corrected_by from public.classifications where mention_id = (select id from target)),
   '00000000-0000-4000-d000-000000000002'::uuid, 'corrected_by is stamped with the real user');
 select ok((select corrected_at is not null from public.classifications where mention_id = (select id from target)), 'corrected_at is set');

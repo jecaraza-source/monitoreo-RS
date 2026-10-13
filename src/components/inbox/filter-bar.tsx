@@ -25,12 +25,15 @@ export function FilterBar({
   filters,
   onChange,
   searchRef,
+  hideStatus = false,
 }: {
   scope: InboxScope;
   catalogs: InboxCatalogs;
   filters: InboxFilters;
   onChange: (filters: InboxFilters) => void;
   searchRef: RefObject<HTMLInputElement | null>;
+  /** Operational views define their own state; the status filter does not apply. */
+  hideStatus?: boolean;
 }) {
   const [q, setQ] = useState(filters.q ?? "");
 
@@ -89,14 +92,16 @@ export function FilterBar({
         </label>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <OptionSelect
-          label="Estado"
-          value={filters.status}
-          onChange={set("status")}
-          emptyLabel={scope === "editor" ? "Por atender" : "Pendientes"}
-          options={statusOptions}
-          className="w-36"
-        />
+        {!hideStatus && (
+          <OptionSelect
+            label="Estado"
+            value={filters.status}
+            onChange={set("status")}
+            emptyLabel={scope === "editor" ? "Por atender" : "Pendientes"}
+            options={statusOptions}
+            className="w-36"
+          />
+        )}
         <OptionSelect
           label="Fuente"
           value={filters.source}

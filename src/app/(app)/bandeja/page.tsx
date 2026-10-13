@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { InboxView } from "@/components/inbox/inbox-view";
+import { QueueView } from "@/components/inbox/queue-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireSection } from "@/lib/auth/session";
 import { getInboxCatalogs } from "@/lib/inbox/data";
-import { parseFilters, type InboxScope } from "@/lib/inbox/model";
-import { countOverdue, fetchInbox } from "@/lib/inbox/query";
+import { parseFilters, VIEWS_BY_SCOPE, type InboxScope } from "@/lib/inbox/model";
+import { countOverdue, fetchCounts, fetchInbox, fetchQueue } from "@/lib/inbox/query";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Bandeja" };
@@ -23,10 +24,36 @@ async function Inbox({ searchParams }: { searchParams: PageProps<"/bandeja">["se
   const scope: InboxScope = member.role === "dependencia" ? "department" : "editor";
   const filters = parseFilters(await searchParams);
   const supabase = await createClient();
-  const [catalogs, page, overdue] = await Promise.all([
+  // A view the role does not have falls back to the chronological inbox.
+  const view = filters.view && VIEWS_BY_SCOPE[scope].includes(filters.view) ? filters.view : undefined;
+
+  if (view) {
+    const [catalogs, page, counts] = await Promise.all([
+      getInboxCatalogs(member),
+      fetchQueue(supabase, member.orgId, scope, view, filters),
+      fetchCounts(supabase, member.orgId, filters),
+    ]);
+    return (
+      <QueueView
+        orgId={member.orgId}
+        scope={scope}
+        departmentName={member.departmentName}
+        catalogs={catalogs}
+        view={view}
+        filters={{ ...filters, view }}
+        initialEntries={page.entries}
+        initialNext={page.next}
+        counts={counts}
+      />
+    );
+  }
+
+  const listFilters = { ...filters, view: undefined };
+  const [catalogs, page, overdue, counts] = await Promise.all([
     getInboxCatalogs(member),
-    fetchInbox(supabase, member.orgId, scope, filters, { count: true }),
+    fetchInbox(supabase, member.orgId, scope, listFilters, { count: true }),
     countOverdue(supabase, member.orgId),
+    fetchCounts(supabase, member.orgId, listFilters),
   ]);
 
   return (
@@ -35,9 +62,10 @@ async function Inbox({ searchParams }: { searchParams: PageProps<"/bandeja">["se
       scope={scope}
       departmentName={member.departmentName}
       catalogs={catalogs}
-      initialFilters={filters}
+      initialFilters={listFilters}
       initialPage={page}
       initialOverdue={overdue}
+      initialCounts={counts}
     />
   );
 }

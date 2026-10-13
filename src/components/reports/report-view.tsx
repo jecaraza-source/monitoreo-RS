@@ -48,6 +48,13 @@ export function ReportView({ report, canEdit }: { report: ReportRow; canEdit: bo
         </div>
         <ReportActions report={{ id: report.id, status: report.status, pdfPath: report.pdfPath, recipients: report.recipients }} canEdit={canEdit} />
       </div>
+      {report.status === "draft" && report.factsStaleAt && (
+        <p role="status" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+          Hubo correcciones de clasificación en este periodo después de generar el borrador (
+          {new Date(report.factsStaleAt).toLocaleString("es-MX", { timeZone: "America/Mexico_City" })}). Genera un borrador nuevo para que las cifras las
+          incluyan.
+        </p>
+      )}
 
       <section aria-label="Indicadores" className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         {facts.kpis.map((k) => (

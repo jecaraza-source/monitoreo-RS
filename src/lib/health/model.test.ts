@@ -186,6 +186,15 @@ describe("classifier and dashboard", () => {
     assert.equal(assessDashboard(h, NOW).state, "unknown");
   });
 
+  it("a correction must reach the dashboard within the freshness threshold", () => {
+    const within = snapshot({ corrections: { pending: 2, oldest_pending_at: ago(5) } });
+    assert.equal(assessDashboard(within, NOW).state, "ok");
+    assert.match(assessDashboard(within, NOW).reason, /2 correcciones por reflejar/);
+    const late = snapshot({ corrections: { pending: 1, oldest_pending_at: ago(45) } });
+    assert.equal(assessDashboard(late, NOW).state, "stale");
+    assert.match(assessDashboard(late, NOW).reason, /1 corrección sin reflejar/);
+  });
+
   it("dashboard stale when newer classifications exist past the threshold", () => {
     const base = snapshot();
     const h = snapshot({

@@ -9,9 +9,18 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { SentimentBadge } from "@/components/ui-kit";
 import { createClient } from "@/lib/supabase/client";
-import { addNote, correctClassification, setTicketStatus, setTriage, type InboxActionResult } from "@/lib/inbox/actions";
+import {
+  addNote,
+  confirmClassification,
+  correctClassification,
+  setTicketStatus,
+  setTriage,
+  type InboxActionResult,
+} from "@/lib/inbox/actions";
 import type { InboxCatalogs } from "@/lib/inbox/data";
 import {
+  INCIDENT_LABELS,
+  INCIDENT_TYPES,
   INTENT_LABELS,
   INTENTS,
   isOverdue,
@@ -19,6 +28,8 @@ import {
   PRIORITY_LABELS,
   SENTIMENT_LABELS,
   SENTIMENTS,
+  SEVERITIES,
+  SEVERITY_LABELS,
   SOURCE_LABELS,
   TICKET_LABELS,
   TICKET_STATUSES,
@@ -26,6 +37,7 @@ import {
   type InboxScope,
   type Priority,
   type Sentiment,
+  type Severity,
 } from "@/lib/inbox/model";
 import { CASE_STATUS_LABELS } from "@/lib/cases/model";
 import { fetchNotes, type InboxItem, type InboxNote } from "@/lib/inbox/query";
@@ -208,6 +220,10 @@ function Classification({
     priority: c?.priority ?? "low",
     departmentId: c?.department_id ?? null,
     neighborhoodId: c?.neighborhood_id ?? null,
+    severity: c?.severity ?? null,
+    incidentType: c?.incident_type ?? null,
+    needsAttention: c?.needs_attention ?? null,
+    reason: "",
   }));
   const { pending, run } = useAction();
 
@@ -263,6 +279,33 @@ function Classification({
             className="w-full"
           />
           <OptionSelect
+            label="Gravedad"
+            value={draft.severity}
+            onChange={(v) => setDraft({ ...draft, severity: v as Severity | null })}
+            emptyLabel="Sin evaluar"
+            options={SEVERITIES.map((x) => ({ value: x, label: SEVERITY_LABELS[x] }))}
+            className="w-full"
+          />
+          <OptionSelect
+            label="Tipo de incidente"
+            value={draft.incidentType}
+            onChange={(v) => setDraft({ ...draft, incidentType: v })}
+            emptyLabel="Sin evaluar"
+            options={INCIDENT_TYPES.map((x) => ({ value: x, label: INCIDENT_LABELS[x] }))}
+            className="w-full"
+          />
+          <OptionSelect
+            label="Requiere atención"
+            value={draft.needsAttention === null ? null : String(draft.needsAttention)}
+            onChange={(v) => setDraft({ ...draft, needsAttention: v === null ? null : v === "true" })}
+            emptyLabel="Sin evaluar"
+            options={[
+              { value: "true", label: "Sí requiere atención" },
+              { value: "false", label: "No requiere atención" },
+            ]}
+            className="w-full"
+          />
+          <OptionSelect
             label="Intención"
             value={draft.intent}
             onChange={(v) => v && setDraft({ ...draft, intent: v })}
@@ -292,6 +335,18 @@ function Classification({
             options={catalogs.neighborhoods.map((n) => ({ value: n.id, label: n.name }))}
             className="w-full"
           />
+          <Textarea
+            value={draft.reason}
+            onChange={(e) => setDraft({ ...draft, reason: e.target.value })}
+            maxLength={500}
+            rows={2}
+            placeholder="Motivo de la corrección (opcional; queda en el historial)"
+            aria-label="Motivo de la corrección"
+            className="col-span-2"
+          />
+          <p className="col-span-2 text-xs text-muted-foreground">
+            El sentimiento describe el tono; la gravedad, el hecho. Una crítica negativa sin un hecho que atender tiene gravedad «Sin incidente».
+          </p>
           <div className="col-span-2 flex justify-end gap-2">
             <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>
               Cancelar
@@ -307,7 +362,21 @@ function Classification({
           <dd>
             <SentimentBadge sentiment={c.sentiment} confidence={c.corrected_at ? null : c.confidence} />
           </dd>
-          <dt className="text-muted-foreground">Prioridad</dt>
+          <dt className="text-muted-foreground">Gravedad</dt>
+          <dd>
+            {c.severity ? (
+              <span className={cn(c.severity === "emergency" && "font-semibold text-negative", c.severity === "high" && "font-medium")}>
+                {SEVERITY_LABELS[c.severity]}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">Sin evaluar</span>
+            )}
+          </dd>
+          <dt className="text-muted-foreground">Incidente</dt>
+          <dd>{c.incident_type ? (INCIDENT_LABELS[c.incident_type] ?? c.incident_type) : <span className="text-muted-foreground">Sin evaluar</span>}</dd>
+          <dt className="text-muted-foreground">Atención</dt>
+          <dd>{c.needs_attention === null ? "—" : c.needs_attention ? "Requiere atención" : "No requiere atención"}</dd>
+          <dt className="text-muted-foreground">Urgencia</dt>
           <dd>{PRIORITY_LABELS[c.priority]}</dd>
           <dt className="text-muted-foreground">Intención</dt>
           <dd>{c.intent ? (INTENT_LABELS[c.intent] ?? c.intent) : "—"}</dd>
@@ -328,7 +397,20 @@ function Classification({
             ) : (
               c.model
             )}
+            {c.confirmed_at && <span className="block">Tipo y urgencia confirmados · {formatDateTime(c.confirmed_at)}</span>}
           </dd>
+          {editor && !c.confirmed_at && (
+            <dd className="col-span-2 pt-1">
+              <Button
+                size="xs"
+                variant="outline"
+                disabled={pending}
+                onClick={() => run(() => confirmClassification({ mentionId: item.id }), () => onChanged(item.id))}
+              >
+                <CheckCheck aria-hidden /> Confirmar tipo y urgencia
+              </Button>
+            </dd>
+          )}
         </dl>
       )}
     </Section>

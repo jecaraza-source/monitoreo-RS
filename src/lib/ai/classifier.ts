@@ -22,6 +22,13 @@ export const EMOTIONS = [
   "enojo", "frustración", "preocupación", "miedo", "tristeza",
   "alegría", "gratitud", "esperanza", "sorpresa", "neutral",
 ] as const;
+/** Gravedad del hecho, independiente del sentimiento: una crítica negativa no es una emergencia. */
+export const SEVERITIES = ["ninguna", "baja", "media", "alta", "emergencia"] as const;
+/** Tipo de incidente; "ninguno" cuando la mención no describe un hecho que atender. */
+export const INCIDENT_TYPES = [
+  "ninguno", "servicio_publico", "infraestructura", "seguridad", "violencia", "salud",
+  "proteccion_civil", "medio_ambiente", "corrupcion", "otro",
+] as const;
 export const OTHER_TOPIC = "otro";
 
 export const DEFAULT_TOPICS = [
@@ -33,6 +40,8 @@ export const DEFAULT_TOPICS = [
 export type Sentiment = (typeof SENTIMENTS)[number];
 export type Intent = (typeof INTENTS)[number];
 export type Priority = (typeof PRIORITIES)[number];
+export type Severity = (typeof SEVERITIES)[number];
+export type IncidentType = (typeof INCIDENT_TYPES)[number];
 
 /** Everything the prompt needs about the org and project. Order is preserved, so keep it sorted. */
 export type ClassifierContext = {
@@ -62,6 +71,9 @@ export type Classification = {
   topic: string;
   intent: Intent;
   priority: Priority;
+  severity: Severity;
+  incident_type: IncidentType;
+  needs_attention: boolean;
   department: string | null;
   neighborhood: string | null;
 };
@@ -94,6 +106,15 @@ Llama SIEMPRE a la herramienta registrar_clasificaciones una sola vez, con exact
   - alta: riesgo para la vida, la salud o la seguridad (balaceras, inundaciones, socavones, fugas de gas, aguas negras en viviendas, accidentes o casi accidentes, violencia); un servicio básico suspendido para una colonia o zona por más de un día (agua, energía, recolección de basura); bloqueos o protestas; denuncias de corrupción o abuso de autoridad; rumores que pueden causar pánico.
   - media: quejas concretas y atendibles (un bache, una luminaria, una fuga, tandeo, un trámite atorado), rumores que no causan pánico, denuncias menores.
   - baja: elogios, opiniones generales sin un problema concreto, avisos, preguntas y notas informativas sin crisis.
+- severity (gravedad del hecho descrito, no del tono): 
+  - emergencia: riesgo inmediato para la vida o la integridad (balacera en curso, incendio, inundación de viviendas, fuga de gas, persona herida o desaparecida).
+  - alta: daño serio o riesgo probable si no se atiende pronto (socavón, cables caídos, aguas negras en viviendas, servicio básico suspendido días).
+  - media: problema concreto que afecta a varias personas (fuga, luminarias apagadas en una calle, basura sin recoger).
+  - baja: molestia menor o puntual (un bache, un trámite lento).
+  - ninguna: no describe un hecho que atender (opiniones, críticas, elogios, avisos).
+  Una crítica, insulto o burla al gobierno es negativa pero su gravedad es "ninguna" si no describe un hecho que atender.
+- incident_type: el tipo de hecho (servicio_publico, infraestructura, seguridad, violencia, salud, proteccion_civil, medio_ambiente, corrupcion, otro); "ninguno" si no hay hecho.
+- needs_attention: true si alguien del gobierno debe hacer algo (atender, responder o informar); false para opiniones, elogios, notas sin petición.
 - department: la dependencia que debe atender o responder, exactamente como aparece en el catálogo; null si ninguna aplica (por ejemplo, un elogio general al presidente municipal).
 - neighborhood: la colonia mencionada o inequívocamente referida, exactamente como aparece en el catálogo; null si no se menciona. Nunca la adivines.
 
@@ -176,7 +197,10 @@ export function buildTool(ctx: ClassifierContext): Anthropic.Beta.Messages.BetaT
           items: {
             type: "object",
             additionalProperties: false,
-            required: ["ref", "sentiment", "confidence", "emotion", "topic", "intent", "priority", "department", "neighborhood"],
+            required: [
+              "ref", "sentiment", "confidence", "emotion", "topic", "intent", "priority",
+              "severity", "incident_type", "needs_attention", "department", "neighborhood",
+            ],
             properties: {
               ref: { type: "integer", description: "Número [n] de la mención." },
               sentiment: { type: "string", enum: [...SENTIMENTS] },
@@ -185,6 +209,9 @@ export function buildTool(ctx: ClassifierContext): Anthropic.Beta.Messages.BetaT
               topic: { type: "string", enum: [...ctx.topics, OTHER_TOPIC] },
               intent: { type: "string", enum: [...INTENTS] },
               priority: { type: "string", enum: [...PRIORITIES] },
+              severity: { type: "string", enum: [...SEVERITIES] },
+              incident_type: { type: "string", enum: [...INCIDENT_TYPES] },
+              needs_attention: { type: "boolean" },
               department: nullableEnum(ctx.departments.map((d) => d.name)),
               neighborhood: nullableEnum(ctx.neighborhoods),
             },
@@ -220,6 +247,9 @@ export function resultSchema(ctx: ClassifierContext, count: number) {
     topic: z.enum([OTHER_TOPIC, ...ctx.topics]),
     intent: z.enum(INTENTS),
     priority: z.enum(PRIORITIES),
+    severity: z.enum(SEVERITIES),
+    incident_type: z.enum(INCIDENT_TYPES),
+    needs_attention: z.boolean(),
     department: departments.length ? z.enum(departments as [string, ...string[]]).nullable() : z.null(),
     neighborhood: ctx.neighborhoods.length ? z.enum(ctx.neighborhoods as [string, ...string[]]).nullable() : z.null(),
   });
@@ -256,7 +286,7 @@ export function parseResponse(message: Anthropic.Beta.Messages.BetaMessage, ctx:
 }
 
 export function needsEscalation(c: Classification): boolean {
-  return c.confidence < ESCALATE_BELOW_CONFIDENCE || c.priority === "alta";
+  return c.confidence < ESCALATE_BELOW_CONFIDENCE || c.priority === "alta" || c.severity === "emergencia";
 }
 
 // ---------------------------------------------------------------------------

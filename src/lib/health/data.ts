@@ -7,9 +7,12 @@ import type { HealthSnapshot } from "./model";
 /** Persisted health snapshot of the member's org (public.monitor_health checks the role). */
 export async function getHealth(member: Member): Promise<HealthSnapshot> {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("monitor_health", { p_org_id: member.orgId });
+  const [{ data, error }, corrections] = await Promise.all([
+    supabase.rpc("monitor_health", { p_org_id: member.orgId }),
+    supabase.rpc("stats_invalidation_status", { p_org_id: member.orgId }),
+  ]);
   if (error || !data) throw new Error(`No se pudo leer la salud del monitoreo: ${error?.message ?? "sin datos"}`);
-  return data as unknown as HealthSnapshot;
+  return { ...(data as unknown as HealthSnapshot), corrections: (corrections.data ?? null) as HealthSnapshot["corrections"] };
 }
 
 export const connectorEnabled = (type: string): boolean =>

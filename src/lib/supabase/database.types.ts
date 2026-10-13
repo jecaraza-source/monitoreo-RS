@@ -297,16 +297,68 @@ isOneToOne: false
       referencedColumns: ["org_id","id"]
     }
                   ]
-                },"classifications": {
+                },"classification_reviews": {
                   Row: {
-                    "confidence": number | null,"corrected_at": string | null,"corrected_by": string | null,"created_at": string,"department_id": string | null,"emotion": string | null,"id": string,"intent": string | null,"mention_id": string,"model": string,"neighborhood_id": string | null,"org_id": string,"priority": Database["public"]['Enums']["priority"],"sentiment": Database["public"]['Enums']["sentiment"],"topic": string | null
+                    "ai_output": NonNullable<Json>,"changes": NonNullable<Json>,"created_at": string,"decided_at": string | null,"decided_by": string | null,"decision_reason": string | null,"id": string,"mention_id": string,"org_id": string,"reasons": (string)[],"status": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "confidence"?: number | null,"corrected_at"?: string | null,"corrected_by"?: string | null,"created_at"?: string,"department_id"?: string | null,"emotion"?: string | null,"id"?: string,"intent"?: string | null,"mention_id": string,"model": string,"neighborhood_id"?: string | null,"org_id": string,"priority"?: Database["public"]['Enums']["priority"],"sentiment": Database["public"]['Enums']["sentiment"],"topic"?: string | null
+                    "ai_output": NonNullable<Json>,"changes"?: NonNullable<Json>,"created_at"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_reason"?: string | null,"id"?: string,"mention_id": string,"org_id": string,"reasons": (string)[],"status"?: string
                   }
                   Update: {
-                    "confidence"?: number | null,"corrected_at"?: string | null,"corrected_by"?: string | null,"created_at"?: string,"department_id"?: string | null,"emotion"?: string | null,"id"?: string,"intent"?: string | null,"mention_id"?: string,"model"?: string,"neighborhood_id"?: string | null,"org_id"?: string,"priority"?: Database["public"]['Enums']["priority"],"sentiment"?: Database["public"]['Enums']["sentiment"],"topic"?: string | null
+                    "ai_output"?: NonNullable<Json>,"changes"?: NonNullable<Json>,"created_at"?: string,"decided_at"?: string | null,"decided_by"?: string | null,"decision_reason"?: string | null,"id"?: string,"mention_id"?: string,"org_id"?: string,"reasons"?: (string)[],"status"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "classification_reviews_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "classification_reviews_org_id_mention_id_fkey"
+      columns: ["org_id","mention_id"]
+isOneToOne: false
+      referencedRelation: "mentions"
+      referencedColumns: ["org_id","id"]
+    }
+                  ]
+                },"classification_versions": {
+                  Row: {
+                    "id": number,"mention_id": string,"org_id": string,"reason": string | null,"replaced_at": string,"replaced_by": string | null,"snapshot": NonNullable<Json>,"source": string,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "id"?: never,"mention_id": string,"org_id": string,"reason"?: string | null,"replaced_at"?: string,"replaced_by"?: string | null,"snapshot": NonNullable<Json>,"source": string,"version": number
+                  }
+                  Update: {
+                    "id"?: never,"mention_id"?: string,"org_id"?: string,"reason"?: string | null,"replaced_at"?: string,"replaced_by"?: string | null,"snapshot"?: NonNullable<Json>,"source"?: string,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "classification_versions_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "classification_versions_org_id_mention_id_fkey"
+      columns: ["org_id","mention_id"]
+isOneToOne: false
+      referencedRelation: "mentions"
+      referencedColumns: ["org_id","id"]
+    }
+                  ]
+                },"classifications": {
+                  Row: {
+                    "confidence": number | null,"confirmed_at": string | null,"confirmed_by": string | null,"corrected_at": string | null,"corrected_by": string | null,"created_at": string,"department_id": string | null,"emotion": string | null,"id": string,"incident_type": string | null,"intent": string | null,"mention_id": string,"model": string,"needs_attention": boolean | null,"neighborhood_id": string | null,"org_id": string,"priority": Database["public"]['Enums']["priority"],"sentiment": Database["public"]['Enums']["sentiment"],"severity": Database["public"]['Enums']["severity"] | null,"topic": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "confidence"?: number | null,"confirmed_at"?: string | null,"confirmed_by"?: string | null,"corrected_at"?: string | null,"corrected_by"?: string | null,"created_at"?: string,"department_id"?: string | null,"emotion"?: string | null,"id"?: string,"incident_type"?: string | null,"intent"?: string | null,"mention_id": string,"model": string,"needs_attention"?: boolean | null,"neighborhood_id"?: string | null,"org_id": string,"priority"?: Database["public"]['Enums']["priority"],"sentiment": Database["public"]['Enums']["sentiment"],"severity"?: Database["public"]['Enums']["severity"] | null,"topic"?: string | null
+                  }
+                  Update: {
+                    "confidence"?: number | null,"confirmed_at"?: string | null,"confirmed_by"?: string | null,"corrected_at"?: string | null,"corrected_by"?: string | null,"created_at"?: string,"department_id"?: string | null,"emotion"?: string | null,"id"?: string,"incident_type"?: string | null,"intent"?: string | null,"mention_id"?: string,"model"?: string,"needs_attention"?: boolean | null,"neighborhood_id"?: string | null,"org_id"?: string,"priority"?: Database["public"]['Enums']["priority"],"sentiment"?: Database["public"]['Enums']["sentiment"],"severity"?: Database["public"]['Enums']["severity"] | null,"topic"?: string | null
                   }
                   Relationships: [
                     {
@@ -395,6 +447,26 @@ isOneToOne: true
                   Relationships: [
                     {
       foreignKeyName: "departments_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"incident_policies": {
+                  Row: {
+                    "channel": string,"id": string,"incident_type": string,"instructions": string,"org_id": string,"updated_at": string,"updated_by": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "channel": string,"id"?: string,"incident_type": string,"instructions": string,"org_id": string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Update: {
+                    "channel"?: string,"id"?: string,"incident_type"?: string,"instructions"?: string,"org_id"?: string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "incident_policies_org_id_fkey"
       columns: ["org_id"]
 isOneToOne: false
       referencedRelation: "organizations"
@@ -519,14 +591,14 @@ isOneToOne: false
                   ]
                 },"monitor_settings": {
                   Row: {
-                    "classify_backlog_minutes": number,"classify_stale_minutes": number,"dashboard_stale_minutes": number,"org_id": string,"updated_at": string,"updated_by": string | null
+                    "classify_backlog_minutes": number,"classify_stale_minutes": number,"dashboard_stale_minutes": number,"org_id": string,"review_confidence_below": number,"updated_at": string,"updated_by": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "classify_backlog_minutes"?: number,"classify_stale_minutes"?: number,"dashboard_stale_minutes"?: number,"org_id": string,"updated_at"?: string,"updated_by"?: string | null
+                    "classify_backlog_minutes"?: number,"classify_stale_minutes"?: number,"dashboard_stale_minutes"?: number,"org_id": string,"review_confidence_below"?: number,"updated_at"?: string,"updated_by"?: string | null
                   }
                   Update: {
-                    "classify_backlog_minutes"?: number,"classify_stale_minutes"?: number,"dashboard_stale_minutes"?: number,"org_id"?: string,"updated_at"?: string,"updated_by"?: string | null
+                    "classify_backlog_minutes"?: number,"classify_stale_minutes"?: number,"dashboard_stale_minutes"?: number,"org_id"?: string,"review_confidence_below"?: number,"updated_at"?: string,"updated_by"?: string | null
                   }
                   Relationships: [
                     {
@@ -717,14 +789,14 @@ isOneToOne: false
                   ]
                 },"reports": {
                   Row: {
-                    "approved_at": string | null,"approved_by": string | null,"content": NonNullable<Json>,"created_at": string,"created_by": string | null,"delivery": NonNullable<Json>,"facts": NonNullable<Json>,"id": string,"model": string | null,"org_id": string,"pdf_path": string | null,"period": Database["public"]['Enums']["report_period"],"period_end": string,"period_start": string,"recipients": (string)[],"schedule_id": string | null,"sent_at": string | null,"status": Database["public"]['Enums']["report_status"],"title": string,"updated_at": string
+                    "approved_at": string | null,"approved_by": string | null,"content": NonNullable<Json>,"created_at": string,"created_by": string | null,"delivery": NonNullable<Json>,"facts": NonNullable<Json>,"facts_stale_at": string | null,"id": string,"model": string | null,"org_id": string,"pdf_path": string | null,"period": Database["public"]['Enums']["report_period"],"period_end": string,"period_start": string,"recipients": (string)[],"schedule_id": string | null,"sent_at": string | null,"status": Database["public"]['Enums']["report_status"],"title": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "approved_at"?: string | null,"approved_by"?: string | null,"content"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"delivery"?: NonNullable<Json>,"facts"?: NonNullable<Json>,"id"?: string,"model"?: string | null,"org_id": string,"pdf_path"?: string | null,"period": Database["public"]['Enums']["report_period"],"period_end": string,"period_start": string,"recipients"?: (string)[],"schedule_id"?: string | null,"sent_at"?: string | null,"status"?: Database["public"]['Enums']["report_status"],"title"?: string,"updated_at"?: string
+                    "approved_at"?: string | null,"approved_by"?: string | null,"content"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"delivery"?: NonNullable<Json>,"facts"?: NonNullable<Json>,"facts_stale_at"?: string | null,"id"?: string,"model"?: string | null,"org_id": string,"pdf_path"?: string | null,"period": Database["public"]['Enums']["report_period"],"period_end": string,"period_start": string,"recipients"?: (string)[],"schedule_id"?: string | null,"sent_at"?: string | null,"status"?: Database["public"]['Enums']["report_status"],"title"?: string,"updated_at"?: string
                   }
                   Update: {
-                    "approved_at"?: string | null,"approved_by"?: string | null,"content"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"delivery"?: NonNullable<Json>,"facts"?: NonNullable<Json>,"id"?: string,"model"?: string | null,"org_id"?: string,"pdf_path"?: string | null,"period"?: Database["public"]['Enums']["report_period"],"period_end"?: string,"period_start"?: string,"recipients"?: (string)[],"schedule_id"?: string | null,"sent_at"?: string | null,"status"?: Database["public"]['Enums']["report_status"],"title"?: string,"updated_at"?: string
+                    "approved_at"?: string | null,"approved_by"?: string | null,"content"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"delivery"?: NonNullable<Json>,"facts"?: NonNullable<Json>,"facts_stale_at"?: string | null,"id"?: string,"model"?: string | null,"org_id"?: string,"pdf_path"?: string | null,"period"?: Database["public"]['Enums']["report_period"],"period_end"?: string,"period_start"?: string,"recipients"?: (string)[],"schedule_id"?: string | null,"sent_at"?: string | null,"status"?: Database["public"]['Enums']["report_status"],"title"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -795,6 +867,26 @@ isOneToOne: false
                   Relationships: [
                     {
       foreignKeyName: "sources_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"stats_invalidations": {
+                  Row: {
+                    "id": number,"mention_id": string | null,"org_id": string,"processed_at": string | null,"reason": string,"requested_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "id"?: never,"mention_id"?: string | null,"org_id": string,"processed_at"?: string | null,"reason": string,"requested_at"?: string
+                  }
+                  Update: {
+                    "id"?: never,"mention_id"?: string | null,"org_id"?: string,"processed_at"?: string | null,"reason"?: string,"requested_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "stats_invalidations_org_id_fkey"
       columns: ["org_id"]
 isOneToOne: false
       referencedRelation: "organizations"
@@ -1066,6 +1158,12 @@ isOneToOne: false
 "complete_classifications":
 { Args: { "p_claim_id": string,"p_failures": Json,"p_max_attempts": number,"p_results": Json }; Returns: Json
                            },
+"confirm_classification":
+{ Args: { "p_mention_id": string }; Returns: undefined
+                           },
+"correct_classification":
+{ Args: { "p_changes": Json,"p_mention_id": string,"p_reason"?: string }; Returns: Json
+                           },
 "create_case":
 { Args: { "p_category"?: string,"p_description"?: string,"p_mention_ids": (string)[],"p_neighborhood_id"?: string,"p_org_id": string,"p_priority"?: Database["public"]['Enums']["priority"],"p_title": string }; Returns: string
                            },
@@ -1075,6 +1173,9 @@ isOneToOne: false
 "dashboard_stats":
 { Args: { "p_bucket"?: string,"p_detail"?: boolean,"p_from": string,"p_org_id": string,"p_to": string }; Returns: Json
                            },
+"decide_review":
+{ Args: { "p_changes"?: Json,"p_decision": string,"p_reason"?: string,"p_review_id": string }; Returns: Json
+                           },
 "finish_source_run":
 { Args: { "p_lease_id": string,"p_run": Json,"p_source_id": string,"p_state": Json }; Returns: boolean
                            },
@@ -1083,6 +1184,19 @@ isOneToOne: false
                            },
 "get_source_secret":
 { Args: { "p_source_id": string }; Returns: string
+                           },
+"inbox_counts":
+{ Args: { "p_filters"?: Json,"p_org_id": string }; Returns: Json
+                           },
+"inbox_items":
+{ Args: { "p_filters"?: Json,"p_org_id": string }; Returns: {
+              "awaiting_acceptance": boolean,"awaiting_validation": boolean,"due_at": string,"id": string,"is_new": boolean,"is_overdue": boolean,"is_unassigned": boolean,"is_urgent": boolean,"item_at": string,"kind": string,"urgency": number
+            }[]
+                           },
+"inbox_queue":
+{ Args: { "p_cursor"?: Json,"p_filters"?: Json,"p_limit"?: number,"p_org_id": string,"p_view": string }; Returns: {
+              "due_at": string,"id": string,"item_at": string,"kind": string,"urgency": number
+            }[]
                            },
 "ingest_mentions":
 { Args: { "p_org_id": string,"p_rows": Json,"p_source_id": string }; Returns: Json
@@ -1122,6 +1236,9 @@ isOneToOne: false
 { Args: { "p_org_id": string }; Returns: {
               "department_id": string,"department_name": string,"email": string,"invited_at": string,"last_sign_in_at": string,"role": Database["public"]['Enums']["membership_role"],"user_id": string
             }[]
+                           },
+"process_stats_invalidations":
+{ Args: Record<PropertyKey, never>; Returns: Json
                            },
 "purge_old_mentions":
 { Args: { "p_batch"?: number,"p_months": number }; Returns: number
@@ -1193,6 +1310,9 @@ isOneToOne: false
               "id": string,"name": string,"type": Database["public"]['Enums']["source_type"]
             }[]
                            },
+"stats_invalidation_status":
+{ Args: { "p_org_id": string }; Returns: Json
+                           },
 "suggest_case_mentions":
 { Args: { "p_case_id": string,"p_limit"?: number }; Returns: {
               "hours_apart": number,"mention_id": string,"same_neighborhood": boolean,"same_topic": boolean,"score": number,"word_overlap": number
@@ -1214,7 +1334,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "author_kind": "media"|"public_figure"|"citizen","case_status": "new"|"in_review"|"assigned"|"accepted"|"in_progress"|"resolved"|"closed"|"returned"|"discarded"|"merged","membership_role": "admin"|"comunicacion"|"dependencia"|"lectura","mention_status": "pending"|"classified"|"failed","priority": "low"|"medium"|"high"|"critical","report_period": "daily"|"weekly"|"monthly","report_status": "draft"|"approved"|"sent","sentiment": "positive"|"neutral"|"negative","source_type": "meta"|"rss"|"youtube"|"x","ticket_status": "open"|"in_progress"|"resolved"|"closed","triage_status": "new"|"reviewed"|"routed"|"discarded","whatsapp_contact_status": "pending"|"active"|"declined"|"opted_out"
+            "author_kind": "media"|"public_figure"|"citizen","case_status": "new"|"in_review"|"assigned"|"accepted"|"in_progress"|"resolved"|"closed"|"returned"|"discarded"|"merged","membership_role": "admin"|"comunicacion"|"dependencia"|"lectura","mention_status": "pending"|"classified"|"failed","priority": "low"|"medium"|"high"|"critical","report_period": "daily"|"weekly"|"monthly","report_status": "draft"|"approved"|"sent","sentiment": "positive"|"neutral"|"negative","severity": "none"|"low"|"moderate"|"high"|"emergency","source_type": "meta"|"rss"|"youtube"|"x","ticket_status": "open"|"in_progress"|"resolved"|"closed","triage_status": "new"|"reviewed"|"routed"|"discarded","whatsapp_contact_status": "pending"|"active"|"declined"|"opted_out"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -1330,7 +1450,7 @@ export type CompositeTypes<
 export const Constants = {
   "public": {
           Enums: {
-            "author_kind": ["media", "public_figure", "citizen"],"case_status": ["new", "in_review", "assigned", "accepted", "in_progress", "resolved", "closed", "returned", "discarded", "merged"],"membership_role": ["admin", "comunicacion", "dependencia", "lectura"],"mention_status": ["pending", "classified", "failed"],"priority": ["low", "medium", "high", "critical"],"report_period": ["daily", "weekly", "monthly"],"report_status": ["draft", "approved", "sent"],"sentiment": ["positive", "neutral", "negative"],"source_type": ["meta", "rss", "youtube", "x"],"ticket_status": ["open", "in_progress", "resolved", "closed"],"triage_status": ["new", "reviewed", "routed", "discarded"],"whatsapp_contact_status": ["pending", "active", "declined", "opted_out"]
+            "author_kind": ["media", "public_figure", "citizen"],"case_status": ["new", "in_review", "assigned", "accepted", "in_progress", "resolved", "closed", "returned", "discarded", "merged"],"membership_role": ["admin", "comunicacion", "dependencia", "lectura"],"mention_status": ["pending", "classified", "failed"],"priority": ["low", "medium", "high", "critical"],"report_period": ["daily", "weekly", "monthly"],"report_status": ["draft", "approved", "sent"],"sentiment": ["positive", "neutral", "negative"],"severity": ["none", "low", "moderate", "high", "emergency"],"source_type": ["meta", "rss", "youtube", "x"],"ticket_status": ["open", "in_progress", "resolved", "closed"],"triage_status": ["new", "reviewed", "routed", "discarded"],"whatsapp_contact_status": ["pending", "active", "declined", "opted_out"]
           }
         }
 } as const

@@ -8,14 +8,20 @@ import {
   dayStart,
   OPEN_TICKET,
   PAGE_SIZE,
+  queueFilters,
+  queueKey,
   statusFor,
   type Cursor,
   type InboxFilters,
   type InboxScope,
+  type InboxView,
   type Priority,
+  type QueueCursor,
   type Sentiment,
+  type Severity,
   type TicketStatus,
   type TriageStatus,
+  type ViewCounts,
 } from "./model";
 
 type Client = SupabaseClient<Database>;
@@ -47,6 +53,11 @@ export type InboxClassification = {
   corrected_by: string | null;
   corrected_at: string | null;
   model: string;
+  /** Gravedad del hecho, separada del sentimiento (null: clasificada antes de la etapa 5). */
+  severity: Severity | null;
+  incident_type: string | null;
+  needs_attention: boolean | null;
+  confirmed_at: string | null;
 };
 
 export type InboxItem = {
@@ -89,7 +100,7 @@ function normalize(row: RawItem): InboxItem {
 export type InboxPage = { items: InboxItem[]; next: Cursor | null; total: number | null };
 
 const CLASSIFICATION =
-  "sentiment, confidence, emotion, topic, intent, priority, department_id, neighborhood_id, corrected_by, corrected_at, model";
+  "sentiment, confidence, emotion, topic, intent, priority, department_id, neighborhood_id, corrected_by, corrected_at, model, severity, incident_type, needs_attention, confirmed_at";
 const TICKET = "id, department_id, status, due_at, resolved_at, created_at, whatsapp_notified_at, is_primary, case_id";
 const BASE = "id, text, url, published_at, status, triage, source_id, authors(display_name, handle, kind)";
 
@@ -185,4 +196,88 @@ export async function fetchNotes(supabase: Client, mentionId: string): Promise<I
     .eq("mention_id", mentionId)
     .order("created_at");
   return data ?? [];
+}
+
+// ---------------------------------------------------------------------------
+// Operational views: order and membership come from public.inbox_queue (RLS
+// applies), the cards from the same reads as the chronological inbox.
+// ---------------------------------------------------------------------------
+
+export type QueueCase = {
+  id: string;
+  folio: string;
+  title: string;
+  status: Database["public"]["Enums"]["case_status"];
+  priority: Priority;
+  department_id: string | null;
+  neighborhood_id: string | null;
+  due_at: string | null;
+  opened_at: string;
+  mentions: number;
+};
+
+export type QueueEntry =
+  | { key: string; kind: "mention"; sort: QueueCursor; mention: InboxItem }
+  | { key: string; kind: "case"; sort: QueueCursor; case: QueueCase };
+
+export type QueuePage = { entries: QueueEntry[]; next: QueueCursor | null };
+
+export async function fetchQueue(
+  supabase: Client,
+  orgId: string,
+  scope: InboxScope,
+  view: InboxView,
+  filters: InboxFilters,
+  cursor: QueueCursor | null = null,
+): Promise<QueuePage> {
+  const { data, error } = await supabase.rpc("inbox_queue", {
+    p_org_id: orgId,
+    p_view: view,
+    p_filters: queueFilters(filters),
+    p_cursor: cursor ?? undefined,
+    p_limit: PAGE_SIZE,
+  });
+  if (error) throw new Error(`No se pudo cargar la vista: ${error.message}`);
+  const rows = (data ?? []) as QueueCursor[];
+  return { entries: await hydrate(supabase, orgId, scope, rows), next: rows.length === PAGE_SIZE ? rows[rows.length - 1] : null };
+}
+
+/** Loads the cards of queue rows, in the queue's order. Rows that vanished meanwhile are skipped. */
+export async function hydrate(supabase: Client, orgId: string, scope: InboxScope, rows: readonly QueueCursor[]): Promise<QueueEntry[]> {
+  const mentionIds = rows.filter((r) => r.kind === "mention").map((r) => r.id);
+  const caseIds = rows.filter((r) => r.kind === "case").map((r) => r.id);
+  const [mentions, cases] = await Promise.all([
+    mentionIds.length ? fetchInbox(supabase, orgId, scope, { status: "all" }, { ids: mentionIds }) : Promise.resolve({ items: [] as InboxItem[] }),
+    caseIds.length
+      ? supabase
+          .from("cases")
+          .select("id, folio, title, status, priority, department_id, neighborhood_id, due_at, opened_at, case_mentions(count)")
+          .eq("org_id", orgId)
+          .in("id", caseIds)
+      : Promise.resolve({ data: [] as never[] }),
+  ]);
+  const byMention = new Map(mentions.items.map((m) => [m.id, m]));
+  const byCase = new Map(
+    ((cases.data ?? []) as unknown as (Omit<QueueCase, "mentions" | "folio"> & { folio: string | null; case_mentions: { count: number }[] })[]).map(
+      ({ case_mentions, folio, ...c }) => [c.id, { ...c, folio: folio ?? "", mentions: case_mentions[0]?.count ?? 0 }],
+    ),
+  );
+  const entries: QueueEntry[] = [];
+  for (const sort of rows) {
+    if (sort.kind === "mention") {
+      const mention = byMention.get(sort.id);
+      if (mention) entries.push({ key: queueKey("mention", sort.id), kind: "mention", sort, mention });
+    } else {
+      const c = byCase.get(sort.id);
+      if (c) entries.push({ key: queueKey("case", sort.id), kind: "case", sort, case: c });
+    }
+  }
+  return entries;
+}
+
+/** Counters of every view for these filters (same predicate as the lists). */
+export async function fetchCounts(supabase: Client, orgId: string, filters: InboxFilters): Promise<ViewCounts | null> {
+  const { data, error } = await supabase.rpc("inbox_counts", { p_org_id: orgId, p_filters: queueFilters(filters) });
+  if (error) return null;
+  return data as ViewCounts;
 }
