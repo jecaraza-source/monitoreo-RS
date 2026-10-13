@@ -5,6 +5,13 @@
 // app's validators accept them. Sent emails are listed at GET /emails.
 // WhatsApp Cloud API: WHATSAPP_API_URL=http://127.0.0.1:4010/whatsapp; sent
 // messages are listed at GET /whatsapp/sent.
+//
+// Fault injection (tests only), per target "anthropic" | "resend" | "whatsapp":
+//   POST /__mock/faults {"anthropic":{"status":529,"times":2},"resend":{"delayMs":30000}}
+//     makes the next `times` calls answer `status` (or wait `delayMs` first);
+//   POST /__mock/faults {"model":"claude-desconocido"} answers with another model id
+//     (to test cost for a model missing from the price table);
+//   DELETE /__mock/faults clears everything; GET /__mock/calls counts calls per target.
 import { createServer } from "node:http";
 
 const port = Number(process.env.MOCK_ANTHROPIC_PORT ?? 4010);
@@ -76,17 +83,54 @@ function classify(body) {
 
 const emails = [];
 const whatsapp = [];
+let faults = {};
+const calls = { anthropic: 0, resend: 0, whatsapp: 0 };
+
+/** Applies an injected fault for `target`; true when the response was already sent. */
+async function injected(target, res) {
+  calls[target]++;
+  const f = faults[target];
+  if (!f) return false;
+  if (f.delayMs) await new Promise((r) => setTimeout(r, f.delayMs));
+  if (f.status && (f.times ?? 1) > 0) {
+    f.times = (f.times ?? 1) - 1;
+    res.writeHead(f.status, { "content-type": "application/json" });
+    res.end(JSON.stringify({ type: "error", error: { type: "mock_fault", message: `falla simulada ${f.status}` } }));
+    return true;
+  }
+  return false;
+}
 
 createServer((req, res) => {
   let raw = "";
   req.on("data", (c) => (raw += c));
-  req.on("end", () => {
+  req.on("end", () => handle(req, res, raw).catch((error) => {
+    // A malformed request must not take the mock (and the rest of the suite) down.
+    console.error("[mock]", error);
+    if (!res.headersSent) res.writeHead(500, { "content-type": "application/json" });
+    res.end(JSON.stringify({ type: "error", error: { type: "mock_error", message: String(error) } }));
+  }));
+}).listen(port, "127.0.0.1", () => console.log(`mock anthropic on http://127.0.0.1:${port}`));
+
+async function handle(req, res, raw) {
+  {
+    if (req.url === "/__mock/faults") {
+      faults = req.method === "POST" ? JSON.parse(raw || "{}") : {};
+      res.writeHead(204).end();
+      return;
+    }
+    if (req.url === "/__mock/calls" && req.method === "GET") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify(calls));
+      return;
+    }
     if (req.url === "/emails" && req.method === "GET") {
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(emails.map((e) => ({ ...e, attachments: (e.attachments ?? []).map((a) => ({ filename: a.filename, bytes: Buffer.from(a.content, "base64").length, pdf: Buffer.from(a.content, "base64").subarray(0, 5).toString() })) }))));
       return;
     }
     if (req.url === "/emails" && req.method === "POST") {
+      if (await injected("resend", res)) return;
       emails.push(JSON.parse(raw));
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ id: `email_mock_${emails.length}` }));
@@ -98,6 +142,7 @@ createServer((req, res) => {
       return;
     }
     if (req.method === "POST" && /^\/whatsapp\/[^/]+\/messages$/.test(req.url)) {
+      if (await injected("whatsapp", res)) return;
       const id = `wamid.mock-${Date.now()}-${whatsapp.length + 1}`;
       whatsapp.push({ id, ...JSON.parse(raw) });
       res.writeHead(200, { "content-type": "application/json" });
@@ -108,7 +153,9 @@ createServer((req, res) => {
       res.writeHead(404).end();
       return;
     }
+    if (await injected("anthropic", res)) return;
     const body = JSON.parse(raw);
+    if (faults.model) body.model = faults.model;
     if (body.stream) return assistant(body, res);
     const tool = body.tools?.[0]?.name;
     const facts = factsFrom(body);
@@ -126,8 +173,8 @@ createServer((req, res) => {
         usage: { input_tokens: 1000, output_tokens: 400, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
       }),
     );
-  });
-}).listen(port, "127.0.0.1", () => console.log(`mock anthropic on http://127.0.0.1:${port}`));
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Assistant (streaming): first turn calls a tool picked from the question,
