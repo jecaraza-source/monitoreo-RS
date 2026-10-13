@@ -1,5 +1,6 @@
 import "server-only";
 import { getConnector, type SourceType } from "@/lib/connectors";
+import { withDeadline } from "@/lib/connectors/http";
 import { ConnectorError, type AuthorRef } from "@/lib/connectors/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { refreshMentionStats } from "@/lib/dashboard/refresh";
@@ -109,13 +110,6 @@ function orgQueries(admin: Admin, orgId: string, cache: Map<string, Promise<Comp
   return entry;
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => setTimeout(() => reject(new ConnectorError("La fuente tardó demasiado.")), ms)),
-  ]);
-}
-
 async function runSource(
   admin: Admin,
   row: SourceRow,
@@ -140,12 +134,13 @@ async function runSource(
     }
 
     const since = sinceFor(row.last_success_at, startedAt);
-    const fetched = await withTimeout(
-      connector.fetchSince(
-        { id: row.id, config: parsed.data, cursor: (row.cursor as Record<string, unknown>) ?? {} },
-        since,
-        { secret },
-      ),
+    const fetched = await withDeadline(
+      (signal) =>
+        connector.fetchSince(
+          { id: row.id, config: parsed.data, cursor: (row.cursor as Record<string, unknown>) ?? {} },
+          since,
+          { secret, signal },
+        ),
       SOURCE_TIMEOUT_MS,
     );
     cursor = fetched.cursor;

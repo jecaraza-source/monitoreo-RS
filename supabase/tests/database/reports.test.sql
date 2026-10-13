@@ -22,13 +22,16 @@ select is((select created_by from public.reports where id = '00000000-0000-4000-
 update public.reports set status = 'approved' where id = '00000000-0000-4000-9000-000000000001';
 select is((select approved_by from public.reports where id = '00000000-0000-4000-9000-000000000001'),
   '00000000-0000-4000-d000-000000000002'::uuid, 'approval stamps the approver');
-select throws_ok($$ update public.reports set content = '{"headline":"c"}' where id = '00000000-0000-4000-9000-000000000001' $$,
-  '42501', 'El reporte ya fue aprobado y no se puede editar.', 'an approved report cannot be edited');
-select throws_ok($$ update public.reports set status = 'draft' where id = '00000000-0000-4000-9000-000000000001' $$,
-  '42501', 'Un reporte aprobado no vuelve a borrador.', 'an approved report cannot go back to draft');
-update public.reports set recipients = '{prensa@municipio.gob.mx}' where id = '00000000-0000-4000-9000-000000000001';
+-- RLS lets editors update drafts only: on an approved report nothing matches.
+update public.reports set content = '{"headline":"c"}' where id = '00000000-0000-4000-9000-000000000001';
+select is((select content ->> 'headline' from public.reports where id = '00000000-0000-4000-9000-000000000001'), 'b',
+  'an approved report cannot be edited');
+update public.reports set status = 'draft' where id = '00000000-0000-4000-9000-000000000001';
+select is((select status::text from public.reports where id = '00000000-0000-4000-9000-000000000001'), 'approved',
+  'an approved report cannot go back to draft');
+select public.set_report_recipients('00000000-0000-4000-9000-000000000001', '{prensa@municipio.gob.mx}');
 select is((select recipients from public.reports where id = '00000000-0000-4000-9000-000000000001'), '{prensa@municipio.gob.mx}'::text[],
-  'delivery fields still change after approval');
+  'recipients still change after approval, through the audited RPC');
 
 insert into public.report_schedules (org_id, period, recipients) values ('00000000-0000-4000-a000-000000000001', 'weekly', '{cabildo@municipio.gob.mx}');
 select is((select count(*) from public.report_schedules), 1::bigint, 'editors create schedules');

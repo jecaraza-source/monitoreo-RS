@@ -58,7 +58,7 @@ function graphUrl(ctx: ConnectorContext, path: string, params: Record<string, st
 }
 
 async function getGraph<T extends GraphError>(ctx: ConnectorContext, url: string): Promise<T> {
-  const { status, body } = await fetchJson<T>(ctx.fetch, url);
+  const { status, body } = await fetchJson<T>(ctx.fetch, url, { signal: ctx.signal });
   if (body.error || status >= 400) {
     if (process.env.NODE_ENV !== "test") console.warn("[meta]", status, redactUrl(url));
     throw graphError(body, status);

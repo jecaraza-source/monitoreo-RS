@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import maplibregl, { type GeoJSONSource, type StyleSpecification } from "maplibre-gl";
+import { maplibregl } from "@/components/map/maplibre";
+import type { GeoJSONSource, StyleSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useTheme } from "next-themes";
 import { applyBasemap, PLAIN_BACKGROUND } from "@/components/map/basemap";

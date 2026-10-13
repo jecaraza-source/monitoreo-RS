@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getConnector, type SourceType } from "@/lib/connectors";
+import { withDeadline } from "@/lib/connectors/http";
 import { ConnectorError } from "@/lib/connectors/types";
 import { requireRole } from "@/lib/auth/session";
 import { assignQueries, compileQueries } from "@/lib/ingest/assign";
@@ -12,6 +13,8 @@ import { createClient } from "@/lib/supabase/server";
 
 const PATH = "/configuracion/fuentes";
 const EDITORS = ["admin", "comunicacion"] as const;
+/** Same deadline as a source run in the ingest worker. */
+const TEST_TIMEOUT_MS = 25_000;
 
 export type SourceActionResult<T = undefined> = { ok: true; message: string; data?: T } | { ok: false; message: string };
 
@@ -138,10 +141,14 @@ export async function testSource(sourceId: string): Promise<SourceActionResult<T
       if (!secret) return { ok: false, message: "Falta la credencial de esta fuente." };
     }
     const since = new Date(Date.now() - 7 * 86_400_000);
-    const result = await connector.fetchSince(
-      { id: source.id, config: config.data, cursor: (source.cursor ?? {}) as Record<string, unknown> },
-      since,
-      { secret, limit: 50 },
+    const result = await withDeadline(
+      (signal) =>
+        connector.fetchSince(
+          { id: source.id, config: config.data, cursor: (source.cursor ?? {}) as Record<string, unknown> },
+          since,
+          { secret, limit: 50, signal },
+        ),
+      TEST_TIMEOUT_MS,
     );
 
     const { data: queries } = await supabase

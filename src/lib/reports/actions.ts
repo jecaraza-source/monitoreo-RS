@@ -62,13 +62,20 @@ export async function saveReport(input: unknown): Promise<ReportActionResult> {
   const parsed = saveSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: `Revisa el texto: ${parsed.error.issues[0].path.join(".")} ${parsed.error.issues[0].message}` };
   const supabase = await createClient();
+  // RLS lets editors change only drafts of their org; recipients go through
+  // the audited RPC (direct writes to them are refused).
   const { error, count } = await supabase
     .from("reports")
-    .update({ content: parsed.data.narrative as never, recipients: parsed.data.recipients }, { count: "exact" })
+    .update({ content: parsed.data.narrative as never }, { count: "exact" })
     .eq("id", parsed.data.reportId)
     .eq("org_id", m.orgId);
   if (error) return fail(error, "guardar los cambios");
-  if (!count) return { ok: false, message: "No se encontró el reporte." };
+  if (!count) return { ok: false, message: "No se encontró el reporte o ya fue aprobado." };
+  const { error: recipientsError } = await supabase.rpc("set_report_recipients", {
+    p_report_id: parsed.data.reportId,
+    p_recipients: parsed.data.recipients,
+  });
+  if (recipientsError) return fail(recipientsError, "guardar los destinatarios");
   revalidatePath(`/reportes/${parsed.data.reportId}`);
   return { ok: true, message: "Cambios guardados." };
 }

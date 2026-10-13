@@ -3,7 +3,14 @@ import { login, USERS } from "./helpers";
 
 test.describe("mapa de colonias", () => {
   test("lectura cambia la métrica, abre una colonia y llega a la bandeja filtrada", async ({ page }) => {
+    // A worker that fails to load leaves the canvas up but draws no colonias.
+    const mapErrors: string[] = [];
+    page.on("console", (m) => {
+      if (m.type() === "error" && /worker/i.test(m.text())) mapErrors.push(m.text());
+    });
+    const worker = page.waitForRequest(/maplibre-gl-worker[^/]*\.mjs/);
     await login(page, USERS.lectura, "/mapa?periodo=30d");
+    expect((await worker).url()).toContain("/_next/static/");
     await expect(page.getByRole("heading", { name: "Mapa", level: 1 })).toBeVisible();
     await expect(page.locator(".maplibregl-canvas")).toBeVisible();
 
@@ -24,6 +31,7 @@ test.describe("mapa de colonias", () => {
 
     await page.getByRole("link", { name: /Ver todas en la bandeja/ }).click();
     await expect(page).toHaveURL(/\/bandeja\?.*neighborhood=/);
+    expect(mapErrors).toEqual([]);
   });
 
   test("dependencia no tiene acceso al mapa del municipio", async ({ page }) => {
