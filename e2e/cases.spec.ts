@@ -101,13 +101,18 @@ test.describe("casos", () => {
     try {
       await login(page, USERS.comunicacion, `/bandeja?mention=${mention.id}&status=all`);
       await live(page);
-      await page.locator(`article[data-mention-id="${mention.id}"]`).first().click();
-      await page.locator("body").press("c");
+      // Each step waits for what it needs, so a slow preview fails where it stops, not at the test timeout.
+      const card = page.getByRole("main").locator(`article[data-mention-id="${mention.id}"]`);
+      await expect(card).toBeVisible();
+      await card.click();
+      const aside = page.getByRole("main").locator('aside[aria-label="Detalle de la mención"]');
+      await aside.getByRole("button", { name: /^Caso/ }).click();
       const dialog = page.getByRole("dialog");
+      await expect(dialog.getByRole("heading", { name: "Caso para 1 mención" })).toBeVisible();
       await dialog.getByLabel("Título").fill(TITLE);
       await dialog.getByRole("button", { name: "Crear caso" }).click();
       await expect(toast(page, "Caso creado con 1 mención.")).toBeVisible();
-      await expect(page.getByRole("main").locator('aside[aria-label="Detalle de la mención"]').getByText(/Parte del caso C-\d{5}/)).toBeVisible();
+      await expect(aside.getByText(/Parte del caso C-\d{5}/)).toBeVisible();
     } finally {
       const { data } = await db.from("case_mentions").select("case_id").eq("mention_id", mention.id);
       await cleanup((data ?? []).map((r) => r.case_id), [mention]);
