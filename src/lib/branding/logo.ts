@@ -1,9 +1,9 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
-import { detectLogoFormat, type LogoFormat } from "./image";
+import { BRANDING_BUCKET, detectLogoFormat, type LogoFormat } from "./image";
 
-export const BRANDING_BUCKET = "branding";
+export { BRANDING_BUCKET };
 
 export type Logo = { data: Buffer; format: LogoFormat };
 

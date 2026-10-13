@@ -3,6 +3,41 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Ajustes posteriores a la etapa 12 (13 oct 2026, base `c8463a9`)
+
+- **Fuentes:** la lista de Configuración → Fuentes muestra primero la más reciente (PR #36).
+- **Borrar proyectos** (migración `20261106000000_project_delete.sql`):
+  - sólo Administración, también en la base: la política de borrado deja de incluir a comunicación, que sigue
+    creando y editando;
+  - función `delete_project`:
+    - no borra el último proyecto del municipio;
+    - conserva las menciones (pierden su consulta);
+    - queda en la bitácora con quién lo hizo;
+  - botón con confirmación escribiendo el nombre, visible sólo para Administración.
+- **Logotipo hasta 5 MB** (migración `20261107000000_logo_5mb.sql`):
+  - Vercel limita a 4.5 MB el cuerpo de una petición, así que el navegador sube directo a Storage con una URL
+    firmada de un solo uso que sólo Administración obtiene;
+  - después el servidor descarga la imagen y la valida como antes (formato real, dimensiones, peso) y, si no
+    pasa, la borra;
+  - el bucket también limita a 5 MB y PNG/JPEG.
+- **Carrera en `transition_case`** (migración `20261108000000_transition_case_lock.sql`):
+  - la función leía el estado del caso antes de bloquear la fila;
+  - con dos cambios simultáneos (aceptar y devolver), el historial registraba un estado de origen viejo;
+  - ahora bloquea la fila en la primera lectura;
+  - lo detectó en CI `resilience.spec.ts` («actualización concurrente»): se reprodujo en local y, con el
+    arreglo, pasó 20 de 20 repeticiones.
+- **Pruebas:**
+  - pgTAP 944/944, con `project_delete` (15);
+  - 423 unitarias;
+  - e2e nuevas en `admin-changes.spec.ts`: borrar proyecto por rol y logotipo de ~3 MB; además reportes y
+    configuración;
+  - reversión y doble aplicación de ambas migraciones;
+  - e2e de casos, atención, entregas, WhatsApp y resiliencia en verde después del arreglo del bloqueo.
+- **Limitación:** un logotipo grande aumenta el tamaño de cada PDF de reporte (se incrusta una vez por documento).
+- **Activación / reversión:**
+  - activar: SQL en preview y producción, luego deploy;
+  - revertir: el despliegue anterior y los `down.sql` de `docs/rollback/`.
+
 ## Etapa 12 — Validación integral, piloto y decisión listo/no listo (13 oct 2026, base `776bb2b`)
 
 - **Antes:**

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Plus } from "lucide-react";
+import { DeleteProject } from "@/components/projects/delete-project";
 import { ProjectForm } from "@/components/projects/project-form";
 import { QueryBuilder } from "@/components/projects/query-builder";
 import { buttonVariants } from "@/components/ui/button";
@@ -34,9 +35,13 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
 
   return (
     <div className="flex flex-col gap-6">
-      <Link href="/configuracion/proyectos" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "self-start")}>
-        <ArrowLeft aria-hidden /> Proyectos
-      </Link>
+      <div className="flex items-center justify-between gap-4">
+        <Link href="/configuracion/proyectos" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+          <ArrowLeft aria-hidden /> Proyectos
+        </Link>
+        {/* Deleting is Administración's; the database enforces it too (delete_project). */}
+        {member.role === "admin" && <DeleteProject projectId={project.id} name={project.name} />}
+      </div>
 
       <Card>
         <CardHeader>

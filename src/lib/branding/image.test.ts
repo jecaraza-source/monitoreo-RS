@@ -43,6 +43,6 @@ describe("logo checks", () => {
     assert.match(logoProblem(png(5000, 200))!, /grande/);
     const big = new Uint8Array(LOGO_MAX_BYTES + 1);
     big.set(png(640, 200));
-    assert.match(logoProblem(big)!, /1 MB/);
+    assert.match(logoProblem(big)!, /5 MB/);
   });
 });
