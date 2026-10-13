@@ -46,6 +46,13 @@ su propio documento de `docs/`.
   - lectura de fuentes reales sólo verificable en producción;
   - mediciones en hardware local compartido;
   - sin lector de pantalla real.
+- **Revisión senior (tras el merge `98473c8`):**
+  - el recorrido no cubría consulta ni la administración del municipio A, aunque el informe decía «cuatro
+    roles»: corregido;
+  - tres pruebas fallaban en el preview (redirección tardía, barra de Vercel, token de un solo uso): corregidas
+    en `d58e545`;
+  - pendiente: otras tablas que crecen con el volumen conservan RLS por fila (sin falla medida).
+  - Detalle en `docs/etapa-12-validacion.md` § 11.
 - **Decisión:** **no listo** para operación general; piloto controlado cuando se cumplan las 6 condiciones de
   `docs/etapa-12-validacion.md` § 10.
 - **Activación / reversión:** `docs/etapa-12-activacion.md` (migración en preview → CI → producción → despliegue;

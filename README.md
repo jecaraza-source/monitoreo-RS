@@ -716,6 +716,20 @@ Webhook: `GET/POST /api/whatsapp/webhook` (verificación con `WHATSAPP_VERIFY_TO
    Sin botones (Meta no acepta una variable al inicio o al final del cuerpo). Ejemplos: `Ayuntamiento de Alvarado`, `Pico de menciones: 50 en 1 hora`,
    `Lo normal son 5 menciones por hora`, `alta`, `https://monitoreo.sigmainteligencia.com/alertas`.
 
+   **`sigma_caso_aviso`** (avisos de plazo de casos; sin ella, esos avisos van sólo por correo) — cuerpo:
+   > Aviso de caso — {{1}} del folio {{2}}:
+   >
+   > «{{3}}»
+   >
+   > Motivo: {{4}}. Puedes verlo en {{5}} y darle seguimiento desde la plataforma.
+
+   Sin botones. Ejemplos: `Recordatorio`, `C-2026-0012`, `Fuga en la calle Hidalgo`,
+   `vence la atención en 4 horas`, `https://monitoreo.sigmainteligencia.com/casos/…`. Al aprobarse, Administración
+   marca «Avisos de casos también por WhatsApp» en Configuración → SLA y escalamiento (`notification_settings.whatsapp_enabled`).
+
+   Estado al 13 oct 2026: `sigma_vinculacion`, `sigma_turno`, `sigma_recordatorio`, `sigma_escalamiento` y
+   `sigma_alerta` **activas** en Meta (es_MX); `sigma_caso_aviso` **por crear**.
+
 ## Salud del monitoreo
 
 `/salud` (admin y comunicación; lectura ve sólo el resumen) muestra, con datos guardados en la base
