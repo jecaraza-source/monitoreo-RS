@@ -1,5 +1,6 @@
 import "server-only";
 import type { Member } from "@/lib/auth/session";
+import { logoUrl } from "@/lib/branding/logo";
 import { createClient } from "@/lib/supabase/server";
 import { REPORT_SELECT, toReport, type ReportRow } from "./data";
 import type { ReportKind } from "./period";
@@ -10,12 +11,13 @@ export async function getReports(member: Member): Promise<{
   reports: ReportRow[];
   schedules: ReportSchedule[];
   brand: { primary: string; accent: string };
+  logoUrl: string | null;
 }> {
   const supabase = await createClient();
   const [reports, schedules, org] = await Promise.all([
     supabase.from("reports").select(REPORT_SELECT).eq("org_id", member.orgId).order("created_at", { ascending: false }).limit(60),
     supabase.from("report_schedules").select("period, recipients, auto_approve, is_active, last_run_at").eq("org_id", member.orgId),
-    supabase.from("organizations").select("brand_primary, brand_accent").eq("id", member.orgId).single(),
+    supabase.from("organizations").select("brand_primary, brand_accent, logo_path").eq("id", member.orgId).single(),
   ]);
   if (reports.error) throw new Error(`No se pudieron cargar los reportes: ${reports.error.message}`);
   return {
@@ -28,6 +30,7 @@ export async function getReports(member: Member): Promise<{
       lastRunAt: s.last_run_at,
     })),
     brand: { primary: org.data?.brand_primary ?? "#032a50", accent: org.data?.brand_accent ?? "#36c6c0" },
+    logoUrl: await logoUrl(supabase, org.data?.logo_path),
   };
 }
 

@@ -63,6 +63,8 @@ export const SUBSECTIONS: readonly { href: string; label: string; roles: readonl
   { href: "/configuracion/fuentes", label: "Fuentes", roles: ["admin", "comunicacion"] },
   { href: "/configuracion/catalogos", label: "Catálogos", roles: ["admin"] },
   { href: "/configuracion/usuarios", label: "Usuarios", roles: ["admin"] },
+  // Client logo and cover colors for the reports.
+  { href: "/configuracion/identidad", label: "Identidad", roles: ["admin"] },
   { href: "/configuracion/whatsapp", label: "WhatsApp y SLA", roles: ["admin"] },
   { href: "/configuracion/bitacora", label: "Bitácora", roles: ["admin"] },
   // Crisis room: live org-wide picture, so not for a single department.

@@ -188,7 +188,7 @@ Palancas: subir el umbral de escalamiento (`ESCALATE_BELOW_CONFIDENCE`), usar So
 
   | Rol | Secciones |
   |---|---|
-  | admin | Dashboard, Bandeja, Casos, Mapa, Alertas, Reportes, Asistente, Salud, Configuración (Proyectos, Catálogos, Usuarios) |
+  | admin | Dashboard, Bandeja, Casos, Mapa, Alertas, Reportes, Asistente, Salud, Configuración (Proyectos, Catálogos, Usuarios, Identidad) |
   | comunicacion | Dashboard, Bandeja, Casos, Mapa, Alertas, Reportes, Asistente, Salud, Configuración (sólo Proyectos) |
   | dependencia | Bandeja, Casos, Alertas, Asistente (sólo con lo turnado o asignado a su dependencia) |
   | lectura | Dashboard, Casos (sólo consulta), Mapa, Alertas, Reportes, Asistente, Salud (sólo el resumen) |
@@ -638,12 +638,20 @@ comparado contra el periodo anterior de la misma duración.
 3. **Borrador editable.** La vista web muestra KPIs, gráficas y la narrativa en un editor; avisa si una edición
    introduce cifras que no están en los datos.
 4. **Aprobación.** Congela el reporte (trigger `reports_guard`), genera el PDF con `@react-pdf/renderer`
-   (portada con `organizations.brand_primary/brand_accent`, editables por admin), lo guarda en el bucket privado
+   (portada con `organizations.brand_primary/brand_accent` y el **logotipo del cliente**, editables por admin en
+   Configuración → Identidad; el logo también va al pie de cada página), lo guarda en el bucket privado
    `reports/<org>/<id>.pdf` y lo envía por Resend como adjunto a los destinatarios. La descarga usa un enlace
    firmado de 5 minutos.
 5. **Envío programado.** `report_schedules` por tipo; `/api/cron/reports` (13:00 UTC = 7:00 CDMX) prepara el
    diario cada día, el semanal los lunes y el mensual el día 1. Con *aprobar sin revisión* se envía de inmediato;
    si no, espera la aprobación en `/reportes`.
+
+**Logotipo del cliente.**
+- Se sube en Configuración → Identidad (sólo admin): PNG o JPG de hasta 1 MB, entre 64 × 32 y 4000 px.
+- El servidor revisa el formato real del archivo por sus primeros bytes, no por el nombre ni el tipo declarado.
+- Se guarda en el bucket privado `branding/<org>/logo-<n>.png|jpg`, que sólo leen los miembros del municipio.
+  `organizations.logo_path` sólo admite rutas dentro de la carpeta del propio municipio.
+- Los PDF que se generen después lo usan. Los ya generados no cambian.
 
 **Lectura del día** (dashboard): 2 o 3 oraciones sobre las últimas 24 h, redactadas con `CLAUDE_MODEL_FAST` y
 las mismas validaciones, guardadas en `daily_readings` y regeneradas cuando tienen más de 1 h.

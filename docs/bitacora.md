@@ -31,7 +31,30 @@ su propio documento de `docs/`.
 - **Activación / reversión:**
   - activar: migración, deploy, y en `/casos` Simular y Aplicar;
   - revertir: commit y `down.sql` (se pierden casos e historial; los turnos se conservan).
-- **Pendiente:** logotipo del cliente en reportes (commit aparte), Node 22/24, prueba intermitente del mapa.
+- **Pendiente:** Node 22/24, prueba intermitente del mapa.
+
+### Adicional: logotipo del cliente en los reportes (pedido durante la etapa 4, commit aparte)
+
+- **Antes:**
+  - El PDF sólo llevaba los colores del municipio.
+  - Su pie de página no se dibujaba: react-pdf descartaba el número de página al heredar el interlineado de la
+    página.
+- **Después:**
+  - Configuración → Identidad (admin) sube o quita el logotipo y ajusta los colores.
+  - El logo va en la portada, sobre blanco, y en el pie de cada página; el pie vuelve a salir con la
+    numeración.
+  - Bucket privado `branding`; formato validado por bytes; la ruta queda atada a la carpeta del municipio.
+- **Archivos:**
+  - `supabase/migrations/20261028000000_org_logo.sql` y su `down.sql`;
+  - `src/lib/branding/*`, `src/components/settings/logo-form.tsx`, `src/app/(app)/configuracion/identidad`;
+  - `src/lib/reports/{pdf.tsx,deliver.ts,list.ts}`.
+- **Pruebas:**
+  - `branding/image.test.ts` y `branding.test.sql` (8);
+  - e2e de reportes: sube el logo y verifica la imagen en el PDF;
+  - revisión visual del PDF.
+- **Activación / reversión:**
+  - activar: migración y deploy;
+  - revertir: commit y `down.sql`, vaciando antes el bucket.
 
 ## Etapa 3 — Salud del monitoreo (13 oct 2026, base `1666fd6`)
 

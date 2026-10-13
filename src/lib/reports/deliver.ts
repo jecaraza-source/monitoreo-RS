@@ -2,6 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { siteUrl } from "@/lib/site-url";
 import { REPORT_SELECT, toReport, type ReportRow } from "./data";
+import { loadLogo } from "@/lib/branding/logo";
 import { renderReportPdf } from "./pdf";
 
 const BUCKET = "reports";
@@ -12,11 +13,11 @@ async function loadForDelivery(reportId: string) {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("reports")
-    .select(`${REPORT_SELECT}, organizations(name, brand_primary, brand_accent)`)
+    .select(`${REPORT_SELECT}, organizations(name, brand_primary, brand_accent, logo_path)`)
     .eq("id", reportId)
     .single();
   if (error) throw new Error(`No se encontró el reporte: ${error.message}`);
-  const org = (data as unknown as { organizations: { name: string; brand_primary: string; brand_accent: string } | null }).organizations;
+  const org = (data as unknown as { organizations: { name: string; brand_primary: string; brand_accent: string; logo_path: string | null } | null }).organizations;
   return { admin, report: toReport(data as never), org };
 }
 
@@ -28,7 +29,7 @@ export async function storeReportPdf(reportId: string): Promise<{ path: string; 
     facts: report.facts,
     narrative: report.narrative,
     title: report.title,
-    brand: { primary: org?.brand_primary ?? "#032a50", accent: org?.brand_accent ?? "#36c6c0" },
+    brand: { primary: org?.brand_primary ?? "#032a50", accent: org?.brand_accent ?? "#36c6c0", logo: await loadLogo(admin, org?.logo_path) },
   });
   const path = pdfPathOf(report);
   const { error } = await admin.storage.from(BUCKET).upload(path, bytes, { contentType: "application/pdf", upsert: true });

@@ -605,14 +605,14 @@ isOneToOne: false
                   ]
                 },"organizations": {
                   Row: {
-                    "brand_accent": string,"brand_primary": string,"created_at": string,"id": string,"name": string,"slug": string,"state": string | null
+                    "brand_accent": string,"brand_primary": string,"created_at": string,"id": string,"logo_path": string | null,"logo_updated_at": string | null,"name": string,"slug": string,"state": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "brand_accent"?: string,"brand_primary"?: string,"created_at"?: string,"id"?: string,"name": string,"slug": string,"state"?: string | null
+                    "brand_accent"?: string,"brand_primary"?: string,"created_at"?: string,"id"?: string,"logo_path"?: string | null,"logo_updated_at"?: string | null,"name": string,"slug": string,"state"?: string | null
                   }
                   Update: {
-                    "brand_accent"?: string,"brand_primary"?: string,"created_at"?: string,"id"?: string,"name"?: string,"slug"?: string,"state"?: string | null
+                    "brand_accent"?: string,"brand_primary"?: string,"created_at"?: string,"id"?: string,"logo_path"?: string | null,"logo_updated_at"?: string | null,"name"?: string,"slug"?: string,"state"?: string | null
                   }
                   Relationships: [
                     

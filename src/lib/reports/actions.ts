@@ -209,5 +209,6 @@ export async function saveBrandColors(input: unknown): Promise<ReportActionResul
     .eq("id", m.orgId);
   if (error) return fail(error, "guardar los colores");
   revalidatePath("/reportes");
+  revalidatePath("/configuracion/identidad");
   return { ok: true, message: "Colores de portada guardados." };
 }
