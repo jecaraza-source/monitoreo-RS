@@ -1,7 +1,7 @@
 import { Bot, Lock, MessageCircle, User } from "lucide-react";
 import { formatDateTime } from "@/components/inbox/format";
 import type { CaseEvent } from "@/lib/cases/data";
-import { CASE_STATUS_LABELS, EVENT_LABELS, FIELD_LABELS } from "@/lib/cases/model";
+import { CASE_STATUS_LABELS, EVENT_LABELS, FIELD_LABELS, TASK_STATUS_LABELS, type TaskStatus } from "@/lib/cases/model";
 import { PRIORITY_LABELS, type Priority } from "@/lib/inbox/model";
 
 const ACTOR_ICON = { user: User, whatsapp: MessageCircle, system: Bot } as const;
@@ -46,7 +46,27 @@ function describe(e: CaseEvent, names: Record<string, string>): string {
     const lead = Array.isArray(pair) ? pair[1] : null;
     const department = typeof lead === "string" ? names[lead] : null;
     const from = e.from_status ? `${CASE_STATUS_LABELS[e.from_status]} → ` : "";
-    return `${from}${CASE_STATUS_LABELS[e.to_status]}${department ? ` (${department})` : ""}`;
+    const step = `${from}${CASE_STATUS_LABELS[e.to_status]}${department ? ` (${department})` : ""}`;
+    const onBehalf = changes.on_behalf === true ? " (en nombre de la dependencia)" : "";
+    return e.operation === "reopened" ? `${label}: ${step}` : `${step}${onBehalf}`;
+  }
+  if (e.operation === "assignment_terms") {
+    const parts = [
+      typeof changes.responsible_user_id === "string" ? `responsable ${names[changes.responsible_user_id] ?? "asignado"}` : "sin persona responsable",
+      typeof changes.accept_due_at === "string" ? `aceptar antes de ${formatDateTime(changes.accept_due_at)}` : null,
+      typeof changes.due_at === "string" ? `compromiso ${formatDateTime(changes.due_at)}` : null,
+    ].filter(Boolean);
+    return `${label}: ${parts.join("; ")}`;
+  }
+  if (e.operation === "task_added" || e.operation === "task_status") {
+    const title = typeof changes.title === "string" ? changes.title : "";
+    const pair = changes.status;
+    const to = Array.isArray(pair) && typeof pair[1] === "string" ? TASK_STATUS_LABELS[pair[1] as TaskStatus] : null;
+    return `${label}: ${title}${to ? ` → ${to}` : ""}`;
+  }
+  if (e.operation === "update" || e.operation === "reopen_evidence") {
+    const n = Number(changes.files ?? 0);
+    return n ? `${label} (${nf.format(n)} ${n === 1 ? "archivo" : "archivos"})` : label;
   }
   if (e.operation === "updated") {
     const fields = Object.keys(changes).map((k) => {
@@ -71,7 +91,7 @@ function describe(e: CaseEvent, names: Record<string, string>): string {
 
 function show(key: string, value: unknown, names: Record<string, string>): string {
   if (key === "priority") return PRIORITY_LABELS[value as Priority] ?? String(value);
-  if (key === "due_at" && typeof value === "string") return formatDateTime(value);
+  if ((key === "due_at" || key === "accept_due_at") && typeof value === "string") return formatDateTime(value);
   if (typeof value === "string" && names[value]) return names[value];
   if (key.endsWith("_id")) return "actualizado";
   return String(value).slice(0, 120);

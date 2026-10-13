@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui-kit";
 import { requireSection } from "@/lib/auth/session";
 import { CASES_PAGE, listCases, parseCaseFilters, type CaseFilters as Filters } from "@/lib/cases/data";
-import { caseOverdue, OPEN_CASE_STATUSES } from "@/lib/cases/model";
+import { caseDueAt, caseOverdue } from "@/lib/cases/model";
 import { getInboxCatalogs } from "@/lib/inbox/data";
 import { PRIORITY_LABELS } from "@/lib/inbox/model";
 import { cn } from "@/lib/utils";
@@ -66,7 +66,8 @@ async function Cases({ searchParams }: { searchParams: PageProps<"/casos">["sear
       ) : (
         <ul className="flex flex-col gap-2">
           {rows.map((c) => {
-            const overdue = caseOverdue(c.status, c.due_at);
+            const overdue = caseOverdue(c);
+            const due = caseDueAt(c);
             return (
               <li key={c.id}>
                 <Link
@@ -94,10 +95,11 @@ async function Cases({ searchParams }: { searchParams: PageProps<"/casos">["sear
                       </span>
                     )}
                     <span>{c.department_id ? departments.get(c.department_id) : "Sin asignar"}</span>
-                    {c.due_at && OPEN_CASE_STATUSES.includes(c.status) && (
+                    {due && (
                       <span className={cn("inline-flex items-center gap-1", overdue && "font-medium text-negative")} suppressHydrationWarning>
                         {overdue && <AlarmClock className="size-3.5" aria-hidden />}
-                        {overdue ? "venció" : "vence"} {fromNow(c.due_at)}
+                        {overdue ? "venció" : "vence"} {c.status === "assigned" && due === c.accept_due_at ? "la aceptación " : ""}
+                        {fromNow(due)}
                       </span>
                     )}
                   </span>

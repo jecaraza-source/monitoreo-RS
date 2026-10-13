@@ -212,6 +212,7 @@ export type QueueCase = {
   department_id: string | null;
   neighborhood_id: string | null;
   due_at: string | null;
+  accept_due_at: string | null;
   opened_at: string;
   mentions: number;
 };
@@ -251,7 +252,7 @@ export async function hydrate(supabase: Client, orgId: string, scope: InboxScope
     caseIds.length
       ? supabase
           .from("cases")
-          .select("id, folio, title, status, priority, department_id, neighborhood_id, due_at, opened_at, case_mentions(count)")
+          .select("id, folio, title, status, priority, department_id, neighborhood_id, due_at, accept_due_at, opened_at, case_mentions(count)")
           .eq("org_id", orgId)
           .in("id", caseIds)
       : Promise.resolve({ data: [] as never[] }),

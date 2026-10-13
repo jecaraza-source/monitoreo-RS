@@ -397,18 +397,30 @@ siguen contando una por una. Detalle en [docs/etapa-4-casos.md](docs/etapa-4-cas
 - **Folio** por municipio (`C-00001`), título, descripción, categoría, colonia opcional, prioridad operativa,
   dependencia y persona responsables, plazo y estado. Quien abrió el caso (su autor) es distinto del autor de
   cada publicación.
-- **Estados:** detectado → en revisión → asignado → aceptado → en atención → atendido (por validar) → cerrado.
-  También devuelto por competencia (con motivo), descartado (con motivo), reabrir (con motivo) y fusionado.
-  La base valida cada transición (`case_transition_allowed`); devolver, descartar, rechazar la validación y
-  reabrir exigen motivo.
+- **Estados:** detectado → en revisión → asignado → aceptado → en atención → pendiente de validación →
+  cerrado. También devuelto por competencia (con motivo), descartado (con motivo), reabierto (con motivo y,
+  si hay, evidencia) y fusionado. La base valida cada transición y quién la ejecuta
+  (`case_transition_allowed`, `case_transition_actor`). Detalle de la atención en
+  [docs/etapa-6-atencion-de-casos.md](docs/etapa-6-atencion-de-casos.md).
+- **Asignación** (`assign_case`): dependencia responsable, persona responsable de esa dependencia, apoyos,
+  plazo de aceptación y compromiso de atención (fecha y qué se hará).
 - **Turnos:** asignar un caso crea o actualiza los tickets de la dependencia responsable y de las de apoyo
   sobre la mención principal, con aviso por WhatsApp. El estado del ticket sigue al del caso (una sola máquina
   de estados); cambiarlo desde la Bandeja o desde WhatsApp mueve el caso por `case_ticket_status`.
 - **Historial** de sólo agregar (`case_events`): quién, cuándo, qué operación, cambio y motivo, incluidas las
-  acciones por WhatsApp y del sistema.
-- **Por rol:** Comunicación y admin crean, asignan, editan, fusionan y validan. La dependencia sólo ve los
-  casos que tiene asignados (sin notas ni historial internos) y los acepta, atiende, marca atendidos o
-  devuelve. Lectura consulta.
+  acciones por WhatsApp y del sistema. Los hitos de cada ciclo (`case_milestones`) tampoco se sobrescriben.
+- **Por rol:**
+  - Comunicación y admin (la coordinación) crean, asignan, editan, fusionan, validan y reabren. Pueden
+    registrar un paso de la dependencia en su nombre, siempre con motivo.
+  - La dependencia responsable acepta, inicia la atención, reporta avances con evidencia, pide validación o
+    devuelve por competencia. No puede cerrar.
+  - Las dependencias de apoyo ven el caso, sus propias tareas y lo que se comparte con todas las áreas.
+  - Lectura consulta.
+- **Avances y evidencia:** fotos JPG/PNG y PDF de hasta 3 MB en el bucket privado `case-evidence`. Se suben
+  con la sesión de la persona (Storage con RLS) y a las fotos se les quitan EXIF y GPS. Se abren con un enlace
+  que vence en 60 s.
+- **Validación** (`validate_case`): cerrar exige al menos un avance en el ciclo, tareas cerradas, confirmar que
+  la evidencia es suficiente y escribir el resultado; devolver exige motivo.
 - **Sugerencias:** en el caso, Comunicación ve menciones posiblemente del mismo problema (misma colonia o
   palabras en común, en ±72 h). Nunca se agregan solas, y compartir sólo sentimiento o tema no basta.
 - **Turnos anteriores:** admin, en `/casos` → «Migrar turnos existentes», primero simula y luego aplica.

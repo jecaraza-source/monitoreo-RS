@@ -35,3 +35,9 @@ export function solidPng(width: number, height: number, [r, g, b]: [number, numb
     chunk("IEND", Buffer.alloc(0)),
   ]);
 }
+
+/** The same PNG with a text chunk (e.g. a fictitious author or GPS note), as cameras and editors leave. */
+export function withTextChunk(png: Buffer, key: string, value: string): Buffer {
+  const iend = png.length - 12;
+  return Buffer.concat([png.subarray(0, iend), chunk("tEXt", Buffer.from(`${key}\0${value}`, "latin1")), png.subarray(iend)]);
+}

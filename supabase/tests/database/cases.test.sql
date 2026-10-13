@@ -2,7 +2,7 @@
 -- assignments as tickets, isolation between departments and municipalities,
 -- append-only history, links, merges and suggestions. Fictitious data.
 begin;
-select plan(66);
+select plan(67);
 
 create function pg_temp.login(p_user uuid) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object('sub', p_user, 'role', 'authenticated')::text, true);
@@ -91,6 +91,7 @@ select lives_ok($$ select public.case_ticket_status((select id from public.ticke
 select is(pg_temp.st((select v from ids where k = 'leak')), 'in_progress', 'the case is in progress');
 select is((select status::text from public.tickets where case_id = (select v from ids where k = 'leak') and is_primary), 'in_progress', 'and its ticket mirrors it');
 select lives_ok($$ select public.add_case_note((select v from ids where k = 'leak'), 'Cuadrilla en sitio.', 'department') $$, 'the department adds a note');
+select lives_ok($$ select public.add_case_update((select v from ids where k = 'leak'), 'Cuadrilla en sitio, fuga sellada.') $$, 'the department reports progress');
 select lives_ok($$ select public.transition_case((select v from ids where k = 'leak'), 'resolved') $$, 'and marks it attended');
 reset role;
 
@@ -106,9 +107,9 @@ reset role;
 -- ---------------------------------------------------------------------------
 select pg_temp.login('00000000-0000-4000-d000-000000000002');
 set local role authenticated;
-select throws_ok($$ select public.transition_case((select v from ids where k = 'leak'), 'in_progress') $$,
-  '22023', 'Este cambio requiere un motivo.', 'rejecting the validation needs a reason');
-select lives_ok($$ select public.transition_case((select v from ids where k = 'leak'), 'closed') $$, 'comunicación validates and closes');
+select throws_ok($$ select public.validate_case((select v from ids where k = 'leak'), 'rejected', '') $$,
+  '22023', 'Escribe el motivo de la devolución.', 'rejecting the validation needs a reason');
+select lives_ok($$ select public.validate_case((select v from ids where k = 'leak'), 'approved', 'Fuga reparada y verificada.', true) $$, 'comunicación validates and closes');
 select is((select array_agg(distinct status::text) from public.tickets where case_id = (select v from ids where k = 'leak')), array['closed'], 'its assignments close');
 select throws_ok($$ select public.transition_case((select v from ids where k = 'leak'), 'in_review') $$,
   '22023', 'Este cambio requiere un motivo.', 'reopening needs a reason');
@@ -174,7 +175,7 @@ select throws_ok($$ update public.case_events set reason = 'reescrito' $$, '4250
 select throws_ok($$ delete from public.case_events $$, '42501', null, 'nor deleted');
 reset role;
 select is((select array_agg(operation order by id) from public.case_events where case_id = (select v from ids where k = 'leak')),
-  array['created', 'status', 'status', 'note', 'note', 'status', 'status', 'note', 'status', 'status', 'reopened', 'mention_removed', 'merged_from'],
+  array['created', 'status', 'status', 'note', 'note', 'status', 'status', 'note', 'update', 'status', 'status', 'reopened', 'mention_removed', 'merged_from'],
   'every step of the case is in its history');
 
 select * from finish();

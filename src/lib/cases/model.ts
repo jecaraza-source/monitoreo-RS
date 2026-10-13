@@ -22,7 +22,7 @@ export const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
   assigned: "Asignado",
   accepted: "Aceptado",
   in_progress: "En atención",
-  resolved: "Atendido, por validar",
+  resolved: "Pendiente de validación",
   closed: "Cerrado",
   returned: "Devuelto",
   discarded: "Descartado",
@@ -71,23 +71,72 @@ export function needsReason(from: CaseStatus, to: CaseStatus): boolean {
   return to === "returned" || to === "discarded" || (from === "resolved" && to === "in_progress") || ((from === "closed" || from === "discarded") && to === "in_review");
 }
 
+export type TransitionActor = "department" | "validation" | "coordination";
+
+/** Same as public.case_transition_actor: who performs each step. */
+export function transitionActor(from: CaseStatus, to: CaseStatus): TransitionActor | null {
+  if (!transitionAllowed(from, to)) return null;
+  if (BY_DEPARTMENT.some(([a, b]) => a === from && b === to)) return "department";
+  if (from === "resolved" && (to === "closed" || to === "in_progress")) return "validation";
+  return "coordination";
+}
+
+/** editor: admin and comunicación (coordination). */
 export type CaseActor = "editor" | "department" | "reader";
 
-export type CaseAction = { to: CaseStatus; label: string; reason: boolean; assign: boolean; primary: boolean };
+export type CaseAction = {
+  to: CaseStatus;
+  label: string;
+  reason: boolean;
+  assign: boolean;
+  primary: boolean;
+  /** Validation dialog: close with a result or return with a reason. */
+  validate: boolean;
+  /** Reopen dialog: reason and evidence that the problem persists. */
+  reopen: boolean;
+  /** A department step registered by coordination on its behalf (needs a reason). */
+  onBehalf: boolean;
+};
 
 /** What the person sees as buttons for the case, in a sensible order. */
 export function actionsFor(status: CaseStatus, actor: CaseActor, isResponsibleDepartment: boolean): CaseAction[] {
   if (actor === "reader") return [];
-  const candidates = TRANSITIONS.filter(([from]) => from === status).map(([, to]) => to);
-  return candidates
-    .filter((to) => actor === "editor" || (isResponsibleDepartment && BY_DEPARTMENT.some(([a, b]) => a === status && b === to)))
-    .map((to) => ({
-      to,
-      label: actionLabel(status, to),
-      reason: needsReason(status, to),
-      assign: to === "assigned",
-      primary: PRIMARY[status] === to,
-    }));
+  const out: CaseAction[] = [];
+  for (const [from, to] of TRANSITIONS) {
+    if (from !== status) continue;
+    const who = transitionActor(from, to)!;
+    if (actor === "department" && !(who === "department" && isResponsibleDepartment)) continue;
+    // Validation is one dialog (close or return), offered once.
+    if (who === "validation") {
+      if (to === "closed") out.push(action(status, to, { validate: true, label: "Validar" }));
+      continue;
+    }
+    const onBehalf = actor === "editor" && who === "department";
+    const reopen = actor === "editor" && status === "closed" && to === "in_review";
+    out.push(
+      action(status, to, {
+        onBehalf,
+        reopen,
+        reason: needsReason(status, to) || onBehalf,
+        label: onBehalf ? `${actionLabel(status, to)} (en nombre de la dependencia)` : undefined,
+      }),
+    );
+  }
+  // The department's own path first; steps on its behalf after coordination's.
+  return out.sort((a, b) => Number(a.onBehalf) - Number(b.onBehalf));
+}
+
+function action(from: CaseStatus, to: CaseStatus, o: Partial<CaseAction>): CaseAction {
+  return {
+    to,
+    label: o.label ?? actionLabel(from, to),
+    reason: o.reason ?? needsReason(from, to),
+    assign: to === "assigned",
+    primary: !o.onBehalf && PRIMARY[from] === to,
+    validate: o.validate ?? false,
+    reopen: o.reopen ?? false,
+    onBehalf: o.onBehalf ?? false,
+  };
 }
 
 const PRIMARY: Partial<Record<CaseStatus, CaseStatus>> = {
@@ -103,12 +152,10 @@ const PRIMARY: Partial<Record<CaseStatus, CaseStatus>> = {
 function actionLabel(from: CaseStatus, to: CaseStatus): string {
   if (to === "assigned") return from === "new" || from === "in_review" ? "Asignar" : "Reasignar";
   if (to === "in_review") return from === "closed" || from === "discarded" ? "Reabrir" : from === "returned" ? "Volver a revisión" : "Revisar";
-  if (from === "resolved" && to === "in_progress") return "Rechazar validación";
   return {
     accepted: "Aceptar",
     in_progress: "Iniciar atención",
-    resolved: "Marcar atendido",
-    closed: "Validar y cerrar",
+    resolved: "Solicitar validación",
     returned: "Devolver por competencia",
     discarded: "Descartar",
   }[to as string] ?? CASE_STATUS_LABELS[to];
@@ -128,6 +175,11 @@ export const EVENT_LABELS: Record<string, string> = {
   merged_from: "Fusionó otro caso en éste",
   note: "Agregó una nota",
   backfill: "Creado desde turnos existentes",
+  assignment_terms: "Definió responsable y plazos",
+  update: "Reportó un avance",
+  reopen_evidence: "Agregó evidencia de que el problema persiste",
+  task_added: "Agregó una tarea",
+  task_status: "Actualizó una tarea",
 };
 
 export const FIELD_LABELS: Record<string, string> = {
@@ -136,12 +188,61 @@ export const FIELD_LABELS: Record<string, string> = {
   category: "Categoría",
   neighborhood_id: "Colonia",
   priority: "Prioridad",
-  due_at: "Plazo",
+  due_at: "Compromiso de atención",
+  accept_due_at: "Plazo de aceptación",
+  commitment: "Compromiso",
   responsible_user_id: "Responsable",
   department_id: "Dependencia",
 };
 
-/** Past its due date while someone still has to act (resolved waits for validation, not for the department). */
-export function caseOverdue(status: CaseStatus, dueAt: string | null, now = Date.now()): boolean {
-  return Boolean(dueAt) && OPEN_CASE_STATUSES.includes(status) && status !== "resolved" && new Date(dueAt!).getTime() < now;
+/**
+ * The deadline that matters now: an assigned case must be accepted first
+ * (acceptance deadline), then attended (commitment). None while it waits for
+ * validation or is not with a department.
+ */
+export function caseDueAt(c: { status: CaseStatus; due_at: string | null; accept_due_at?: string | null }): string | null {
+  if (c.status === "assigned") {
+    const dates = [c.accept_due_at, c.due_at].filter((d): d is string => Boolean(d));
+    return dates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0] ?? null;
+  }
+  return c.status === "accepted" || c.status === "in_progress" ? c.due_at : null;
+}
+
+/** Past the deadline that matters now (see caseDueAt). */
+export function caseOverdue(c: { status: CaseStatus; due_at: string | null; accept_due_at?: string | null }, now = Date.now()): boolean {
+  const due = caseDueAt(c);
+  return Boolean(due) && new Date(due!).getTime() < now;
+}
+
+export type TaskStatus = "pending" | "in_progress" | "done" | "cancelled";
+export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
+  pending: "Pendiente",
+  in_progress: "En proceso",
+  done: "Hecha",
+  cancelled: "Cancelada",
+};
+
+/** Same as public.update_case_task: next steps of a task; manager = lead area or coordination. */
+export function taskActions(status: TaskStatus, manager: boolean): { to: TaskStatus; label: string; note: boolean }[] {
+  const steps: { to: TaskStatus; label: string; note: boolean }[] = [];
+  if (status === "pending") steps.push({ to: "in_progress", label: "Iniciar", note: false });
+  if (status === "pending" || status === "in_progress") steps.push({ to: "done", label: "Marcar hecha", note: false });
+  if (manager && (status === "pending" || status === "in_progress")) steps.push({ to: "cancelled", label: "Cancelar", note: true });
+  if (manager && status === "done") steps.push({ to: "in_progress", label: "Reabrir tarea", note: true });
+  return steps;
+}
+
+/** An open task past its due date. */
+export function taskOverdue(t: { status: TaskStatus; due_at: string | null }, now = Date.now()): boolean {
+  return Boolean(t.due_at) && (t.status === "pending" || t.status === "in_progress") && new Date(t.due_at!).getTime() < now;
+}
+
+/** Elapsed time in words: "45 min", "3 h 20 min", "2 d 4 h". */
+export function formatDuration(ms: number): string {
+  const minutes = Math.max(0, Math.round(ms / 60_000));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return minutes % 60 ? `${hours} h ${minutes % 60} min` : `${hours} h`;
+  const days = Math.floor(hours / 24);
+  return hours % 24 ? `${days} d ${hours % 24} h` : `${days} d`;
 }
