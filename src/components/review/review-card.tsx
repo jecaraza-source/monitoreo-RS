@@ -82,7 +82,7 @@ export function ReviewCard({ item, catalogs }: { item: ReviewItem; catalogs: Inb
             title={REASON_LABELS[r as ReviewReason]?.hint}
             className={cn(
               "rounded-full border px-2 py-0.5 text-xs font-medium",
-              r === "emergency" ? "border-negative bg-negative text-white" : r === "high_risk" || r === "risk_term" ? "border-negative/50 text-negative" : "",
+              r === "emergency" ? "border-negative bg-negative text-negative-foreground" : r === "high_risk" || r === "risk_term" ? "border-negative/50 text-negative" : "",
             )}
           >
             {REASON_LABELS[r as ReviewReason]?.label ?? r}

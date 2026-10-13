@@ -3,6 +3,54 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Etapa 12 — Validación integral, piloto y decisión listo/no listo (13 oct 2026, base `776bb2b`)
+
+- **Antes:**
+  - Sin e2e del recorrido completo ni del enlace mágico real.
+  - Permisos probados por SQL y por menú, no por llamada directa.
+  - Fallas inyectadas sólo para concurrencia y correo.
+  - Sin mediciones con volumen ni evaluación de IA separada del desarrollo.
+  - CI en Node 22.
+- **Después:**
+  - E2E nuevas:
+    - recorrido de la fuente al PDF con 4 roles y 2 municipios;
+    - permisos por API, RPC y Storage;
+    - 6 escenarios de falla con conciliación de contadores;
+    - accesibilidad.
+  - Mediciones con 107 000 menciones.
+  - Holdout de IA de 48 casos con métricas, umbrales y hoja de validación humana.
+  - Documentos de activación y del piloto, y SQL de métricas de sólo lectura.
+  - CI en Node 24.
+- **Hallazgos corregidos:**
+  - **la bandeja no cargaba con ~100 000 menciones** (políticas RLS por fila: 9.9 s y 23 s frente a un límite de
+    8 s). La migración `20261105000000_rls_scale.sql` las deja en 50 ms y 1.7 s, con visibilidad idéntica probada;
+  - 7 combinaciones de texto bajo AA;
+  - no había «Saltar al contenido»;
+  - la 404 estaba en inglés.
+- **Archivos:** ver `docs/etapa-12-validacion.md` § 7.
+- **Pruebas** (Node 24):
+  - lint, typecheck y 423 unitarias;
+  - pgTAP 929/929 tras `db reset`;
+  - reversión y doble aplicación;
+  - build canario + `check:bundle` (254 archivos);
+  - e2e: 67 pasaron y 11 omitidas (mediciones manuales);
+  - mediciones 8/8;
+  - respaldo y restauración local con conteos idénticos.
+- **Consulta previa (sólo lectura):**
+  - producción: 823 menciones, 1 caso, 3 usuarios, 7/7 fuentes leyendo, 23 errores de ingesta en 7 días
+    (Reddit 429);
+  - preview: 273 menciones, 3 casos;
+  - ambas con las políticas anteriores.
+- **Limitaciones:**
+  - evaluación de IA real y validación humana pendientes (sin llave en este entorno);
+  - lectura de fuentes reales sólo verificable en producción;
+  - mediciones en hardware local compartido;
+  - sin lector de pantalla real.
+- **Decisión:** **no listo** para operación general; piloto controlado cuando se cumplan las 6 condiciones de
+  `docs/etapa-12-validacion.md` § 10.
+- **Activación / reversión:** `docs/etapa-12-activacion.md` (migración en preview → CI → producción → despliegue;
+  reversión con el despliegue anterior y `down.sql`).
+
 ## Etapa 11 — Configuración por municipio, ayuda por rol, manuales, retención y puesta en operación (13 oct 2026, base `9ad3389`)
 
 - **Antes:**

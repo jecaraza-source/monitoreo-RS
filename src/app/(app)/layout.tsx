@@ -41,6 +41,13 @@ async function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider defaultOpen={sidebarOpen}>
+      {/* First stop of the keyboard: skips the menu and the header. */}
+      <a
+        href="#contenido"
+        className="sr-only rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-2 focus:z-50"
+      >
+        Saltar al contenido
+      </a>
       <AppSidebar role={member.role} access={member.access} orgName={member.orgName} departmentName={member.departmentName} />
       <SidebarInset>
         <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur">
@@ -53,7 +60,9 @@ async function AppShell({ children }: { children: React.ReactNode }) {
             <UserMenu email={member.email} role={member.role} />
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">{children}</div>
+        <div id="contenido" tabIndex={-1} className="flex flex-1 flex-col gap-6 p-4 outline-none md:p-6">
+          {children}
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

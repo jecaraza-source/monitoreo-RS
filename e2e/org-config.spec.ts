@@ -28,6 +28,9 @@ test.describe("menú con autorización real", () => {
       for (const href of hrefs) {
         await page.goto(href);
         await expect(page, href).toHaveURL(new RegExp(`${href}(/|\\?|$)`));
+        // /configuracion redirects to the role's first subsection; on a deployment the
+        // redirect can land after "load", so wait for it before the next navigation.
+        if (href === "/configuracion") await page.waitForURL(/\/configuracion\/[\w-]+/);
       }
       for (const sub of SUBSECTIONS) {
         await page.goto(sub.href);

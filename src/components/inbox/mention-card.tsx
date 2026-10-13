@@ -15,9 +15,9 @@ import type { Lookups } from "./lookups";
 export const CARD_HEIGHT = 172;
 
 const PRIORITY_TONE = {
-  critical: "bg-negative text-white",
+  critical: "bg-negative text-negative-foreground",
   high: "bg-negative/15 text-negative",
-  medium: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  medium: "bg-amber-500/15 text-amber-800 dark:text-amber-400",
   low: "bg-muted text-muted-foreground",
 } as const;
 
@@ -117,7 +117,7 @@ export function MentionCard({
           <span
             className={cn(
               "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 font-medium",
-              c.severity === "emergency" ? "border-negative bg-negative text-white" : "border-negative/50 text-negative",
+              c.severity === "emergency" ? "border-negative bg-negative text-negative-foreground" : "border-negative/50 text-negative",
             )}
             title="Gravedad del hecho (independiente del sentimiento)"
           >

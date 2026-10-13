@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
+        with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
@@ -55,7 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
+        with: { node-version: 24, cache: npm }
       - run: npm ci
       # Applies supabase/migrations and supabase/seed.sql on a fresh local Postgres.
       - run: npx supabase db start
@@ -76,7 +76,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
+        with: { node-version: 24, cache: npm }
       - run: npm ci
       - run: npx supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta
       - name: App environment from the local stack
@@ -139,7 +139,7 @@ jobs:
       - uses: actions/checkout@v4
         with: { ref: "${{ github.event.deployment.sha }}" }
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
+        with: { node-version: 24, cache: npm }
       # Until the preview Supabase project and its secrets exist (README → Despliegue),
       # the job warns and skips instead of failing every PR.
       - name: Preview secrets configured

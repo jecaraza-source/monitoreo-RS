@@ -13,7 +13,7 @@ export function CostText({ totals }: { totals: Totals }) {
     <span>
       <span className="font-medium">{formatUsd(known)}</span>
       {known !== null && totals.unpricedRequests > 0 && (
-        <span className="text-amber-600 dark:text-amber-400">
+        <span className="text-amber-700 dark:text-amber-400">
           {" "}
           + {integer.format(totals.unpricedRequests)} {totals.unpricedRequests === 1 ? "solicitud" : "solicitudes"} de costo desconocido
         </span>
@@ -99,7 +99,7 @@ export function ConsumptionSummary({ data }: { data: AiConsumption }) {
                   <TableCell className="text-right">
                     <CostText totals={b} />
                   </TableCell>
-                  <TableCell>{b.hasTariff ? (b.tariffVersion ?? "—") : <span className="text-amber-600 dark:text-amber-400">No configurada</span>}</TableCell>
+                  <TableCell>{b.hasTariff ? (b.tariffVersion ?? "—") : <span className="text-amber-700 dark:text-amber-400">No configurada</span>}</TableCell>
                 </TableRow>
               ))
             ) : (

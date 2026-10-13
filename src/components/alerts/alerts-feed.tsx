@@ -34,7 +34,7 @@ const KIND_ICON: Record<RuleKind, typeof TrendingUp> = {
 };
 
 const SEVERITY_TONE = {
-  critical: "bg-negative text-white",
+  critical: "bg-negative text-negative-foreground",
   high: "bg-negative/15 text-foreground",
   medium: "bg-amber-500/15 text-foreground",
   low: "bg-muted text-muted-foreground",

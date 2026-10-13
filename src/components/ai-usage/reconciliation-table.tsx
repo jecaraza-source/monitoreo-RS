@@ -8,7 +8,7 @@ const STATUS: Record<MonthRow["status"], { label: string; className: string }> =
   sin_factura: { label: "Sin factura", className: "text-muted-foreground" },
   conciliado: { label: "Conciliado (±5 %)", className: "text-emerald-600 dark:text-emerald-400" },
   diferencia: { label: "Diferencia por revisar", className: "text-red-600 dark:text-red-400" },
-  incompleto: { label: "Estimado incompleto (costo desconocido)", className: "text-amber-600 dark:text-amber-400" },
+  incompleto: { label: "Estimado incompleto (costo desconocido)", className: "text-amber-700 dark:text-amber-400" },
 };
 
 const monthLabel = (m: string) => new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${m}T12:00:00Z`));

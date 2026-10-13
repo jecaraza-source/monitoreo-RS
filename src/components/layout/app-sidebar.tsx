@@ -114,7 +114,7 @@ export function AppSidebar({
           {departmentName && <> · {departmentName}</>}
         </p>
       </SidebarFooter>
-      <SidebarRail />
+      <SidebarRail aria-label="Mostrar u ocultar menú" title="Mostrar u ocultar menú" />
     </Sidebar>
   );
 }
