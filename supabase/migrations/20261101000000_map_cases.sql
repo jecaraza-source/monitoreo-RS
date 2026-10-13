@@ -387,14 +387,16 @@ $$;
 -- A colonia already on a case was captured, not confirmed: inferred. Cases
 -- without one stay without location (their colonia is not filled in here,
 -- so the rollback leaves the cases as they were).
-select set_config('app.case_location', 'on', true);
+-- Session-wide flag (not transaction-local): the backfill also works when the
+-- file runs statement by statement (psql, SQL editor) instead of in one transaction.
+select set_config('app.case_location', 'on', false);
 update public.cases
 set location_status = 'inferred', location_source = 'captura', location_confidence = 0.80, location_updated_at = now()
 where location_source is null and neighborhood_id is not null;
 update public.cases
 set location_status = 'unavailable', location_source = 'sin_dato', location_updated_at = now()
 where location_source is null;
-select set_config('app.case_location', '', true);
+select set_config('app.case_location', '', false);
 
 -- From now on a colonia means a location and the other way around.
 alter table public.cases
