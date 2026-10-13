@@ -408,3 +408,75 @@ from (values
 ) as v(n, sentiment, emotion, topic, intent, priority);
 
 refresh materialized view public.mention_stats_hourly;
+
+-- ---------------------------------------------------------------------------
+-- Second tenant (fixture for isolation tests): one fictitious municipality with
+-- one user per role, one department, an inactive source and three mentions.
+-- Nothing here is visible to the users of the first municipality.
+--
+--   admin@municipio-b.test         admin
+--   comunicacion@municipio-b.test  comunicacion
+--   servicios@municipio-b.test     dependencia (Servicios Urbanos)
+--   lectura@municipio-b.test       lectura
+-- ---------------------------------------------------------------------------
+
+insert into public.organizations (id, name, slug, state) values
+  ('00000000-0000-4000-a000-00000000000b', 'Municipio de Prueba B', 'municipio-prueba-b', 'Veracruz');
+
+insert into public.departments (id, org_id, name, short_name) values
+  ('00000000-0000-4000-b000-000000000011', '00000000-0000-4000-a000-00000000000b', 'Servicios Urbanos', 'servicios');
+
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+  raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+  confirmation_token, recovery_token, email_change_token_new, email_change
+)
+select
+  '00000000-0000-0000-0000-000000000000', id, 'authenticated', 'authenticated', email,
+  extensions.crypt('password123', extensions.gen_salt('bf')), now(),
+  '{"provider":"email","providers":["email"]}', jsonb_build_object('full_name', full_name), now(), now(),
+  '', '', '', ''
+from (values
+  ('00000000-0000-4000-d000-000000000011'::uuid, 'admin@municipio-b.test', 'Administración B'),
+  ('00000000-0000-4000-d000-000000000012'::uuid, 'comunicacion@municipio-b.test', 'Comunicación B'),
+  ('00000000-0000-4000-d000-000000000013'::uuid, 'servicios@municipio-b.test', 'Enlace Servicios B'),
+  ('00000000-0000-4000-d000-000000000014'::uuid, 'lectura@municipio-b.test', 'Consulta B')
+) as u(id, email, full_name);
+
+insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+select gen_random_uuid(), id, id::text, jsonb_build_object('sub', id::text, 'email', email), 'email', now(), now(), now()
+from auth.users
+where email like '%@municipio-b.test';
+
+insert into public.memberships (org_id, user_id, role, department_id) values
+  ('00000000-0000-4000-a000-00000000000b', '00000000-0000-4000-d000-000000000011', 'admin', null),
+  ('00000000-0000-4000-a000-00000000000b', '00000000-0000-4000-d000-000000000012', 'comunicacion', null),
+  ('00000000-0000-4000-a000-00000000000b', '00000000-0000-4000-d000-000000000013', 'dependencia', '00000000-0000-4000-b000-000000000011'),
+  ('00000000-0000-4000-a000-00000000000b', '00000000-0000-4000-d000-000000000014', 'lectura', null);
+
+-- Inactive: the ingest cron never reads it.
+insert into public.sources (id, org_id, name, type, config, is_active) values
+  ('00000000-0000-4000-e200-000000000011', '00000000-0000-4000-a000-00000000000b', 'Noticias B (RSS de prueba)', 'rss',
+   '{"url": "https://example.com/municipio-b/feed.xml", "outletName": "Noticias B"}', false);
+
+insert into public.mentions (id, org_id, source_id, external_id, url, text, published_at, status, triage)
+values
+  ('00000000-0000-4000-f200-000000000001', '00000000-0000-4000-a000-00000000000b', '00000000-0000-4000-e200-000000000011',
+   'b-1', 'https://example.com/municipio-b/1', 'Lleva una semana una fuga de agua en la calle Principal de Municipio B.', now() - interval '2 days', 'classified', 'routed'),
+  ('00000000-0000-4000-f200-000000000002', '00000000-0000-4000-a000-00000000000b', '00000000-0000-4000-e200-000000000011',
+   'b-2', 'https://example.com/municipio-b/2', 'Quedó muy bien el parque central de Municipio B.', now() - interval '1 day', 'classified', 'new'),
+  ('00000000-0000-4000-f200-000000000003', '00000000-0000-4000-a000-00000000000b', '00000000-0000-4000-e200-000000000011',
+   'b-3', 'https://example.com/municipio-b/3', 'Municipio B anunció la feria del pueblo para noviembre.', now() - interval '3 hours', 'pending', 'new');
+
+insert into public.classifications (org_id, mention_id, sentiment, confidence, emotion, topic, intent, priority, department_id, model)
+values
+  ('00000000-0000-4000-a000-00000000000b', '00000000-0000-4000-f200-000000000001', 'negative', 0.9, 'frustración', 'agua potable',
+   'queja', 'high', '00000000-0000-4000-b000-000000000011', 'seed'),
+  ('00000000-0000-4000-a000-00000000000b', '00000000-0000-4000-f200-000000000002', 'positive', 0.9, 'alegría', 'obra pública',
+   'elogio', 'low', null, 'seed');
+
+insert into public.tickets (org_id, mention_id, department_id, status, due_at)
+values ('00000000-0000-4000-a000-00000000000b', '00000000-0000-4000-f200-000000000001', '00000000-0000-4000-b000-000000000011',
+        'open', now() + interval '1 day');
+
+refresh materialized view public.mention_stats_hourly;

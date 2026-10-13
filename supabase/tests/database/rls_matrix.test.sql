@@ -83,7 +83,21 @@ select is((select string_agg(p.proname, ', ') from pg_proc p
 -- ---------------------------------------------------------------------------
 -- Reads per role (counts as superuser first)
 -- ---------------------------------------------------------------------------
-create temporary table everything on commit drop as select t, pg_temp.visible(t) as n from tabs;
+-- Rows of the first municipality (the seed also has a second one, which nobody here may see).
+create function pg_temp.in_org(p_table text) returns bigint language plpgsql as $$
+declare n bigint;
+begin
+  if p_table = 'organizations' then
+    select count(*) into n from public.organizations where id = '00000000-0000-4000-a000-000000000001';
+  elsif exists (select 1 from information_schema.columns
+                where table_schema = 'public' and table_name = p_table and column_name = 'org_id') then
+    execute format('select count(*) from public.%I where org_id = %L', p_table, '00000000-0000-4000-a000-000000000001') into n;
+  else
+    execute format('select count(*) from public.%I', p_table) into n;
+  end if;
+  return n;
+end $$;
+create temporary table everything on commit drop as select t, pg_temp.in_org(t) as n from tabs;
 grant select on everything to authenticated;
 create temporary table seen (role text, t text, n bigint) on commit drop;
 grant all on seen to authenticated;

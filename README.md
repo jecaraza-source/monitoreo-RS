@@ -24,9 +24,13 @@ npm run dev                   # http://localhost:3000
 ```
 
 - Usuarios del seed: `admin@`, `comunicacion@`, `obras@`, `agua@` y `lectura@monitoreo.test`. Se entra con
-  enlace de acceso; los correos llegan a Mailpit (http://127.0.0.1:54324).
+  enlace de acceso; los correos llegan a Mailpit (http://127.0.0.1:54324). Un segundo municipio ficticio
+  (*Municipio de Prueba B*) con `admin@`, `comunicacion@`, `servicios@` (dependencia) y `lectura@municipio-b.test`
+  sirve para probar el aislamiento entre municipios.
 - Sin llaves de Claude ni Resend: `node e2e/mock-anthropic.mjs` y arranca la app con
   `ANTHROPIC_API_KEY=mock ANTHROPIC_BASE_URL=http://127.0.0.1:4010 RESEND_API_KEY=re_mock RESEND_BASE_URL=http://127.0.0.1:4010`.
+  El simulador puede inyectar fallas para probar reintentos y costos: `POST /__mock/faults` (ver su encabezado).
+- Línea base, matriz de hallazgos y plan por etapas: `docs/etapa-0-linea-base.md`; bitácora: `docs/bitacora.md`.
 
 ### Comandos
 
