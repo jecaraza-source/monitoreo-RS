@@ -3,6 +3,59 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Etapa 4 — Casos (13 oct 2026, base `6e26ba5`)
+
+- **Antes:**
+  - La mención era la unidad de trabajo: cada publicación de la misma fuga se turnaba por separado.
+  - No había historial de quién hizo qué, ni forma de agrupar, devolver por competencia o validar el cierre.
+- **Después:**
+  - `cases` (folio `C-00001` por municipio) y `case_mentions` (una mención en a lo más un caso); las menciones
+    siguen contando una por una.
+  - Una sola máquina de estados en la base, con motivo obligatorio para devolver, descartar, rechazar la
+    validación y reabrir.
+  - Los turnos son las asignaciones del caso y siguen su estado; Bandeja y WhatsApp mueven el caso.
+  - Historial de sólo agregar (persona, WhatsApp o sistema) y notas internas o para la dependencia.
+  - Fusión que conserva folios e historial; sugerencias de agrupación siempre confirmadas por una persona.
+  - Backfill repetible de turnos a casos, con simulación y conciliación (admin, en `/casos`).
+  - Interfaz `/casos` y `/casos/[id]`; en Bandeja, «Caso» (atajo `c`) y folio en tarjetas.
+- **Archivos:** ver `docs/etapa-4-casos.md` § 7. Migración `20261027000000_cases.sql` y su `down.sql`.
+- **Pruebas:**
+  - lint, typecheck y unitarias (incluye espejo SQL↔TS de transiciones);
+  - `db reset` y pgTAP 436/436 (casos, backfill, sugerencias, personas, matriz RLS);
+  - reversión y reaplicación en local, con pgTAP completo después;
+  - build canario + `check:bundle`;
+  - e2e 24 (casos 2/2; volvió a fallar una vez la prueba intermitente del mapa y pasó al repetir).
+- **Conteo previo (sólo lectura):** producción 189 turnos → 187 casos; preview 110 → 110.
+- **Limitaciones:** sugerencias léxicas a 72 h; turnos sólo sobre la mención principal; persona responsable
+  sólo de la dependencia asignada.
+- **Activación / reversión:**
+  - activar: migración, deploy, y en `/casos` Simular y Aplicar;
+  - revertir: commit y `down.sql` (se pierden casos e historial; los turnos se conservan).
+- **Pendiente:** Node 22/24, prueba intermitente del mapa.
+
+### Adicional: logotipo del cliente en los reportes (pedido durante la etapa 4, commit aparte)
+
+- **Antes:**
+  - El PDF sólo llevaba los colores del municipio.
+  - Su pie de página no se dibujaba: react-pdf descartaba el número de página al heredar el interlineado de la
+    página.
+- **Después:**
+  - Configuración → Identidad (admin) sube o quita el logotipo y ajusta los colores.
+  - El logo va en la portada, sobre blanco, y en el pie de cada página; el pie vuelve a salir con la
+    numeración.
+  - Bucket privado `branding`; formato validado por bytes; la ruta queda atada a la carpeta del municipio.
+- **Archivos:**
+  - `supabase/migrations/20261028000000_org_logo.sql` y su `down.sql`;
+  - `src/lib/branding/*`, `src/components/settings/logo-form.tsx`, `src/app/(app)/configuracion/identidad`;
+  - `src/lib/reports/{pdf.tsx,deliver.ts,list.ts}`.
+- **Pruebas:**
+  - `branding/image.test.ts` y `branding.test.sql` (8);
+  - e2e de reportes: sube el logo y verifica la imagen en el PDF;
+  - revisión visual del PDF.
+- **Activación / reversión:**
+  - activar: migración y deploy;
+  - revertir: commit y `down.sql`, vaciando antes el bucket.
+
 ## Etapa 3 — Salud del monitoreo (13 oct 2026, base `1666fd6`)
 
 - **Antes:**

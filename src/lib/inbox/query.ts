@@ -31,6 +31,8 @@ export type InboxTicket = {
   whatsapp_notified_at: string | null;
   /** The department that leads the mention; the others support it. */
   is_primary: boolean;
+  /** Set when the ticket is an assignment of a case: its state follows the case. */
+  case_id: string | null;
 };
 
 export type InboxClassification = {
@@ -58,24 +60,37 @@ export type InboxItem = {
   authors: { display_name: string | null; handle: string; kind: Database["public"]["Enums"]["author_kind"] } | null;
   classifications: InboxClassification | null;
   tickets: InboxTicket[];
+  /** The case the mention belongs to, if any (one at most). */
+  case: { id: string; folio: string; status: Database["public"]["Enums"]["case_status"] } | null;
 };
 
 // classifications is one-to-one (mention_id is unique), but its foreign key is
 // composite (org_id, mention_id), so PostgREST embeds it as an array.
-type RawItem = Omit<InboxItem, "classifications"> & { classifications: InboxClassification | InboxClassification[] | null };
+type RawCase = { case_id: string; cases: { folio: string; status: Database["public"]["Enums"]["case_status"] } | null };
+type RawItem = Omit<InboxItem, "classifications" | "case"> & {
+  classifications: InboxClassification | InboxClassification[] | null;
+  case_mentions?: RawCase | RawCase[] | null;
+};
 
 function normalize(row: RawItem): InboxItem {
   const c = row.classifications;
   // The leading department first.
   const tickets = [...(row.tickets ?? [])].sort((a, b) => Number(b.is_primary) - Number(a.is_primary));
-  return { ...row, tickets, classifications: Array.isArray(c) ? (c[0] ?? null) : c };
+  const { case_mentions: links, ...rest } = row;
+  const link = Array.isArray(links) ? links[0] : links;
+  return {
+    ...rest,
+    tickets,
+    classifications: Array.isArray(c) ? (c[0] ?? null) : c,
+    case: link?.cases ? { id: link.case_id, folio: link.cases.folio, status: link.cases.status } : null,
+  };
 }
 
 export type InboxPage = { items: InboxItem[]; next: Cursor | null; total: number | null };
 
 const CLASSIFICATION =
   "sentiment, confidence, emotion, topic, intent, priority, department_id, neighborhood_id, corrected_by, corrected_at, model";
-const TICKET = "id, department_id, status, due_at, resolved_at, created_at, whatsapp_notified_at, is_primary";
+const TICKET = "id, department_id, status, due_at, resolved_at, created_at, whatsapp_notified_at, is_primary, case_id";
 const BASE = "id, text, url, published_at, status, triage, source_id, authors(display_name, handle, kind)";
 
 function selectFor(scope: InboxScope, filters: InboxFilters): string {
@@ -85,7 +100,7 @@ function selectFor(scope: InboxScope, filters: InboxFilters): string {
   const c = `classifications${filtersClassification ? "!inner" : ""}(${CLASSIFICATION})`;
   // A department works tickets: only mentions with one of its tickets.
   const t = `tickets${scope === "department" ? "!inner" : ""}(${TICKET})`;
-  return `${BASE}, ${c}, ${t}`;
+  return `${BASE}, ${c}, ${t}, case_mentions(case_id, cases(folio, status))`;
 }
 
 export async function fetchInbox(

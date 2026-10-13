@@ -9,6 +9,7 @@ export const USERS = {
   admin: "admin@monitoreo.test",
   comunicacion: "comunicacion@monitoreo.test",
   obras: "obras@monitoreo.test",
+  agua: "agua@monitoreo.test",
   lectura: "lectura@monitoreo.test",
 } as const;
 

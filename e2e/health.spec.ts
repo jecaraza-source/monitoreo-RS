@@ -100,7 +100,8 @@ test.describe("salud del monitoreo", () => {
   test("lectura ve el resumen de frescura, sin detalle ni acciones", async ({ page }) => {
     await login(page, USERS.lectura, "/salud");
     await expect(page.getByRole("heading", { name: "Frescura del dashboard" })).toBeVisible();
-    await expect(page.getByText("El detalle por fuente, las corridas y los umbrales los revisan Administración y Comunicación Social.")).toBeVisible();
+    // Scoped to <main>: with Cache Components earlier pages stay in the DOM, hidden (<Activity>).
+    await expect(page.getByRole("main").getByText("El detalle por fuente, las corridas y los umbrales los revisan Administración y Comunicación Social.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Reintentar ahora" })).toHaveCount(0);
     await expect(page.getByText("HTTP 404")).toHaveCount(0);
   });

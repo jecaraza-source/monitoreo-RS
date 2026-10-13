@@ -1,8 +1,10 @@
 import "server-only";
-import { Document, Font, Page, renderToBuffer, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Font, Image, Page, renderToBuffer, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { Narrative, ReportFacts } from "@/lib/ai/narrative";
+import type { Logo } from "@/lib/branding/logo";
 
-export type PdfBrand = { primary: string; accent: string };
+/** Cover colors and, optionally, the client's logo (Configuración → Identidad). */
+export type PdfBrand = { primary: string; accent: string; logo?: Logo | null };
 
 // Spanish words must not be split with English hyphenation rules.
 Font.registerHyphenationCallback((word) => [word]);
@@ -28,7 +30,10 @@ const INK = "#0f172a";
 const MUTED = "#64748b";
 
 const s = StyleSheet.create({
-  page: { paddingTop: 48, paddingBottom: 56, paddingHorizontal: 44, fontFamily: "Helvetica", fontSize: 10, color: INK, lineHeight: 1.45 },
+  page: { paddingTop: 48, paddingBottom: 56, paddingHorizontal: 44, fontFamily: "Helvetica", fontSize: 10, color: INK },
+  // Body leading lives here, not on the Page: react-pdf drops a fixed render-prop Text
+  // (the page number) that inherits a line height, and the footer with it.
+  body: { fontSize: 10, lineHeight: 1.45 },
   cover: { padding: 0, fontFamily: "Helvetica" },
   h1: { fontSize: 16, fontFamily: "Helvetica-Bold", marginBottom: 10 },
   h2: { fontSize: 12, fontFamily: "Helvetica-Bold", marginTop: 14, marginBottom: 6 },
@@ -42,15 +47,19 @@ const s = StyleSheet.create({
   table: { borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 4, marginBottom: 8 },
   th: { flexDirection: "row", backgroundColor: "#f1f5f9", paddingVertical: 4, paddingHorizontal: 6, fontFamily: "Helvetica-Bold", fontSize: 9 },
   tr: { flexDirection: "row", paddingVertical: 4, paddingHorizontal: 6, borderTopWidth: 1, borderTopColor: "#e2e8f0", fontSize: 9 },
-  footer: { position: "absolute", bottom: 24, left: 44, right: 44, flexDirection: "row", justifyContent: "space-between", fontSize: 8, color: MUTED },
+  footer: { position: "absolute", bottom: 24, left: 44, right: 44, flexDirection: "row", justifyContent: "space-between", alignItems: "center", fontSize: 8, color: MUTED },
 });
 
-function Footer({ facts }: { facts: ReportFacts }) {
+function Footer({ facts, logo }: { facts: ReportFacts; logo?: Logo | null }) {
   return (
     <View style={s.footer} fixed>
-      <Text>
-        {clean(facts.municipality)} · {clean(facts.period.label)}
-      </Text>
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image has no alt; the footer names the municipality */}
+        {logo && <Image src={logo} style={{ height: 14, maxWidth: 70, objectFit: "contain", marginRight: 6 }} />}
+        <Text>
+          {clean(facts.municipality)} · {clean(facts.period.label)}
+        </Text>
+      </View>
       <Text render={({ pageNumber, totalPages }) => `Sigma Pulso · ${pageNumber} / ${totalPages}`} />
     </View>
   );
@@ -144,6 +153,13 @@ function ReportDocument({ facts, narrative, brand, title }: { facts: ReportFacts
       <Page size="LETTER" style={s.cover}>
         <View style={{ flex: 1, backgroundColor: brand.primary, padding: 56, justifyContent: "space-between" }}>
           <View>
+            {/* The logo sits on white so it reads on any cover color. */}
+            {brand.logo && (
+              <View style={{ alignSelf: "flex-start", backgroundColor: "#ffffff", borderRadius: 6, padding: 10, marginBottom: 22 }}>
+                {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image has no alt */}
+                <Image src={brand.logo} style={{ height: 52, maxWidth: 220, objectFit: "contain" }} />
+              </View>
+            )}
             <View style={{ width: 56, height: 6, backgroundColor: brand.accent, marginBottom: 18 }} />
             <Text style={{ color: "#ffffff", fontSize: 13, opacity: 0.85 }}>
               {clean(facts.municipality)}
@@ -168,155 +184,163 @@ function ReportDocument({ facts, narrative, brand, title }: { facts: ReportFacts
       </Page>
 
       <Page size="LETTER" style={s.page}>
-        <Text style={[s.h1, { color: brand.primary }]}>Resumen ejecutivo</Text>
-        <Text style={s.p}>{clean(narrative.executive_summary)}</Text>
+        <View style={s.body}>
+          <Text style={[s.h1, { color: brand.primary }]}>Resumen ejecutivo</Text>
+          <Text style={s.p}>{clean(narrative.executive_summary)}</Text>
 
-        <Text style={s.h2}>Indicadores del periodo</Text>
-        <Text style={[s.muted, { marginBottom: 6 }]}>Comparación contra {clean(facts.period.previous_label)}.</Text>
-        <View style={[s.row, { flexWrap: "wrap" }]}>
-          {facts.kpis.map((k, i) => (
-            <View key={k.key} style={[s.kpi, i % 3 === 2 ? { marginRight: 0 } : {}]} wrap={false}>
-              <Text style={s.muted}>{clean(k.label)}</Text>
-              <Text style={[s.kpiValue, { color: brand.primary }]}>{fmt(k.value)}</Text>
-              <Text style={s.muted}>
-                {k.change == null ? "Sin comparación" : `${signed(k.change, k.change_unit)} vs. anterior (${fmt(k.previous)})`}
+          <Text style={s.h2}>Indicadores del periodo</Text>
+          <Text style={[s.muted, { marginBottom: 6 }]}>Comparación contra {clean(facts.period.previous_label)}.</Text>
+          <View style={[s.row, { flexWrap: "wrap" }]}>
+            {facts.kpis.map((k, i) => (
+              <View key={k.key} style={[s.kpi, i % 3 === 2 ? { marginRight: 0 } : {}]} wrap={false}>
+                <Text style={s.muted}>{clean(k.label)}</Text>
+                <Text style={[s.kpiValue, { color: brand.primary }]}>{fmt(k.value)}</Text>
+                <Text style={s.muted}>
+                  {k.change == null ? "Sin comparación" : `${signed(k.change, k.change_unit)} vs. anterior (${fmt(k.previous)})`}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <Text style={s.h2}>Volumen y tono</Text>
+          <VolumeChart series={facts.series} accent={brand.primary} hourly={facts.period.kind === "daily"} />
+          <Text style={[s.muted, { marginTop: 4 }]}>
+            Positivas {fmt(facts.sentiment.positive_pct, "%")} · Neutrales {fmt(facts.sentiment.neutral_pct, "%")} · Negativas{" "}
+            {fmt(facts.sentiment.negative_pct, "%")} · NSS {fmt(facts.sentiment.nss)}
+          </Text>
+        </View>
+        <Footer facts={facts} logo={brand.logo} />
+      </Page>
+
+      <Page size="LETTER" style={s.page}>
+        <View style={s.body}>
+          <Text style={[s.h1, { color: brand.primary }]}>Hallazgos</Text>
+          {narrative.findings.map((f, i) => (
+            <View key={i} style={s.card} wrap={false}>
+              <Text style={{ fontFamily: "Helvetica-Bold", marginBottom: 3 }}>
+                {i + 1}. {clean(f.title)}
               </Text>
+              <Text style={s.p}>{clean(f.evidence)}</Text>
+              <Text style={s.muted}>Impacto: {clean(f.impact)}</Text>
             </View>
           ))}
-        </View>
 
-        <Text style={s.h2}>Volumen y tono</Text>
-        <VolumeChart series={facts.series} accent={brand.primary} hourly={facts.period.kind === "daily"} />
-        <Text style={[s.muted, { marginTop: 4 }]}>
-          Positivas {fmt(facts.sentiment.positive_pct, "%")} · Neutrales {fmt(facts.sentiment.neutral_pct, "%")} · Negativas{" "}
-          {fmt(facts.sentiment.negative_pct, "%")} · NSS {fmt(facts.sentiment.nss)}
-        </Text>
-        <Footer facts={facts} />
+          <Text style={s.h2}>Temas principales</Text>
+          <Bars
+            rows={facts.top_topics.map((t) => ({
+              label: t.topic,
+              value: t.mentions,
+              display: `${nf.format(t.mentions)}`,
+              color: nssColor(t.nss),
+            }))}
+          />
+          <Text style={s.muted}>Color según sentimiento neto del tema (verde positivo, gris neutral, rojo negativo).</Text>
+
+          <Text style={s.h2}>Dependencias por sentimiento neto (NSS)</Text>
+          <Bars
+            rows={facts.departments_by_nss.map((d) => ({
+              label: d.department,
+              value: d.nss,
+              display: fmt(d.nss),
+              color: nssColor(d.nss),
+            }))}
+          />
+        </View>
+        <Footer facts={facts} logo={brand.logo} />
       </Page>
 
       <Page size="LETTER" style={s.page}>
-        <Text style={[s.h1, { color: brand.primary }]}>Hallazgos</Text>
-        {narrative.findings.map((f, i) => (
-          <View key={i} style={s.card} wrap={false}>
-            <Text style={{ fontFamily: "Helvetica-Bold", marginBottom: 3 }}>
-              {i + 1}. {clean(f.title)}
-            </Text>
-            <Text style={s.p}>{clean(f.evidence)}</Text>
-            <Text style={s.muted}>Impacto: {clean(f.impact)}</Text>
+        <View style={s.body}>
+          <Text style={[s.h1, { color: brand.primary }]}>Territorio y atención</Text>
+          <Text style={s.h2}>Colonias con más quejas</Text>
+          <View style={s.table}>
+            <View style={s.th}>
+              <Text style={{ flex: 2 }}>Colonia</Text>
+              <Text style={{ flex: 1, textAlign: "right" }}>Quejas</Text>
+              <Text style={{ flex: 2, paddingLeft: 8 }}>Tema principal</Text>
+            </View>
+            {facts.neighborhoods_most_complaints.map((h, i) => (
+              <View key={i} style={s.tr} wrap={false}>
+                <Text style={{ flex: 2 }}>{clean(h.neighborhood)}</Text>
+                <Text style={{ flex: 1, textAlign: "right" }}>{nf.format(h.complaints)}</Text>
+                <Text style={{ flex: 2, paddingLeft: 8 }}>{clean(h.top_topic ?? "")}</Text>
+              </View>
+            ))}
           </View>
-        ))}
 
-        <Text style={s.h2}>Temas principales</Text>
-        <Bars
-          rows={facts.top_topics.map((t) => ({
-            label: t.topic,
-            value: t.mentions,
-            display: `${nf.format(t.mentions)}`,
-            color: nssColor(t.nss),
-          }))}
-        />
-        <Text style={s.muted}>Color según sentimiento neto del tema (verde positivo, gris neutral, rojo negativo).</Text>
+          <Text style={s.h2}>Tiempos de atención por dependencia</Text>
+          <View style={s.table}>
+            <View style={s.th}>
+              <Text style={{ flex: 3 }}>Dependencia</Text>
+              <Text style={{ flex: 1, textAlign: "right" }}>Turnadas</Text>
+              <Text style={{ flex: 1, textAlign: "right" }}>Resueltas</Text>
+              <Text style={{ flex: 1, textAlign: "right" }}>Vencidas</Text>
+              <Text style={{ flex: 1, textAlign: "right" }}>Horas</Text>
+            </View>
+            {facts.attention.by_department.map((d, i) => (
+              <View key={i} style={s.tr} wrap={false}>
+                <Text style={{ flex: 3 }}>{clean(d.department)}</Text>
+                <Text style={{ flex: 1, textAlign: "right" }}>{nf.format(d.routed)}</Text>
+                <Text style={{ flex: 1, textAlign: "right" }}>{nf.format(d.resolved)}</Text>
+                <Text style={{ flex: 1, textAlign: "right" }}>{nf.format(d.overdue)}</Text>
+                <Text style={{ flex: 1, textAlign: "right" }}>{fmt(d.avg_hours)}</Text>
+              </View>
+            ))}
+          </View>
 
-        <Text style={s.h2}>Dependencias por sentimiento neto (NSS)</Text>
-        <Bars
-          rows={facts.departments_by_nss.map((d) => ({
-            label: d.department,
-            value: d.nss,
-            display: fmt(d.nss),
-            color: nssColor(d.nss),
-          }))}
-        />
-        <Footer facts={facts} />
+          {facts.peaks.length > 0 && <Text style={s.h2}>Picos de conversación</Text>}
+          {facts.peaks.map((p, i) => (
+            <View key={i} style={s.card} wrap={false}>
+              <Text style={{ fontFamily: "Helvetica-Bold" }}>
+                {clean(p.when)}: {nf.format(p.mentions)} menciones ({nf.format(p.times_typical)} veces lo habitual)
+              </Text>
+              <Text style={s.muted}>{clean(p.top_topics.map((t) => `${t.topic} (${t.mentions})`).join(" · "))}</Text>
+            </View>
+          ))}
+
+          <Text style={s.h2}>Alertas</Text>
+          <Text style={s.p}>
+            {nf.format(facts.alerts.total)} alertas en el periodo: {nf.format(facts.alerts.critical)} críticas, {nf.format(facts.alerts.high)} altas,{" "}
+            {nf.format(facts.alerts.medium)} medias. Calificadas como útiles: {nf.format(facts.alerts.useful)}; falsas alarmas:{" "}
+            {nf.format(facts.alerts.false_alarms)}.
+          </Text>
+        </View>
+        <Footer facts={facts} logo={brand.logo} />
       </Page>
 
       <Page size="LETTER" style={s.page}>
-        <Text style={[s.h1, { color: brand.primary }]}>Territorio y atención</Text>
-        <Text style={s.h2}>Colonias con más quejas</Text>
-        <View style={s.table}>
-          <View style={s.th}>
-            <Text style={{ flex: 2 }}>Colonia</Text>
-            <Text style={{ flex: 1, textAlign: "right" }}>Quejas</Text>
-            <Text style={{ flex: 2, paddingLeft: 8 }}>Tema principal</Text>
-          </View>
-          {facts.neighborhoods_most_complaints.map((h, i) => (
-            <View key={i} style={s.tr} wrap={false}>
-              <Text style={{ flex: 2 }}>{clean(h.neighborhood)}</Text>
-              <Text style={{ flex: 1, textAlign: "right" }}>{nf.format(h.complaints)}</Text>
-              <Text style={{ flex: 2, paddingLeft: 8 }}>{clean(h.top_topic ?? "")}</Text>
+        <View style={s.body}>
+          <Text style={[s.h1, { color: brand.primary }]}>Riesgos y oportunidades</Text>
+          <Text style={s.h2}>Riesgos</Text>
+          <Bullets items={narrative.risks} />
+          <Text style={s.h2}>Oportunidades</Text>
+          <Bullets items={narrative.opportunities} />
+
+          <Text style={s.h2}>Recomendaciones</Text>
+          <View style={s.table}>
+            <View style={s.th}>
+              <Text style={{ flex: 4 }}>Acción</Text>
+              <Text style={{ flex: 2, paddingLeft: 6 }}>Responsable sugerido</Text>
+              <Text style={{ flex: 1, paddingLeft: 6 }}>Plazo</Text>
             </View>
-          ))}
-        </View>
-
-        <Text style={s.h2}>Tiempos de atención por dependencia</Text>
-        <View style={s.table}>
-          <View style={s.th}>
-            <Text style={{ flex: 3 }}>Dependencia</Text>
-            <Text style={{ flex: 1, textAlign: "right" }}>Turnadas</Text>
-            <Text style={{ flex: 1, textAlign: "right" }}>Resueltas</Text>
-            <Text style={{ flex: 1, textAlign: "right" }}>Vencidas</Text>
-            <Text style={{ flex: 1, textAlign: "right" }}>Horas</Text>
+            {narrative.recommendations.map((r, i) => (
+              <View key={i} style={s.tr} wrap={false}>
+                <Text style={{ flex: 4 }}>{clean(r.action)}</Text>
+                <Text style={{ flex: 2, paddingLeft: 6 }}>{clean(r.owner)}</Text>
+                <Text style={{ flex: 1, paddingLeft: 6 }}>{clean(r.deadline)}</Text>
+              </View>
+            ))}
           </View>
-          {facts.attention.by_department.map((d, i) => (
-            <View key={i} style={s.tr} wrap={false}>
-              <Text style={{ flex: 3 }}>{clean(d.department)}</Text>
-              <Text style={{ flex: 1, textAlign: "right" }}>{nf.format(d.routed)}</Text>
-              <Text style={{ flex: 1, textAlign: "right" }}>{nf.format(d.resolved)}</Text>
-              <Text style={{ flex: 1, textAlign: "right" }}>{nf.format(d.overdue)}</Text>
-              <Text style={{ flex: 1, textAlign: "right" }}>{fmt(d.avg_hours)}</Text>
-            </View>
-          ))}
+
+          <Text style={s.h2}>Mensajes clave para comunicación social</Text>
+          <Bullets items={narrative.messaging} />
+
+          <Text style={[s.muted, { marginTop: 18 }]}>
+            Cifras calculadas por Sigma Pulso con menciones públicas del periodo. La narrativa fue redactada con apoyo de IA a partir de esas cifras y
+            revisada antes de su aprobación.
+          </Text>
         </View>
-
-        {facts.peaks.length > 0 && <Text style={s.h2}>Picos de conversación</Text>}
-        {facts.peaks.map((p, i) => (
-          <View key={i} style={s.card} wrap={false}>
-            <Text style={{ fontFamily: "Helvetica-Bold" }}>
-              {clean(p.when)}: {nf.format(p.mentions)} menciones ({nf.format(p.times_typical)} veces lo habitual)
-            </Text>
-            <Text style={s.muted}>{clean(p.top_topics.map((t) => `${t.topic} (${t.mentions})`).join(" · "))}</Text>
-          </View>
-        ))}
-
-        <Text style={s.h2}>Alertas</Text>
-        <Text style={s.p}>
-          {nf.format(facts.alerts.total)} alertas en el periodo: {nf.format(facts.alerts.critical)} críticas, {nf.format(facts.alerts.high)} altas,{" "}
-          {nf.format(facts.alerts.medium)} medias. Calificadas como útiles: {nf.format(facts.alerts.useful)}; falsas alarmas:{" "}
-          {nf.format(facts.alerts.false_alarms)}.
-        </Text>
-        <Footer facts={facts} />
-      </Page>
-
-      <Page size="LETTER" style={s.page}>
-        <Text style={[s.h1, { color: brand.primary }]}>Riesgos y oportunidades</Text>
-        <Text style={s.h2}>Riesgos</Text>
-        <Bullets items={narrative.risks} />
-        <Text style={s.h2}>Oportunidades</Text>
-        <Bullets items={narrative.opportunities} />
-
-        <Text style={s.h2}>Recomendaciones</Text>
-        <View style={s.table}>
-          <View style={s.th}>
-            <Text style={{ flex: 4 }}>Acción</Text>
-            <Text style={{ flex: 2, paddingLeft: 6 }}>Responsable sugerido</Text>
-            <Text style={{ flex: 1, paddingLeft: 6 }}>Plazo</Text>
-          </View>
-          {narrative.recommendations.map((r, i) => (
-            <View key={i} style={s.tr} wrap={false}>
-              <Text style={{ flex: 4 }}>{clean(r.action)}</Text>
-              <Text style={{ flex: 2, paddingLeft: 6 }}>{clean(r.owner)}</Text>
-              <Text style={{ flex: 1, paddingLeft: 6 }}>{clean(r.deadline)}</Text>
-            </View>
-          ))}
-        </View>
-
-        <Text style={s.h2}>Mensajes clave para comunicación social</Text>
-        <Bullets items={narrative.messaging} />
-
-        <Text style={[s.muted, { marginTop: 18 }]}>
-          Cifras calculadas por Sigma Pulso con menciones públicas del periodo. La narrativa fue redactada con apoyo de IA a partir de esas cifras y
-          revisada antes de su aprobación.
-        </Text>
-        <Footer facts={facts} />
+        <Footer facts={facts} logo={brand.logo} />
       </Page>
     </Document>
   );

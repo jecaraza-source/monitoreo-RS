@@ -34,11 +34,13 @@ function useAction() {
 export function ReportSettings({
   schedules,
   brand,
+  logoUrl,
   canEdit,
   canEditBrand,
 }: {
   schedules: ReportSchedule[];
   brand: { primary: string; accent: string };
+  logoUrl?: string | null;
   canEdit: boolean;
   canEditBrand: boolean;
 }) {
@@ -60,7 +62,7 @@ export function ReportSettings({
           ))}
         </CardContent>
       </Card>
-      <BrandForm brand={brand} canEdit={canEditBrand} />
+      <BrandForm brand={brand} canEdit={canEditBrand} logoUrl={logoUrl} />
     </div>
   );
 }
@@ -105,7 +107,16 @@ function ScheduleForm({ kind, schedule, canEdit }: { kind: ReportKind; schedule?
   );
 }
 
-function BrandForm({ brand, canEdit }: { brand: { primary: string; accent: string }; canEdit: boolean }) {
+export function BrandForm({
+  brand,
+  canEdit,
+  logoUrl,
+}: {
+  brand: { primary: string; accent: string };
+  canEdit: boolean;
+  /** Signed link to the client's logo, shown in the preview. */
+  logoUrl?: string | null;
+}) {
   const { pending, run } = useAction();
   const [primary, setPrimary] = useState(brand.primary);
   const [accent, setAccent] = useState(brand.accent);
@@ -123,6 +134,10 @@ function BrandForm({ brand, canEdit }: { brand: { primary: string; accent: strin
           style={{ backgroundColor: primary }}
           aria-label="Vista previa de la portada"
         >
+          {logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- short-lived signed Storage URL
+            <img src={logoUrl} alt="Logotipo del cliente" className="mb-auto h-8 w-fit max-w-40 rounded bg-white object-contain p-1" />
+          )}
           <span className="mb-2 block h-1 w-10" style={{ backgroundColor: accent }} />
           <span className="text-sm font-semibold">Escucha social y atención ciudadana</span>
         </div>

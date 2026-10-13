@@ -188,10 +188,10 @@ Palancas: subir el umbral de escalamiento (`ESCALATE_BELOW_CONFIDENCE`), usar So
 
   | Rol | Secciones |
   |---|---|
-  | admin | Dashboard, Bandeja, Mapa, Alertas, Reportes, Asistente, Salud, Configuración (Proyectos, Catálogos, Usuarios) |
-  | comunicacion | Dashboard, Bandeja, Mapa, Alertas, Reportes, Asistente, Salud, Configuración (sólo Proyectos) |
-  | dependencia | Bandeja, Alertas, Asistente (sólo con lo turnado a su dependencia) |
-  | lectura | Dashboard, Mapa, Alertas, Reportes, Asistente, Salud (sólo el resumen) |
+  | admin | Dashboard, Bandeja, Casos, Mapa, Alertas, Reportes, Asistente, Salud, Configuración (Proyectos, Catálogos, Usuarios, Identidad) |
+  | comunicacion | Dashboard, Bandeja, Casos, Mapa, Alertas, Reportes, Asistente, Salud, Configuración (sólo Proyectos) |
+  | dependencia | Bandeja, Casos, Alertas, Asistente (sólo con lo turnado o asignado a su dependencia) |
+  | lectura | Dashboard, Casos (sólo consulta), Mapa, Alertas, Reportes, Asistente, Salud (sólo el resumen) |
 
   Esto controla la navegación; la visibilidad de los datos la impone RLS.
 
@@ -366,8 +366,8 @@ Funciones:
   ticket, estado y avisos por WhatsApp (a la de apoyo le dice a quién apoya); una mención tiene una sola
   principal (`tickets.is_primary`, índice único) y sólo Comunicación o admin la cambian. Turnar de nuevo con
   otra principal deja a la anterior como apoyo.
-- Acciones masivas: turnar, marcar revisadas y descartar (con deshacer).
-- Atajos: `j`/`k` navegar, `Enter` abrir, `x` seleccionar, `t` turnar, `d` descartar, `r` revisada,
+- Acciones masivas: turnar, crear caso o agregar a uno, marcar revisadas y descartar (con deshacer).
+- Atajos: `j`/`k` navegar, `Enter` abrir, `x` seleccionar, `t` turnar, `c` caso, `d` descartar, `r` revisada,
   `/` buscar, `?` ayuda.
 - Tiempo real con Supabase Realtime (`mentions`, `classifications`, `tickets`, `mention_notes` en la
   publicación `supabase_realtime`): cada cambio llega filtrado por RLS, la tarjeta entra animada y a la
@@ -376,6 +376,32 @@ Funciones:
 Turnar usa `route_mentions(menciones, principal, fecha, apoyo[])` (crea los tickets y marca las menciones como turnadas en una transacción,
 con los permisos de quien llama). En Supabase hospedado, la publicación `supabase_realtime` ya existe; la
 migración le agrega las tablas.
+
+## Casos
+
+Un **caso** es la unidad operativa: agrupa las menciones sobre un mismo problema (por ejemplo, 18 publicaciones
+de la misma fuga) y sigue su atención. Las menciones no se pierden ni se funden: dashboard, mapa y reportes las
+siguen contando una por una. Detalle en [docs/etapa-4-casos.md](docs/etapa-4-casos.md).
+
+- **Folio** por municipio (`C-00001`), título, descripción, categoría, colonia opcional, prioridad operativa,
+  dependencia y persona responsables, plazo y estado. Quien abrió el caso (su autor) es distinto del autor de
+  cada publicación.
+- **Estados:** detectado → en revisión → asignado → aceptado → en atención → atendido (por validar) → cerrado.
+  También devuelto por competencia (con motivo), descartado (con motivo), reabrir (con motivo) y fusionado.
+  La base valida cada transición (`case_transition_allowed`); devolver, descartar, rechazar la validación y
+  reabrir exigen motivo.
+- **Turnos:** asignar un caso crea o actualiza los tickets de la dependencia responsable y de las de apoyo
+  sobre la mención principal, con aviso por WhatsApp. El estado del ticket sigue al del caso (una sola máquina
+  de estados); cambiarlo desde la Bandeja o desde WhatsApp mueve el caso por `case_ticket_status`.
+- **Historial** de sólo agregar (`case_events`): quién, cuándo, qué operación, cambio y motivo, incluidas las
+  acciones por WhatsApp y del sistema.
+- **Por rol:** Comunicación y admin crean, asignan, editan, fusionan y validan. La dependencia sólo ve los
+  casos que tiene asignados (sin notas ni historial internos) y los acepta, atiende, marca atendidos o
+  devuelve. Lectura consulta.
+- **Sugerencias:** en el caso, Comunicación ve menciones posiblemente del mismo problema (misma colonia o
+  palabras en común, en ±72 h). Nunca se agregan solas, y compartir sólo sentimiento o tema no basta.
+- **Turnos anteriores:** admin, en `/casos` → «Migrar turnos existentes», primero simula y luego aplica.
+  Se crea un caso por mención turnada; se puede repetir sin duplicar.
 
 ## Dashboard
 
@@ -612,12 +638,20 @@ comparado contra el periodo anterior de la misma duración.
 3. **Borrador editable.** La vista web muestra KPIs, gráficas y la narrativa en un editor; avisa si una edición
    introduce cifras que no están en los datos.
 4. **Aprobación.** Congela el reporte (trigger `reports_guard`), genera el PDF con `@react-pdf/renderer`
-   (portada con `organizations.brand_primary/brand_accent`, editables por admin), lo guarda en el bucket privado
+   (portada con `organizations.brand_primary/brand_accent` y el **logotipo del cliente**, editables por admin en
+   Configuración → Identidad; el logo también va al pie de cada página), lo guarda en el bucket privado
    `reports/<org>/<id>.pdf` y lo envía por Resend como adjunto a los destinatarios. La descarga usa un enlace
    firmado de 5 minutos.
 5. **Envío programado.** `report_schedules` por tipo; `/api/cron/reports` (13:00 UTC = 7:00 CDMX) prepara el
    diario cada día, el semanal los lunes y el mensual el día 1. Con *aprobar sin revisión* se envía de inmediato;
    si no, espera la aprobación en `/reportes`.
+
+**Logotipo del cliente.**
+- Se sube en Configuración → Identidad (sólo admin): PNG o JPG de hasta 1 MB, entre 64 × 32 y 4000 px.
+- El servidor revisa el formato real del archivo por sus primeros bytes, no por el nombre ni el tipo declarado.
+- Se guarda en el bucket privado `branding/<org>/logo-<n>.png|jpg`, que sólo leen los miembros del municipio.
+  `organizations.logo_path` sólo admite rutas dentro de la carpeta del propio municipio.
+- Los PDF que se generen después lo usan. Los ya generados no cambian.
 
 **Lectura del día** (dashboard): 2 o 3 oraciones sobre las últimas 24 h, redactadas con `CLAUDE_MODEL_FAST` y
 las mismas validaciones, guardadas en `daily_readings` y regeneradas cuando tienen más de 1 h.

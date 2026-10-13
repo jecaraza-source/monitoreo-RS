@@ -22,7 +22,7 @@ export default function ReportesPage() {
 
 async function Reports() {
   const member = await requireSection("/reportes");
-  const { reports, schedules, brand } = await getReports(member);
+  const { reports, schedules, brand, logoUrl } = await getReports(member);
   const canEdit = member.role === "admin" || member.role === "comunicacion";
 
   return (
@@ -34,7 +34,7 @@ async function Reports() {
       />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <ReportList reports={reports} />
-        <ReportSettings schedules={schedules} brand={brand} canEdit={canEdit} canEditBrand={member.role === "admin"} />
+        <ReportSettings schedules={schedules} brand={brand} logoUrl={logoUrl} canEdit={canEdit} canEditBrand={member.role === "admin"} />
       </div>
     </>
   );
