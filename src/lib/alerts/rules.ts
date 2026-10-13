@@ -237,7 +237,7 @@ export function decideDigest(day: string, n: DigestNumbers): Decision {
     severity: "low",
     title: `Resumen del día: ${n.mentions} menciones, NSS ${nf.format(Math.round(nss))}`,
     summary: [
-      `${n.negative} negativas, ${n.positive} positivas y ${n.complaints} quejas o denuncias en 24 h; ${n.open_tickets} tickets abiertos.`,
+      `${n.negative} negativas, ${n.positive} positivas y ${n.complaints} quejas o denuncias en 24 h; ${n.open_tickets} menciones turnadas abiertas.`,
       topics && `Temas: ${topics}.`,
       places && `Colonias con más quejas: ${places}.`,
     ]

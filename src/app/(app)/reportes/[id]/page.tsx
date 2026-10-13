@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { ReportView } from "@/components/reports/report-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireSection } from "@/lib/auth/session";
-import { getReport } from "@/lib/reports/list";
+import { getReport, getReportVersions } from "@/lib/reports/list";
 import { REPORT_KIND_LABELS } from "@/lib/reports/period";
 
 export const metadata: Metadata = { title: "Reporte" };
@@ -28,6 +28,7 @@ async function Report({ params }: { params: PageProps<"/reportes/[id]">["params"
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const report = await getReport(member, id);
   if (!report) notFound();
+  const versions = await getReportVersions(member, report);
 
   return (
     <>
@@ -35,7 +36,7 @@ async function Report({ params }: { params: PageProps<"/reportes/[id]">["params"
         <ArrowLeft className="size-4" aria-hidden /> Reportes
       </Link>
       <PageHeader title={`Reporte ${REPORT_KIND_LABELS[report.kind].toLowerCase()}`} description={report.facts.period.label} />
-      <ReportView report={report} canEdit={member.role === "admin" || member.role === "comunicacion"} />
+      <ReportView report={report} versions={versions} canEdit={member.role === "admin" || member.role === "comunicacion"} />
     </>
   );
 }

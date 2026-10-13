@@ -4,10 +4,10 @@
 begin;
 select plan(6);
 
-insert into public.reports (id, org_id, period, period_start, period_end, title, content, status, approved_at, sent_at, pdf_path)
+insert into public.reports (id, org_id, period, period_start, period_end, title, content, status, approved_at, sent_at, pdf_path, facts)
 values
-  ('00000000-0000-4000-9100-000000000001', '00000000-0000-4000-a000-000000000001', 'weekly', '2026-10-02', '2026-10-08', 'Borrador', '{"headline":"a"}', 'draft', null, null, null),
-  ('00000000-0000-4000-9100-000000000002', '00000000-0000-4000-a000-000000000001', 'weekly', '2026-09-25', '2026-10-01', 'Aprobado', '{"headline":"a"}', 'approved', now(), null, 'a/2.pdf');
+  ('00000000-0000-4000-9100-000000000001', '00000000-0000-4000-a000-000000000001', 'weekly', '2026-10-02', '2026-10-08', 'Borrador', '{"headline":"a"}', 'draft', null, null, null, '{"kpis":[]}'),
+  ('00000000-0000-4000-9100-000000000002', '00000000-0000-4000-a000-000000000001', 'weekly', '2026-09-25', '2026-10-01', 'Aprobado', '{"headline":"a"}', 'approved', now(), null, 'a/2.pdf', '{"kpis":[]}');
 
 -- ---------------------------------------------------------------------------
 -- The server (service role): render, send, resend; never back, never re-approve
@@ -30,8 +30,8 @@ select throws_ok($$ update public.reports set org_id = '00000000-0000-4000-a000-
   '42501', 'Estos datos del reporte no se pueden cambiar.', 'a report never moves to another municipality');
 
 -- Scheduled auto-approval: approved by the system, no person stamped.
-insert into public.reports (id, org_id, period, period_start, period_end)
-values ('00000000-0000-4000-9100-000000000005', '00000000-0000-4000-a000-000000000001', 'daily', '2026-10-09', '2026-10-09');
+insert into public.reports (id, org_id, period, period_start, period_end, facts)
+values ('00000000-0000-4000-9100-000000000005', '00000000-0000-4000-a000-000000000001', 'daily', '2026-10-09', '2026-10-09', '{"kpis":[]}');
 update public.reports set status = 'approved' where id = '00000000-0000-4000-9100-000000000005';
 select is((select array[(approved_by is null)::text, (approved_at is not null)::text] from public.reports where id = '00000000-0000-4000-9100-000000000005'),
   array['true', 'true'], 'auto-approval is stamped as the system');

@@ -1157,14 +1157,14 @@ isOneToOne: false
                   ]
                 },"reports": {
                   Row: {
-                    "approved_at": string | null,"approved_by": string | null,"content": NonNullable<Json>,"created_at": string,"created_by": string | null,"delivery": NonNullable<Json>,"facts": NonNullable<Json>,"facts_stale_at": string | null,"id": string,"job_id": string | null,"model": string | null,"org_id": string,"pdf_path": string | null,"period": Database["public"]['Enums']["report_period"],"period_end": string,"period_start": string,"recipients": (string)[],"schedule_id": string | null,"sent_at": string | null,"status": Database["public"]['Enums']["report_status"],"title": string,"updated_at": string
+                    "approved_at": string | null,"approved_by": string | null,"content": NonNullable<Json>,"created_at": string,"created_by": string | null,"delivery": NonNullable<Json>,"facts": NonNullable<Json>,"facts_stale_at": string | null,"id": string,"job_id": string | null,"kpi_version": string | null,"model": string | null,"org_id": string,"pdf_path": string | null,"period": Database["public"]['Enums']["report_period"],"period_end": string,"period_start": string,"previous_version_id": string | null,"recipients": (string)[],"schedule_id": string | null,"sent_at": string | null,"snapshot_at": string | null,"status": Database["public"]['Enums']["report_status"],"title": string,"updated_at": string,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "approved_at"?: string | null,"approved_by"?: string | null,"content"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"delivery"?: NonNullable<Json>,"facts"?: NonNullable<Json>,"facts_stale_at"?: string | null,"id"?: string,"job_id"?: string | null,"model"?: string | null,"org_id": string,"pdf_path"?: string | null,"period": Database["public"]['Enums']["report_period"],"period_end": string,"period_start": string,"recipients"?: (string)[],"schedule_id"?: string | null,"sent_at"?: string | null,"status"?: Database["public"]['Enums']["report_status"],"title"?: string,"updated_at"?: string
+                    "approved_at"?: string | null,"approved_by"?: string | null,"content"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"delivery"?: NonNullable<Json>,"facts"?: NonNullable<Json>,"facts_stale_at"?: string | null,"id"?: string,"job_id"?: string | null,"kpi_version"?: string | null,"model"?: string | null,"org_id": string,"pdf_path"?: string | null,"period": Database["public"]['Enums']["report_period"],"period_end": string,"period_start": string,"previous_version_id"?: string | null,"recipients"?: (string)[],"schedule_id"?: string | null,"sent_at"?: string | null,"snapshot_at"?: string | null,"status"?: Database["public"]['Enums']["report_status"],"title"?: string,"updated_at"?: string,"version"?: number
                   }
                   Update: {
-                    "approved_at"?: string | null,"approved_by"?: string | null,"content"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"delivery"?: NonNullable<Json>,"facts"?: NonNullable<Json>,"facts_stale_at"?: string | null,"id"?: string,"job_id"?: string | null,"model"?: string | null,"org_id"?: string,"pdf_path"?: string | null,"period"?: Database["public"]['Enums']["report_period"],"period_end"?: string,"period_start"?: string,"recipients"?: (string)[],"schedule_id"?: string | null,"sent_at"?: string | null,"status"?: Database["public"]['Enums']["report_status"],"title"?: string,"updated_at"?: string
+                    "approved_at"?: string | null,"approved_by"?: string | null,"content"?: NonNullable<Json>,"created_at"?: string,"created_by"?: string | null,"delivery"?: NonNullable<Json>,"facts"?: NonNullable<Json>,"facts_stale_at"?: string | null,"id"?: string,"job_id"?: string | null,"kpi_version"?: string | null,"model"?: string | null,"org_id"?: string,"pdf_path"?: string | null,"period"?: Database["public"]['Enums']["report_period"],"period_end"?: string,"period_start"?: string,"previous_version_id"?: string | null,"recipients"?: (string)[],"schedule_id"?: string | null,"sent_at"?: string | null,"snapshot_at"?: string | null,"status"?: Database["public"]['Enums']["report_status"],"title"?: string,"updated_at"?: string,"version"?: number
                   }
                   Relationships: [
                     {
@@ -1178,6 +1178,12 @@ isOneToOne: true
       columns: ["org_id"]
 isOneToOne: false
       referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "reports_previous_version_id_fkey"
+      columns: ["previous_version_id"]
+isOneToOne: false
+      referencedRelation: "reports"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "reports_schedule_fk"
@@ -1782,6 +1788,9 @@ isOneToOne: false
 "invite_whatsapp_contact":
 { Args: { "p_org_id": string,"p_phone": string,"p_user_id": string }; Returns: string
                            },
+"kpi_snapshot":
+{ Args: { "p_bucket"?: string,"p_from": string,"p_org_id": string,"p_prev_from": string,"p_prev_to": string,"p_to": string }; Returns: Json
+                           },
 "log_event":
 { Args: { "p_action": string,"p_details"?: Json,"p_entity": string,"p_entity_id": string,"p_org_id": string }; Returns: undefined
                            },
@@ -1855,8 +1864,14 @@ isOneToOne: false
 "reopen_case":
 { Args: { "p_case_id": string,"p_paths"?: (string)[],"p_reason": string }; Returns: Json
                            },
+"report_context":
+{ Args: { "p_bucket"?: string,"p_from": string,"p_org_id": string,"p_to": string }; Returns: Json
+                           },
 "report_extras":
 { Args: { "p_bucket"?: string,"p_from": string,"p_org_id": string,"p_peaks"?: (string)[],"p_to": string }; Returns: Json
+                           },
+"report_snapshot":
+{ Args: { "p_bucket"?: string,"p_from": string,"p_org_id": string,"p_prev_from": string,"p_prev_to": string,"p_to": string }; Returns: Json
                            },
 "resolve_pipeline_failure":
 { Args: { "p_action": string,"p_failure_id": string }; Returns: undefined

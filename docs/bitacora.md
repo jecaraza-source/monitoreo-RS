@@ -3,6 +3,51 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Etapa 9 — Indicadores de conversación y atención, reportes con instantánea y versiones (13 oct 2026, base `f1a8a15`)
+
+- **Antes:**
+  - La atención se medía en turnos (una mención turnada = un «caso»).
+  - El reporte mezclaba el agregado horario con tablas en vivo.
+  - Los periodos de 7 y 30 días eran ventanas de horas.
+  - No había diccionario de indicadores, cobertura ni fecha de corte.
+  - Se ordenaban dependencias con pocas menciones.
+  - La narrativa no tenía apartados de decisión ni referencias, y no había versiones.
+- **Después:**
+  - **Dos familias con unidades distintas:** conversación en menciones; atención en casos y horas (nuevos,
+    abiertos y vencidos al corte, primera atención y resolución con mediana/p90/n, cierres validados y
+    reaperturas).
+  - **Diccionario versionado** `KPI-2026.11` con fórmula, unidad, origen, periodo, denominador y
+    tratamiento de reabiertos y datos faltantes, visible en cada tarjeta y en el reporte.
+  - **Cobertura y comparabilidad:** barra con corte, última actualización, sin clasificar, sin colonia,
+    fuentes parciales y notas de comparabilidad.
+  - **Periodos:** días de CDMX, con el periodo anterior cortado en el mismo punto.
+  - **Reportes desde `report_snapshot`:** una sola instantánea, cifras escritas sólo por el servidor.
+  - **Narrativa estructurada:** Qué cambió, decisión, quién actúa y pendientes, con referencias autorizadas,
+    validada en el modelo, el editor y la aprobación.
+  - **Versiones:** la aprobada queda congelada; «Crear revisión» genera la versión + 1 y «Actualizar cifras»
+    recalcula un borrador.
+  - **Por dependencia:** desglose sin ranking engañoso, con CSV.
+- **Archivos:** ver `docs/etapa-9-kpi.md` § 8. Migración `20261102000000_kpi_snapshot.sql` y su `down.sql`.
+- **Pruebas:**
+  - lint, typecheck y 377 unitarias;
+  - pgTAP 779/779 tras `db reset` (`kpi_snapshot` 45: cifras conocidas, frontera de día de CDMX,
+    reaperturas, fusionados, conciliación por periodos y con el agregado, correcciones, permisos, versiones);
+  - reversión y reaplicación;
+  - build canario + `check:bundle`;
+  - e2e 38: `kpi.spec.ts`, más la suite completa;
+  - rendimiento con 20 000 casos y 100 000 menciones (§ 7 del documento).
+- **Hallazgo corregido antes de entregar:** `report_snapshot` tardaba 13.8 s con el conjunto de carga por
+  subconsultas correlacionadas; con agregados y funciones de ventana quedó en ~3 s.
+- **Conteo previo (sólo lectura):**
+  - producción: 4 reportes aprobados, 0 borradores, 1 caso, 808 menciones en 30 días;
+  - preview: 59 aprobados, 3 borradores, 3 casos.
+- **Limitaciones:** la dependencia de un caso es la actual; «vencido al corte» usa el plazo vigente; el
+  asistente sigue en turnos (con nota de unidades); 24 h es móvil.
+- **Activación / reversión:**
+  - activar: migración en preview y producción, luego deploy;
+  - revertir: commit y `down.sql`.
+- **Pendiente:** Node 22/24; asistente con casos; materializar la atención por día si crece el volumen.
+
 ## Etapa 8 — Mapa de conversación y casos operativos (13 oct 2026, base `aa94177`)
 
 - **Antes:**

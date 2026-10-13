@@ -18,6 +18,10 @@ select is((select content ->> 'headline' from public.reports where id = '0000000
 select is((select created_by from public.reports where id = '00000000-0000-4000-9000-000000000001'),
   '00000000-0000-4000-d000-000000000002'::uuid, 'created_by is stamped');
 
+-- The server computed its figures (editors cannot write them).
+reset role;
+update public.reports set facts = '{"kpis":[]}' where id = '00000000-0000-4000-9000-000000000001';
+set local role authenticated;
 -- Approving stamps who and when, then the narrative is frozen.
 update public.reports set status = 'approved' where id = '00000000-0000-4000-9000-000000000001';
 select is((select approved_by from public.reports where id = '00000000-0000-4000-9000-000000000001'),

@@ -18,7 +18,8 @@ const TREND_ICON = { up: ArrowUpRight, down: ArrowDownRight, flat: ArrowRight };
 
 export type KpiCardProps = {
   label: string;
-  value: number;
+  /** Null when there is nothing to compute it from (shown as «Sin datos», never as 0). */
+  value: number | null;
   /** Same metric in the previous period; omit to hide the comparison. */
   previousValue?: number | null;
   formatOptions?: Intl.NumberFormatOptions;
@@ -35,6 +36,8 @@ export type KpiCardProps = {
   info?: React.ReactNode;
   /** Stagger index for the entry animation in a row of cards. */
   index?: number;
+  /** Base of the figure under it: n, p90, share… */
+  footnote?: React.ReactNode;
   className?: string;
 };
 
@@ -49,11 +52,12 @@ export function KpiCard({
   comparisonLabel = "vs. periodo anterior",
   info,
   index = 0,
+  footnote,
   className,
 }: KpiCardProps) {
-  const showDelta = previousValue !== undefined;
-  const pointDelta = deltaMode === "points" ? computePointDelta(value, previousValue) : null;
-  const delta = pointDelta ?? computeDelta(value, previousValue);
+  const showDelta = previousValue !== undefined && value !== null;
+  const pointDelta = deltaMode === "points" ? computePointDelta(value ?? 0, previousValue) : null;
+  const delta = pointDelta ?? computeDelta(value ?? 0, previousValue);
   const tone = trendTone(delta.trend, higherIsBetter);
   const TrendIcon = TREND_ICON[delta.trend];
 
@@ -70,11 +74,13 @@ export function KpiCard({
           {icon && <span className="text-muted-foreground [&_svg]:size-4">{icon}</span>}
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
-          <AnimatedNumber
-            value={value}
-            formatOptions={formatOptions}
-            className="text-3xl font-semibold tracking-tight"
-          />
+          {value === null ? (
+            <p className="text-3xl font-semibold tracking-tight text-muted-foreground">
+              — <span className="text-sm font-normal">Sin datos</span>
+            </p>
+          ) : (
+            <AnimatedNumber value={value} formatOptions={formatOptions} className="text-3xl font-semibold tracking-tight" />
+          )}
           {showDelta && (
             <p className="flex items-center gap-2 text-xs text-muted-foreground">
               <span
@@ -89,6 +95,7 @@ export function KpiCard({
               {comparisonLabel}
             </p>
           )}
+          {footnote && <p className="text-xs text-muted-foreground">{footnote}</p>}
         </CardContent>
       </Card>
     </Reveal>

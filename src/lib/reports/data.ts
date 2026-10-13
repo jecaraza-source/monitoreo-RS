@@ -2,8 +2,8 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CallRecord } from "@/lib/ai/classifier";
-import { buildReportFacts, generateNarrative, NarrativeError, peakBuckets, readTargets, type Narrative, type ReportExtras, type ReportFacts } from "@/lib/ai/narrative";
-import { parseDashboard } from "@/lib/dashboard/model";
+import { buildReportFacts, generateNarrative, NarrativeError, readTargets, type AnyNarrative, type ReportContext, type ReportFacts } from "@/lib/ai/narrative";
+import { parseKpiSnapshot } from "@/lib/kpi/snapshot";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database, Json } from "@/lib/supabase/database.types";
 import { reportPeriod, type ReportKind, type ReportPeriod } from "./period";
@@ -21,7 +21,7 @@ export type ReportRow = {
   startDay: string;
   endDay: string;
   facts: ReportFacts;
-  narrative: Narrative;
+  narrative: AnyNarrative;
   recipients: string[];
   pdfPath: string | null;
   model: string | null;
@@ -31,10 +31,14 @@ export type ReportRow = {
   delivery: Record<string, unknown>;
   /** A draft whose period got corrections after it was generated. */
   factsStaleAt: string | null;
+  version: number;
+  previousVersionId: string | null;
+  kpiVersion: string | null;
+  snapshotAt: string | null;
 };
 
 export const REPORT_SELECT =
-  "id, org_id, period, status, title, period_start, period_end, facts, content, recipients, pdf_path, model, created_at, approved_at, sent_at, delivery, facts_stale_at";
+  "id, org_id, period, status, title, period_start, period_end, facts, content, recipients, pdf_path, model, created_at, approved_at, sent_at, delivery, facts_stale_at, version, previous_version_id, kpi_version, snapshot_at";
 
 type Raw = {
   id: string;
@@ -54,6 +58,10 @@ type Raw = {
   sent_at: string | null;
   delivery: Json;
   facts_stale_at?: string | null;
+  version?: number;
+  previous_version_id?: string | null;
+  kpi_version?: string | null;
+  snapshot_at?: string | null;
 };
 
 export function toReport(r: Raw): ReportRow {
@@ -66,7 +74,7 @@ export function toReport(r: Raw): ReportRow {
     startDay: r.period_start,
     endDay: r.period_end,
     facts: r.facts as unknown as ReportFacts,
-    narrative: r.content as unknown as Narrative,
+    narrative: r.content as unknown as AnyNarrative,
     recipients: r.recipients ?? [],
     pdfPath: r.pdf_path,
     model: r.model,
@@ -75,48 +83,35 @@ export function toReport(r: Raw): ReportRow {
     sentAt: r.sent_at,
     delivery: (r.delivery ?? {}) as Record<string, unknown>,
     factsStaleAt: r.facts_stale_at ?? null,
+    version: r.version ?? 1,
+    previousVersionId: r.previous_version_id ?? null,
+    kpiVersion: r.kpi_version ?? null,
+    snapshotAt: r.snapshot_at ?? null,
   };
 }
 
-/** Aggregates the period into ReportFacts. Works with the user's session (RLS) or the service role (cron). */
+/**
+ * Aggregates the period into ReportFacts from ONE report_snapshot call (every
+ * figure and example from the same database snapshot). Works with the user's
+ * session (role checked in the function) or the service role (cron).
+ */
 export async function loadReportFacts(client: Client, orgId: string, period: ReportPeriod): Promise<ReportFacts> {
-  const [org, current, previous, departments, projects] = await Promise.all([
+  const [org, snapshot, departments, projects] = await Promise.all([
     client.from("organizations").select("name, state").eq("id", orgId).single(),
-    client.rpc("dashboard_stats", {
+    client.rpc("report_snapshot", {
       p_org_id: orgId,
       p_from: period.from.toISOString(),
       p_to: period.to.toISOString(),
+      p_prev_from: period.prevFrom.toISOString(),
+      p_prev_to: period.prevTo.toISOString(),
       p_bucket: period.bucket,
-      p_detail: true,
     }),
-    client.rpc("dashboard_stats", {
-      p_org_id: orgId,
-      p_from: period.prevFrom.toISOString(),
-      p_to: period.prevTo.toISOString(),
-      p_bucket: period.bucket,
-      p_detail: false,
-    }),
-    client.from("departments").select("id, name").eq("org_id", orgId),
+    client.from("departments").select("name").eq("org_id", orgId).order("name"),
     client.from("projects").select("kpis").eq("org_id", orgId),
   ]);
   if (org.error) throw new Error(`No se pudo leer el municipio: ${org.error.message}`);
-  if (current.error) throw new Error(`No se pudieron calcular las cifras: ${current.error.message}`);
-
-  const dashboard = parseDashboard(
-    (current.data ?? {}) as Record<string, unknown>,
-    (previous.data ?? {}) as Record<string, unknown>,
-    new Map((departments.data ?? []).map((d) => [d.id, d.name])),
-  );
-  // Only the departments' NSS ranking is capped at 8 by parseDashboard; keep it.
-  const peaks = peakBuckets(dashboard.series, 3);
-  const extras = await client.rpc("report_extras", {
-    p_org_id: orgId,
-    p_from: period.from.toISOString(),
-    p_to: period.to.toISOString(),
-    p_peaks: peaks.map((p) => p.start),
-    p_bucket: period.bucket,
-  });
-  if (extras.error) throw new Error(`No se pudieron calcular las cifras: ${extras.error.message}`);
+  if (snapshot.error) throw new Error(`No se pudieron calcular las cifras: ${snapshot.error.message}`);
+  const data = (snapshot.data ?? {}) as { kpi?: unknown; context?: unknown };
 
   const seen = new Set<string>();
   const targets = (projects.data ?? [])
@@ -127,8 +122,9 @@ export async function loadReportFacts(client: Client, orgId: string, period: Rep
     municipality: org.data.name,
     state: org.data.state,
     period,
-    dashboard,
-    extras: (extras.data ?? {}) as unknown as ReportExtras,
+    snapshot: parseKpiSnapshot(data.kpi),
+    context: (data.context ?? {}) as ReportContext,
+    departments: (departments.data ?? []).map((d) => d.name),
     targets,
   });
 }
@@ -165,7 +161,9 @@ export function reportTitle(facts: ReportFacts): string {
 
 /**
  * Computes ReportFacts, asks Claude for the narrative and stores a draft.
- * `client` decides who writes: the editor's session or the service role (cron).
+ * `client` reads the figures (the editor's session, so the role is checked,
+ * or the service role for the cron); the row is written by the server: since
+ * stage 9 editors cannot write figures themselves.
  */
 export async function createReportDraft(
   client: Client,
@@ -177,23 +175,15 @@ export async function createReportDraft(
     scheduleId?: string | null;
     /** The report job that drafts it (scheduled reports): one report per job. */
     jobId?: string | null;
+    /** The editor who asked for it (null for the cron). */
+    createdBy?: string | null;
     anthropic?: Anthropic;
   },
 ): Promise<string> {
   const period = reportPeriod(input.kind, input.endDay);
   const facts = await loadReportFacts(client, input.orgId, period);
-  const model = smartModel();
-  let narrative: Narrative;
-  try {
-    const result = await generateNarrative(input.anthropic ?? new Anthropic(), model, facts);
-    narrative = result.narrative;
-    await recordUsage(input.orgId, "report", result.calls);
-  } catch (error) {
-    if (error instanceof NarrativeError) await recordUsage(input.orgId, "report", error.calls);
-    throw error;
-  }
-
-  const { data, error } = await client
+  const narrative = await writeNarrative(input.orgId, facts, input.anthropic);
+  const { data, error } = await createAdminClient()
     .from("reports")
     .insert({
       org_id: input.orgId,
@@ -203,13 +193,84 @@ export async function createReportDraft(
       title: reportTitle(facts),
       facts: facts as never,
       content: narrative as never,
-      model,
+      model: smartModel(),
       recipients: input.recipients ?? [],
       schedule_id: input.scheduleId ?? null,
+      created_by: input.createdBy ?? null,
+      kpi_version: facts.kpi_version ?? null,
+      snapshot_at: facts.as_of ?? new Date().toISOString(),
       ...(input.jobId ? { job_id: input.jobId } : {}),
     })
     .select("id")
     .single();
   if (error) throw new Error(`No se pudo guardar el reporte: ${error.message}`);
+  return data.id;
+}
+
+async function writeNarrative(orgId: string, facts: ReportFacts, anthropic?: Anthropic) {
+  try {
+    const result = await generateNarrative(anthropic ?? new Anthropic(), smartModel(), facts);
+    await recordUsage(orgId, "report", result.calls);
+    return result.narrative;
+  } catch (error) {
+    if (error instanceof NarrativeError) await recordUsage(orgId, "report", error.calls);
+    throw error;
+  }
+}
+
+/**
+ * New figures for a draft (corrections arrived after it was generated). The
+ * text stays; the editor shows which figures no longer match.
+ */
+export async function refreshDraftFacts(client: Client, report: { id: string; orgId: string; kind: ReportKind; endDay: string }): Promise<void> {
+  const facts = await loadReportFacts(client, report.orgId, reportPeriod(report.kind, report.endDay));
+  const { error, count } = await createAdminClient()
+    .from("reports")
+    .update(
+      { facts: facts as never, kpi_version: facts.kpi_version ?? null, snapshot_at: facts.as_of ?? new Date().toISOString(), facts_stale_at: null },
+      { count: "exact" },
+    )
+    .eq("id", report.id)
+    .eq("org_id", report.orgId)
+    .eq("status", "draft");
+  if (error) throw new Error(`No se pudieron actualizar las cifras: ${error.message}`);
+  if (!count) throw new Error("Sólo se actualizan las cifras de un borrador.");
+}
+
+/**
+ * A revision of an approved report: a new draft (version + 1, linked to it)
+ * with figures computed now and the approved text as a starting point. The
+ * approved version does not change.
+ */
+export async function createRevision(
+  client: Client,
+  previous: { id: string; orgId: string; kind: ReportKind; endDay: string; narrative: AnyNarrative; recipients: string[]; title: string },
+  createdBy: string,
+): Promise<string> {
+  const facts = await loadReportFacts(client, previous.orgId, reportPeriod(previous.kind, previous.endDay));
+  const period = reportPeriod(previous.kind, previous.endDay);
+  const { data, error } = await createAdminClient()
+    .from("reports")
+    .insert({
+      org_id: previous.orgId,
+      period: previous.kind,
+      period_start: period.startDay,
+      period_end: period.endDay,
+      title: previous.title.replace(/ · revisión \d+$/, ""),
+      facts: facts as never,
+      content: previous.narrative as never,
+      model: null,
+      recipients: previous.recipients,
+      created_by: createdBy,
+      previous_version_id: previous.id,
+      kpi_version: facts.kpi_version ?? null,
+      snapshot_at: facts.as_of ?? new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  if (error) {
+    if (error.code === "23505") throw new Error("Este reporte ya tiene una revisión: ábrela desde la lista.");
+    throw new Error(`No se pudo crear la revisión: ${error.message}`);
+  }
   return data.id;
 }

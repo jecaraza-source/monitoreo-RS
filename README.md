@@ -447,11 +447,20 @@ Detalle en [docs/etapa-7-sla-escalamiento-envios.md](docs/etapa-7-sla-escalamien
 
 `/dashboard` es la vista ejecutiva (admin, comunicación y lectura):
 
-- Selector de periodo (24 h, 7 días, 30 días o fechas personalizadas, días de la Ciudad de México) y
-  comparación contra el periodo inmediato anterior de la misma duración.
-- KPIs: menciones, Net Sentiment Score ((positivas − negativas) / clasificadas × 100), % negativo
-  (variación en puntos), quejas abiertas (tickets del periodo aún abiertos) y tiempo medio de atención
-  (de turnado a resuelto).
+- Selector de periodo: 24 h móviles, o 7 y 30 días completos de la Ciudad de México (hoy incluido hasta
+  el corte), o fechas personalizadas. Se compara contra el periodo anterior de la misma duración, cortado
+  en el mismo punto.
+- Dos familias de indicadores con unidades distintas (diccionario versionado en `src/lib/kpi/dictionary.ts`
+  y `docs/etapa-9-kpi.md`; cada (i) muestra fórmula, unidad, denominador, periodo y tratamiento de
+  reabiertos y datos faltantes):
+  - **Conversación y percepción** (menciones): menciones, NSS, % negativo, menciones de queja e
+    interacciones.
+  - **Atención y cumplimiento** (casos y horas): casos nuevos, abiertos y vencidos al corte, tiempo de
+    primera atención y de resolución (mediana, p90 y n), cierres validados y reaperturas. Incluye el
+    desglose por dependencia (alfabético, sin ranking con volumen bajo; CSV) y los casos vencidos.
+- Barra de cobertura: corte, última mención y última clasificación, sin clasificar, sin colonia, fuentes
+  con lectura parcial, cuándo se actualizaron las gráficas y por qué una comparación puede no ser
+  equivalente (cambios de catálogo o de cobertura).
 - "Lectura del día" con texto de ejemplo (se conectará a Claude).
 - Volumen por sentimiento con picos anotados, temas y dependencias ordenados por NSS, mapa de colonias
   (MapLibre, intensidad por quejas) y rankings de mayor alcance y de medios/figuras públicas.
@@ -459,9 +468,11 @@ Detalle en [docs/etapa-7-sla-escalamiento-envios.md](docs/etapa-7-sla-escalamien
 - Cada gráfica tiene su tabla de datos ("Ver datos").
 - Modo **Sala de juntas**: pantalla completa con actualización cada 60 s.
 
-Datos: la vista materializada `mention_stats_hourly` (hora × sentimiento × dependencia × colonia × tema
-× queja) y la función `dashboard_stats()`, que devuelve todo el dashboard en una llamada. La ingesta y
-la clasificación la refrescan (`refresh_mention_stats()`, sólo service role) cuando escriben.
+Datos: las tarjetas, la cobertura y la atención salen de `kpi_snapshot()` (tablas base, una sola
+instantánea, reflejan una corrección de inmediato). Las gráficas usan la vista materializada
+`mention_stats_hourly` vía `dashboard_stats()`, que la ingesta, la clasificación y las correcciones refrescan
+(`refresh_mention_stats()`); la barra de cobertura avisa si hay correcciones aún no reflejadas, y una prueba
+pgTAP concilia ambas fuentes.
 
 Rendimiento: las gráficas (Recharts) y el mapa (MapLibre) se cargan sólo cuando están por entrar en
 pantalla; las animaciones de entrada son CSS. Con el seed, el dashboard carga en ~0.5 s y Lighthouse
@@ -680,17 +691,23 @@ con Realtime.
 mensual de un periodo que termina en el día elegido (semanal = 7 días; mensual = mes calendario a la fecha),
 comparado contra el periodo anterior de la misma duración.
 
-1. **Cifras en código.** `src/lib/reports/data.ts` arma `ReportFacts` (`src/lib/ai/narrative.ts`) con
-   `dashboard_stats()` y `report_extras()`: KPIs con variación, temas, dependencias por NSS, colonias con más
-   quejas, picos con sus menciones principales, alertas, tiempos de atención, metas del proyecto y 15 menciones
-   representativas. Sólo se nombran medios y figuras públicas.
-2. **Narrativa con Claude** (`CLAUDE_MODEL_SMART`, tool use estricto): titular, resumen ejecutivo (≤ 120
-   palabras), hallazgos con evidencia, riesgos, oportunidades, recomendaciones (acción, responsable, plazo) y
-   mensajes clave. Cada número citado debe existir en `ReportFacts`; si no, se reintenta indicando las cifras
-   inválidas (hasta 3 intentos). El costo queda en `ai_usage` (`purpose = 'report'`).
-3. **Borrador editable.** La vista web muestra KPIs, gráficas y la narrativa en un editor; avisa si una edición
-   introduce cifras que no están en los datos.
-4. **Aprobación.** Congela el reporte (trigger `reports_guard`), genera el PDF con `@react-pdf/renderer`
+1. **Cifras en código, de una sola instantánea.** `src/lib/reports/data.ts` arma `ReportFacts`
+   (`src/lib/ai/narrative.ts`) con una llamada a `report_snapshot()` (KPIs de conversación y de atención,
+   cobertura, dependencias, casos vencidos, temas, picos con sus menciones, alertas) más las metas del
+   proyecto. Las cifras las escribe sólo el servidor (los editores no pueden escribir `facts`). Sólo se
+   nombran medios y figuras públicas. Detalle: `docs/etapa-9-kpi.md`.
+2. **Narrativa con Claude** (`CLAUDE_MODEL_SMART`, tool use estricto): titular, resumen (≤ 120 palabras) y los
+   apartados **Qué cambió**, **Qué requiere decisión**, **Quién debe actuar** (responsable del catálogo, acción,
+   plazo) y **Qué sigue pendiente**, cada afirmación con referencias a los datos (KPI, caso, mención,
+   dependencia…); más riesgos y mensajes clave. Cada número debe existir en `ReportFacts`, cada referencia en su
+   lista autorizada y cada responsable en el catálogo; si no, se reintenta (hasta 3 intentos). El costo queda
+   en `ai_usage` (`purpose = 'report'`).
+3. **Borrador editable.** El editor elige referencias de la lista autorizada y responsables del catálogo, y
+   verifica en vivo cifras, evidencia y responsables. «Actualizar cifras» recalcula los datos de un borrador
+   (por ejemplo, tras correcciones) y vuelve a verificar el texto.
+4. **Aprobación.** Sólo con la verificación en verde. Congela cifras, texto y versión de definiciones
+   (triggers `reports_guard` y `reports_version_freeze`); una corrección posterior se hace con **Crear revisión**:
+   un borrador nuevo (versión + 1, ligado al aprobado) con cifras al día. Genera el PDF con `@react-pdf/renderer`
    (portada con `organizations.brand_primary/brand_accent` y el **logotipo del cliente**, editables por admin en
    Configuración → Identidad; el logo también va al pie de cada página), lo guarda en el bucket privado
    `reports/<org>/<id>.pdf` y lo envía por Resend como adjunto a los destinatarios. La descarga usa un enlace
