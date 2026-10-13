@@ -42,7 +42,7 @@ describe("canAccessPath", () => {
     assert.equal(canAccessPath("comunicacion", "/configuracion/whatsapp"), false);
     assert.equal(canAccessPath("comunicacion", "/configuracion/identidad"), false);
     assert.deepEqual(subsectionsForRole("comunicacion").map((s) => s.label), ["Proyectos", "Fuentes"]);
-    assert.deepEqual(subsectionsForRole("admin").map((s) => s.label), ["Proyectos", "Fuentes", "Catálogos", "Usuarios", "Identidad", "WhatsApp y SLA", "Bitácora"]);
+    assert.deepEqual(subsectionsForRole("admin").map((s) => s.label), ["Proyectos", "Fuentes", "Catálogos", "Usuarios", "Identidad", "Emergencias", "WhatsApp y SLA", "Bitácora"]);
   });
 
   it("does not confuse prefixes with sections", () => {
@@ -66,6 +66,13 @@ describe("canAccessPath", () => {
     for (const role of ["admin", "comunicacion", "dependencia", "lectura"] as const) {
       assert.equal(canAccessPath(role, "/casos/abc"), true, role);
     }
+  });
+
+  it("keeps the review queue to editors", () => {
+    assert.equal(canAccessPath("comunicacion", "/bandeja/revision"), true);
+    assert.equal(canAccessPath("dependencia", "/bandeja/revision"), false);
+    assert.equal(canAccessPath("dependencia", "/bandeja"), true);
+    assert.equal(canAccessPath("comunicacion", "/configuracion/emergencias"), false);
   });
 
   it("keeps lectura out of operational sections", () => {

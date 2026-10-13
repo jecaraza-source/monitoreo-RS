@@ -23,6 +23,25 @@ const SENTIMENT_DB: Record<Classification["sentiment"], Enums["sentiment"]> = {
   negativo: "negative",
 };
 const PRIORITY_DB: Record<Classification["priority"], Enums["priority"]> = { alta: "high", media: "medium", baja: "low" };
+const SEVERITY_DB: Record<Classification["severity"], Enums["severity"]> = {
+  ninguna: "none",
+  baja: "low",
+  media: "moderate",
+  alta: "high",
+  emergencia: "emergency",
+};
+const INCIDENT_DB: Record<Classification["incident_type"], string> = {
+  ninguno: "none",
+  servicio_publico: "public_service",
+  infraestructura: "infrastructure",
+  seguridad: "public_safety",
+  violencia: "violence",
+  salud: "health",
+  proteccion_civil: "civil_protection",
+  medio_ambiente: "environment",
+  corrupcion: "corruption",
+  otro: "other",
+};
 
 const SOURCE_LABEL: Record<Enums["source_type"], string> = { meta: "Facebook", rss: "RSS", youtube: "YouTube", x: "X" };
 
@@ -300,6 +319,9 @@ async function runBatch(
     topic: c.topic,
     intent: c.intent,
     priority: PRIORITY_DB[c.priority],
+    severity: SEVERITY_DB[c.severity],
+    incident_type: INCIDENT_DB[c.incident_type],
+    needs_attention: c.needs_attention,
     department_id: c.department ? (loaded.departmentIds.get(c.department) ?? null) : null,
     neighborhood_id: c.neighborhood ? (loaded.neighborhoodIds.get(c.neighborhood) ?? null) : null,
     model: c.model,

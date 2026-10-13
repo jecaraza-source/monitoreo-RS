@@ -65,8 +65,12 @@ export const SUBSECTIONS: readonly { href: string; label: string; roles: readonl
   { href: "/configuracion/usuarios", label: "Usuarios", roles: ["admin"] },
   // Client logo and cover colors for the reports.
   { href: "/configuracion/identidad", label: "Identidad", roles: ["admin"] },
+  // Incident policies (emergency channels): admin.
+  { href: "/configuracion/emergencias", label: "Emergencias", roles: ["admin"] },
   { href: "/configuracion/whatsapp", label: "WhatsApp y SLA", roles: ["admin"] },
   { href: "/configuracion/bitacora", label: "Bitácora", roles: ["admin"] },
+  // Human review of doubtful classifications: editorial work.
+  { href: "/bandeja/revision", label: "Revisión", roles: ["admin", "comunicacion"] },
   // Crisis room: live org-wide picture, so not for a single department.
   { href: "/alertas/crisis", label: "Sala de crisis", roles: ["admin", "comunicacion", "lectura"] },
 ];

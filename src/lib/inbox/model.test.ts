@@ -12,6 +12,13 @@ import {
   parseFilters,
   statusFor,
   upsertSorted,
+  appendUnique,
+  bulkMessage,
+  compareQueue,
+  queueFilters,
+  queueKey,
+  VIEWS_BY_SCOPE,
+  type QueueCursor,
 } from "./model.ts";
 
 describe("parseFilters", () => {
@@ -108,5 +115,61 @@ describe("keyset pagination", () => {
     assert.deepEqual(upsertSorted(list, { id: "z", published_at: "2026-10-01T00:00:00Z", v: 1 }).map((i) => i.id), ["c", "a", "z"]);
     const replaced = upsertSorted(list, { id: "a", published_at: "2026-10-09T10:00:00Z", v: 2 });
     assert.deepEqual(replaced.map((i) => [i.id, i.v]), [["c", 1], ["a", 2]]);
+  });
+});
+
+describe("operational views", () => {
+  const row = (over: Partial<QueueCursor>): QueueCursor => ({
+    urgency: 0,
+    due_at: null,
+    item_at: "2026-10-01T00:00:00Z",
+    kind: "mention",
+    id: "00000000-0000-4000-0000-000000000001",
+    ...over,
+  });
+
+  it("orders by urgency, then due date (none last), then age, then kind and id", () => {
+    const rows = [
+      row({ id: "a", urgency: 1 }),
+      row({ id: "b", urgency: 3, due_at: "2026-10-05T00:00:00Z" }),
+      row({ id: "c", urgency: 3, due_at: "2026-10-02T00:00:00Z" }),
+      row({ id: "d", urgency: 3 }),
+      row({ id: "e", urgency: 1, item_at: "2026-09-01T00:00:00Z" }),
+      row({ id: "f", urgency: 1, kind: "case" }),
+    ];
+    assert.deepEqual([...rows].sort(compareQueue).map((r) => r.id), ["c", "b", "d", "e", "f", "a"]);
+  });
+
+  it("appends pages without repeating an item", () => {
+    const page1 = [{ key: "mention:1" }, { key: "case:1" }];
+    const page2 = [{ key: "case:1" }, { key: "mention:2" }, { key: "mention:2" }];
+    assert.deepEqual(appendUnique(page1, page2).map((e) => e.key), ["mention:1", "case:1", "mention:2"]);
+    assert.equal(queueKey("case", "1"), "case:1");
+  });
+
+  it("sends the row filters to the queue, not the view or the status", () => {
+    assert.deepEqual(queueFilters({ view: "urgent", status: "new", q: "fuga", priority: "high" }), { q: "fuga", priority: "high" });
+  });
+
+  it("keeps the view in the URL", () => {
+    assert.deepEqual(parseFilters(new URLSearchParams("view=overdue&q=fuga")), { view: "overdue", q: "fuga" });
+    assert.deepEqual(parseFilters(new URLSearchParams("view=nope")), {});
+    assert.equal(filtersToSearch({ view: "validation" }), "?view=validation");
+  });
+
+  it("offers departments only the views of their own work", () => {
+    assert.deepEqual([...VIEWS_BY_SCOPE.department], ["urgent", "acceptance", "overdue", "validation"]);
+    assert.equal(VIEWS_BY_SCOPE.editor.length, 6);
+  });
+
+  it("reports how many changed and why the rest did not", () => {
+    assert.equal(bulkMessage("descartadas", 3, []), "3 actualizadas (descartadas).");
+    assert.equal(
+      bulkMessage("turnadas", 1, [
+        { id: "a", reason: "pertenece a C-00002" },
+        { id: "b", reason: "pertenece a C-00002" },
+      ]),
+      "1 actualizada (turnadas); 2 sin cambio: pertenece a C-00002.",
+    );
   });
 });

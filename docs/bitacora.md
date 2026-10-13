@@ -3,6 +3,37 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Etapa 5 — Bandeja operativa y revisión humana (13 oct 2026, base `d79a161`)
+
+- **Antes:**
+  - La bandeja sólo tenía la lista cronológica.
+  - La prioridad del modelo mezclaba gravedad y urgencia, así que una crítica dura podía verse como urgente.
+  - Las correcciones no guardaban la versión previa ni llegaban al dashboard hasta la siguiente clasificación.
+  - No había revisión humana de clasificaciones dudosas.
+- **Después:**
+  - Seis vistas: Nuevas, Urgentes, Sin responsable, Por aceptar, Vencidas y Por validar.
+    - Cada contador sale de la misma función que su lista (`inbox_items`, invoker, con RLS).
+    - Orden por urgencia, plazo y antigüedad con desempate estable; cursor sin duplicados.
+    - Tarjetas distintas para mención y caso.
+  - Acciones masivas con el número real de registros actualizados y las fallas con su motivo.
+  - Gravedad, tipo de incidente y necesidad de atención separados del sentimiento, y confirmables por una persona.
+  - Políticas de emergencia mostradas y exigidas antes de turnar.
+  - Cola de revisión: baja confianza, posible emergencia, riesgo alto, término de riesgo y señales contradictorias. La decisión guarda cambio y motivo, y la versión previa queda en una tabla de sólo agregar.
+  - Invalidación durable de agregados: rollup, «Lectura del día» y aviso en borradores, dentro del SLA de frescura; Salud lo vigila.
+- **Archivos:** ver `docs/etapa-5-bandeja-operativa.md` § 7.
+- **Pruebas:**
+  - lint, typecheck y unitarias;
+  - pgTAP 503/503 (colas y contadores, revisión y versiones, lado servidor, matriz RLS);
+  - reversión y reaplicación sobre base limpia;
+  - build canario + `check:bundle`;
+  - e2e 28/28 (4 nuevas: vista Urgentes con emergencia y política, turnado en bloque con fallas, revisión con versión e invalidación, acceso de dependencia).
+- **Conteo previo en producción (sólo lectura):** 784 clasificaciones; 307 quedan con `needs_attention` por el backfill; ninguna entra a revisión con la migración.
+- **Limitaciones:** las vistas no se reordenan solas en vivo; el eval aún no mide gravedad.
+- **Activación / reversión:**
+  - activar: migración, deploy, y revisar Configuración → Emergencias;
+  - revertir: commit y `down.sql`.
+- **Pendiente:** Node 22/24; medir gravedad en el eval.
+
 ## Etapa 4 — Casos (13 oct 2026, base `6e26ba5`)
 
 - **Antes:**

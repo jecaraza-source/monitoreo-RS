@@ -9,6 +9,7 @@ export type Priority = Enums["priority"];
 export type TicketStatus = Enums["ticket_status"];
 export type TriageStatus = Enums["triage_status"];
 export type SourceType = Enums["source_type"];
+export type Severity = Enums["severity"];
 
 /** Editors (admin, comunicacion) triage every mention; dependencia works its tickets. */
 export type InboxScope = "editor" | "department";
@@ -37,6 +38,93 @@ export const INTENT_LABELS: Record<string, string> = {
   rumor: "Rumor",
   otro: "Otro",
 };
+/** Gravedad del hecho (no del tono): una crítica negativa puede tener gravedad "ninguna". */
+export const SEVERITY_LABELS: Record<Severity, string> = {
+  none: "Sin incidente",
+  low: "Baja",
+  moderate: "Media",
+  high: "Alta",
+  emergency: "Emergencia",
+};
+export const SEVERITIES = Object.keys(SEVERITY_LABELS) as Severity[];
+export const INCIDENT_LABELS: Record<string, string> = {
+  none: "Ninguno",
+  public_service: "Servicio público",
+  infrastructure: "Infraestructura",
+  public_safety: "Seguridad pública",
+  violence: "Violencia",
+  health: "Salud",
+  civil_protection: "Protección civil",
+  environment: "Medio ambiente",
+  corruption: "Corrupción",
+  other: "Otro",
+};
+export const INCIDENT_TYPES = Object.keys(INCIDENT_LABELS);
+
+// ---------------------------------------------------------------------------
+// Operational views (public.inbox_queue / inbox_counts: same predicate for
+// list and counter)
+// ---------------------------------------------------------------------------
+export const INBOX_VIEWS = ["new", "urgent", "unassigned", "acceptance", "overdue", "validation"] as const;
+export type InboxView = (typeof INBOX_VIEWS)[number];
+export const VIEW_LABELS: Record<InboxView, { label: string; hint: string }> = {
+  new: { label: "Nuevas", hint: "Menciones sin revisar y casos recién abiertos." },
+  urgent: { label: "Urgentes", hint: "Prioridad crítica o alta, o gravedad alta o de emergencia, aún sin resolver." },
+  unassigned: { label: "Sin responsable", hint: "Requieren atención y nadie las tiene: sin turnar o casos sin dependencia." },
+  acceptance: { label: "Por aceptar", hint: "Turnos y casos asignados que la dependencia aún no acepta ni inicia." },
+  overdue: { label: "Vencidas", hint: "Turnos y casos abiertos con el plazo vencido." },
+  validation: { label: "Por validar", hint: "Atendidos por la dependencia; falta que Comunicación valide y cierre." },
+};
+/** A department works what is assigned to it: no triage or unassigned views. */
+export const VIEWS_BY_SCOPE: Record<InboxScope, readonly InboxView[]> = {
+  editor: INBOX_VIEWS,
+  department: ["urgent", "acceptance", "overdue", "validation"],
+};
+export type ViewCounts = Record<InboxView, number> & { review: number };
+
+/** Sort key of a queue row; also the cursor of the next page. */
+export type QueueCursor = { urgency: number; due_at: string | null; item_at: string; kind: "mention" | "case"; id: string };
+
+export const queueKey = (kind: "mention" | "case", id: string) => `${kind}:${id}`;
+
+/** Appends a page keeping the first occurrence of each key (no duplicates across pages). */
+export function appendUnique<T extends { key: string }>(current: readonly T[], page: readonly T[]): T[] {
+  const seen = new Set(current.map((e) => e.key));
+  const out = [...current];
+  for (const e of page) {
+    if (seen.has(e.key)) continue;
+    seen.add(e.key);
+    out.push(e);
+  }
+  return out;
+}
+
+/** Same order as public.inbox_queue: urgency desc, due date (none last), age, kind, id. */
+export function compareQueue(a: QueueCursor, b: QueueCursor): number {
+  const due = (c: QueueCursor) => (c.due_at ? new Date(c.due_at).getTime() : Number.POSITIVE_INFINITY);
+  return (
+    b.urgency - a.urgency ||
+    due(a) - due(b) ||
+    new Date(a.item_at).getTime() - new Date(b.item_at).getTime() ||
+    a.kind.localeCompare(b.kind) ||
+    a.id.localeCompare(b.id)
+  );
+}
+
+/** The URL filters the queue functions take (view and status are not row filters). */
+export function queueFilters(filters: InboxFilters): Record<string, string> {
+  return Object.fromEntries(Object.entries(filters).filter(([k, v]) => v && k !== "view" && k !== "status")) as Record<string, string>;
+}
+
+/** Outcome of a bulk action, item by item. */
+export type BulkFailure = { id: string; reason: string };
+export function bulkMessage(done: string, updated: number, failed: readonly BulkFailure[]): string {
+  const ok = `${updated} ${updated === 1 ? "actualizada" : "actualizadas"} (${done})`;
+  if (!failed.length) return `${ok}.`;
+  const reasons = [...new Set(failed.map((f) => f.reason))].join("; ");
+  return `${ok}; ${failed.length} sin cambio: ${reasons}.`;
+}
+
 export const SOURCE_LABELS: Record<SourceType, string> = { meta: "Facebook", rss: "RSS", youtube: "YouTube", x: "X" };
 
 export const SENTIMENTS = Object.keys(SENTIMENT_LABELS) as Sentiment[];
@@ -79,6 +167,8 @@ export const filtersSchema = z.object({
   mention: optional(guid),
   /** Mentions by one media outlet or public figure (dashboard ranking). */
   author: optional(guid),
+  /** Operational view (absent: every mention, newest first). */
+  view: optional(z.enum(INBOX_VIEWS)),
 });
 export type InboxFilters = z.infer<typeof filtersSchema>;
 export const FILTER_KEYS = Object.keys(filtersSchema.shape) as (keyof InboxFilters)[];

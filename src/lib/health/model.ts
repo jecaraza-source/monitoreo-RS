@@ -64,6 +64,8 @@ export type HealthSnapshot = {
     latest_classified_at: string | null;
   };
   sources: SourceSnapshot[];
+  /** Human corrections not yet reflected in the aggregates (stats_invalidations). */
+  corrections?: { pending: number; oldest_pending_at: string | null } | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -269,6 +271,21 @@ export function assessDashboard(h: HealthSnapshot, now: Date): JobHealth {
   if (!refreshed) return { state: "unknown", tone: "warn", label: "Desconocida", reason: "Todavía no hay registro de una actualización del dashboard." };
   const latest = h.classifier.latest_classified_at;
   const age = minutesBetween(refreshed, now);
+  // Corrections must reach the dashboard within the same freshness SLA.
+  const corrections = h.corrections;
+  if (corrections?.pending && corrections.oldest_pending_at) {
+    const waiting = minutesBetween(corrections.oldest_pending_at, now);
+    const n = `${corrections.pending} ${corrections.pending === 1 ? "corrección" : "correcciones"}`;
+    if (waiting > h.settings.dashboard_stale_minutes) {
+      return {
+        state: "stale",
+        tone: "warn",
+        label: "Desactualizado",
+        reason: `${n} sin reflejar desde ${formatCdmx(corrections.oldest_pending_at)} (umbral ${formatDuration(h.settings.dashboard_stale_minutes)}).`,
+      };
+    }
+    return { state: "ok", tone: "ok", label: "Al día", reason: `Actualizado ${formatCdmx(refreshed)}; ${n} por reflejar en los próximos minutos.` };
+  }
   if (latest && Date.parse(latest) > Date.parse(refreshed) && age > h.settings.dashboard_stale_minutes) {
     return {
       state: "stale",

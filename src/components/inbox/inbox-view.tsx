@@ -13,20 +13,21 @@ import { AnimatedNumber, EmptyState } from "@/components/ui-kit";
 import { createClient } from "@/lib/supabase/client";
 import { setTriage } from "@/lib/inbox/actions";
 import type { InboxCatalogs } from "@/lib/inbox/data";
-import { filtersToSearch, upsertSorted, type InboxFilters, type InboxScope, type Priority, type TriageStatus } from "@/lib/inbox/model";
-import { countOverdue, fetchInbox, type InboxItem, type InboxPage } from "@/lib/inbox/query";
+import { filtersToSearch, upsertSorted, type InboxFilters, type InboxScope, type TriageStatus, type ViewCounts } from "@/lib/inbox/model";
+import { countOverdue, fetchCounts, fetchInbox, type InboxItem, type InboxPage } from "@/lib/inbox/query";
 import { cn } from "@/lib/utils";
 import { DetailPanel } from "./detail-panel";
 import { FilterBar } from "./filter-bar";
 import { buildLookups } from "./lookups";
 import { CARD_HEIGHT, MentionCard } from "./mention-card";
+import { caseRequestFor, routeRequestFor } from "./requests";
 import { RouteDialog, type RouteRequest } from "./route-dialog";
 import { useHotkeys } from "./use-hotkeys";
+import { ViewTabs } from "./view-tabs";
 import { VirtualList } from "./virtual-list";
 
 const ROW_HEIGHT = CARD_HEIGHT + 10;
 const FRESH_MS = 4000;
-const PRIORITY_RANK: Record<Priority, number> = { critical: 3, high: 2, medium: 1, low: 0 };
 
 const SHORTCUTS: [string, string, InboxScope | null][] = [
   ["j / k", "Siguiente / anterior", null],
@@ -61,6 +62,7 @@ export function InboxView({
   initialFilters,
   initialPage,
   initialOverdue,
+  initialCounts,
 }: {
   orgId: string;
   scope: InboxScope;
@@ -69,6 +71,7 @@ export function InboxView({
   initialFilters: InboxFilters;
   initialPage: InboxPage;
   initialOverdue: number;
+  initialCounts: ViewCounts | null;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const lookups = useMemo(() => buildLookups(catalogs), [catalogs]);
@@ -81,6 +84,7 @@ export function InboxView({
   const [total, setTotal] = useState(initialPage.total ?? initialPage.items.length);
   const [loading, setLoading] = useState(false);
   const [overdue, setOverdue] = useState(initialOverdue);
+  const [counts, setCounts] = useState(initialCounts);
   const [activeId, setActiveId] = useState<string | null>(initialPage.items[0]?.id ?? null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [fresh, setFresh] = useState<Set<string>>(new Set());
@@ -124,6 +128,7 @@ export function InboxView({
         setItems(page.items);
         setNext(page.next);
         setTotal(page.total ?? page.items.length);
+        fetchCounts(supabase, orgId, nextFilters).then((c) => request === requestRef.current && c && setCounts(c));
         setActiveId(page.items[0]?.id ?? null);
         setChecked(new Set());
         setNewAbove(0);
@@ -258,7 +263,10 @@ export function InboxView({
     let overdueTimer: ReturnType<typeof setTimeout> | null = null;
     const recountOverdue = () => {
       if (overdueTimer) clearTimeout(overdueTimer);
-      overdueTimer = setTimeout(() => countOverdue(supabase, orgId).then(setOverdue), 300);
+      overdueTimer = setTimeout(() => {
+        countOverdue(supabase, orgId).then(setOverdue);
+        fetchCounts(supabase, orgId, filtersRef.current).then((c) => c && setCounts(c));
+      }, 300);
     };
     const filter = `org_id=eq.${orgId}`;
     type Row = { id?: string; mention_id?: string };
@@ -274,10 +282,12 @@ export function InboxView({
       .on("postgres_changes", { event: "*", schema: "public", table: "classifications", filter }, (payload) => {
         const id = mentionOf(payload.new as Row, "mention_id");
         if (id) refreshRef.current(id);
+        recountOverdue();
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "mentions", filter }, (payload) => {
         const id = mentionOf(payload.new as Row, "id");
         if (id) refreshRef.current(id);
+        recountOverdue();
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "mention_notes", filter }, (payload) => {
         const id = mentionOf(payload.new as Row, "mention_id");
@@ -339,37 +349,12 @@ export function InboxView({
 
   function openRoute(list = targets()) {
     if (!editor || !list.length) return;
-    const departments = new Set(list.map((i) => i.classifications?.department_id ?? null));
-    const priority = list
-      .map((i) => i.classifications?.priority)
-      .filter((p): p is Priority => Boolean(p))
-      .sort((a, b) => PRIORITY_RANK[b] - PRIORITY_RANK[a])[0];
-    // One mention already routed: start from its leading department.
-    const routed = list.length === 1 ? list[0].tickets : [];
-    const leader = routed.find((t) => t.is_primary)?.department_id ?? null;
-    setRoute({
-      ids: list.map((i) => i.id),
-      departmentId: leader ?? (departments.size === 1 ? [...departments][0] : null),
-      routed: routed.map((t) => t.department_id),
-      priority: priority ?? null,
-    });
+    setRoute(routeRequestFor(list));
   }
 
   function openCase(list = targets()) {
     if (!editor || !list.length) return;
-    const first = list[0].classifications;
-    const same = <T,>(pick: (i: InboxItem) => T) => (new Set(list.map(pick)).size === 1 ? pick(list[0]) : null);
-    const topic = same((i) => i.classifications?.topic ?? null);
-    const neighborhoodId = same((i) => i.classifications?.neighborhood_id ?? null);
-    const place = neighborhoodId ? lookups.neighborhoods.get(neighborhoodId) : null;
-    const priority = list
-      .map((i) => i.classifications?.priority)
-      .filter((p): p is Priority => Boolean(p))
-      .sort((a, b) => PRIORITY_RANK[b] - PRIORITY_RANK[a])[0];
-    const title = topic
-      ? `${topic.charAt(0).toUpperCase()}${topic.slice(1)}${place ? ` en ${place}` : ""}`
-      : list[0].text.replace(/\s+/g, " ").slice(0, 80);
-    setCaseRequest({ ids: list.map((i) => i.id), title, category: topic ?? first?.topic ?? null, neighborhoodId, priority: priority ?? "medium" });
+    setCaseRequest(caseRequestFor(list, lookups));
   }
 
   async function triage(value: "reviewed" | "discarded", list = targets()) {
@@ -381,7 +366,8 @@ export function InboxView({
     if (!result.ok) return void toast.error(result.message);
     setChecked(new Set());
     ids.forEach((id) => refresh(id));
-    toast.success(result.message, {
+    // Partial: say how many changed and why the rest did not.
+    (result.failed?.length ? toast.warning : toast.success)(result.message, {
       action:
         value === "discarded"
           ? {
@@ -480,6 +466,7 @@ export function InboxView({
         </div>
       </div>
 
+      <ViewTabs scope={scope} filters={filters} counts={counts} />
       <FilterBar scope={scope} catalogs={catalogs} filters={filters} onChange={applyFilters} searchRef={searchRef} />
 
       <div className="flex min-h-9 flex-wrap items-center gap-2 text-sm">
@@ -605,6 +592,7 @@ export function InboxView({
         request={route}
         departments={catalogs.departments}
         sla={catalogs.sla}
+        policies={catalogs.policies}
         onClose={() => setRoute(null)}
         onRouted={(ids) => {
           setChecked(new Set());

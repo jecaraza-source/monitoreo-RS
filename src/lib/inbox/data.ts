@@ -10,18 +10,21 @@ export type InboxCatalogs = {
   sources: { id: string; name: string; type: SourceType }[];
   topics: string[];
   sla: SlaHours;
+  /** Institutional channel per incident type, shown before routing an emergency (editors only by RLS). */
+  policies: { incident_type: string; channel: string; instructions: string }[];
 };
 
 /** Filter options and id → name lookups for the inbox. */
 export async function getInboxCatalogs(member: Member): Promise<InboxCatalogs> {
   const supabase = await createClient();
-  const [departments, neighborhoods, sources, projects, sla] = await Promise.all([
+  const [departments, neighborhoods, sources, projects, sla, policies] = await Promise.all([
     supabase.from("departments").select("id, name").eq("org_id", member.orgId).order("name"),
     supabase.from("neighborhoods").select("id, name").eq("org_id", member.orgId).order("name"),
     supabase.rpc("source_labels", { p_org_id: member.orgId }),
     // Departments cannot read projects; they get the default taxonomy.
     supabase.from("projects").select("topics").eq("org_id", member.orgId),
     supabase.from("sla_policies").select("priority, hours").eq("org_id", member.orgId),
+    supabase.from("incident_policies").select("incident_type, channel, instructions").eq("org_id", member.orgId),
   ]);
   const projectTopics = (projects.data ?? []).flatMap((p) => p.topics);
   const topics = [...new Set(projectTopics.length ? projectTopics : DEFAULT_TOPICS)].sort((a, b) => a.localeCompare(b, "es"));
@@ -31,5 +34,6 @@ export async function getInboxCatalogs(member: Member): Promise<InboxCatalogs> {
     sources: sources.data ?? [],
     topics: [...topics, OTHER_TOPIC],
     sla: slaFromRows(sla.data ?? []),
+    policies: policies.data ?? [],
   };
 }

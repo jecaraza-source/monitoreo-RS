@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import { AlarmClock, Building2, ExternalLink, FolderKanban, MapPin, Tag } from "lucide-react";
+import { AlarmClock, Building2, ExternalLink, FolderKanban, MapPin, Siren, Tag } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SentimentBadge } from "@/components/ui-kit";
 import { isOverdue, PRIORITY_LABELS, SOURCE_LABELS, TICKET_LABELS, TRIAGE_LABELS, type InboxScope } from "@/lib/inbox/model";
@@ -109,6 +109,18 @@ export function MentionCard({
         {c && (
           <span className={cn("shrink-0 rounded-full px-2 py-0.5 font-medium", PRIORITY_TONE[c.priority])}>
             {PRIORITY_LABELS[c.priority]}
+          </span>
+        )}
+        {(c?.severity === "emergency" || c?.severity === "high") && (
+          <span
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 font-medium",
+              c.severity === "emergency" ? "border-negative bg-negative text-white" : "border-negative/50 text-negative",
+            )}
+            title="Gravedad del hecho (independiente del sentimiento)"
+          >
+            <Siren className="size-3" aria-hidden />
+            {c.severity === "emergency" ? "Emergencia" : "Grave"}
           </span>
         )}
         {c?.topic && (

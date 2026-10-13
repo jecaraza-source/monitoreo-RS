@@ -163,8 +163,9 @@ insert into auth.users (instance_id, id, aud, role, email, encrypted_password, r
 values ('00000000-0000-0000-0000-000000000000', '00000000-0000-4000-d000-000000000098', 'authenticated', 'authenticated',
         'admin@vecino2.test', '', '{}', '{}', now(), now());
 insert into public.memberships (org_id, user_id, role) values ('00000000-0000-4000-a000-000000000002', '00000000-0000-4000-d000-000000000098', 'admin');
--- Its own default SLA would count as writable rows; only this org's rows matter here.
+-- Its own default SLA and incident policies would count as writable rows; only this org's rows matter here.
 delete from public.sla_policies where org_id = '00000000-0000-4000-a000-000000000002';
+delete from public.incident_policies where org_id = '00000000-0000-4000-a000-000000000002';
 
 select pg_temp.login('00000000-0000-4000-d000-000000000098');
 set local role authenticated;

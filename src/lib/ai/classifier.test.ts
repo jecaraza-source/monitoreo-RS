@@ -41,6 +41,9 @@ const item = (ref: number, over: Item = {}): Item => ({
   topic: "agua potable",
   intent: "queja",
   priority: "media",
+  severity: "media",
+  incident_type: "servicio_publico",
+  needs_attention: true,
   department: "Agua Potable y Alcantarillado",
   neighborhood: "Centro",
   ...over,
@@ -189,10 +192,15 @@ describe("classifyBatch", () => {
 
 describe("needsEscalation / estimateCost", () => {
   it("escalates below 0.6 confidence or at high priority", () => {
-    const base = { sentiment: "neutral", emotion: "neutral", topic: "otro", intent: "otro", department: null, neighborhood: null } as const;
+    const base = {
+      sentiment: "neutral", emotion: "neutral", topic: "otro", intent: "otro", department: null, neighborhood: null,
+      severity: "ninguna", incident_type: "ninguno", needs_attention: false,
+    } as const;
     assert.equal(needsEscalation({ ...base, confidence: 0.59, priority: "baja" }), true);
     assert.equal(needsEscalation({ ...base, confidence: 0.6, priority: "media" }), false);
     assert.equal(needsEscalation({ ...base, confidence: 0.99, priority: "alta" }), true);
+    // An emergency always gets the smart model, whatever its priority.
+    assert.equal(needsEscalation({ ...base, confidence: 0.95, priority: "media", severity: "emergencia" }), true);
   });
 
   it("prices known models and returns null for unknown ones", () => {
