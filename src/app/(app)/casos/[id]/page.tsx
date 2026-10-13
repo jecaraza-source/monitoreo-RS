@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { AlarmClock, ChevronLeft, MessageCircle } from "lucide-react";
 import { CaseActions } from "@/components/cases/case-actions";
 import { CaseHistory } from "@/components/cases/case-history";
+import { CaseLocation } from "@/components/cases/case-location";
 import { CaseManage } from "@/components/cases/case-manage";
 import { CaseMentions } from "@/components/cases/case-mentions";
 import { CaseNotes } from "@/components/cases/case-notes";
@@ -235,6 +236,27 @@ async function CaseView({ params }: { params: PageProps<"/casos/[id]">["params"]
                 </Row>
                 {c.cycle > 1 && <Row label="Ciclo">{c.cycle} (reabierto)</Row>}
               </dl>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Ubicación</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CaseLocation
+                caseId={c.id}
+                location={{
+                  status: c.location_status as "confirmed" | "inferred" | "unavailable",
+                  source: c.location_source ?? "sin_dato",
+                  confidence: c.location_confidence === null ? null : Number(c.location_confidence),
+                  neighborhoodId: c.neighborhood_id,
+                  lat: c.location_lat === null ? null : Number(c.location_lat),
+                  lng: c.location_lng === null ? null : Number(c.location_lng),
+                }}
+                history={c.locationHistory}
+                neighborhoods={catalogs.neighborhoods}
+                canEdit={editor && c.status !== "merged"}
+              />
             </CardContent>
           </Card>
           <Card>

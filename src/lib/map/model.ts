@@ -1,28 +1,50 @@
 // Map of colonias: URL filters, metrics, color scale and CSV. Pure: shared by
 // the server page, the client map and unit tests.
 import { z } from "zod";
+import type { Role } from "../auth/roles.ts";
 import { nss } from "../dashboard/model.ts";
-import { SENTIMENTS, type Sentiment } from "../inbox/model.ts";
+import { PRIORITIES, SENTIMENTS, type Sentiment } from "../inbox/model.ts";
 
 // ---------------------------------------------------------------------------
-// Filters (?tema&dependencia&sentimiento&colonia&metrica, plus the period)
+// Filters (?capa&tema&dependencia&sentimiento&prioridad&estado&colonia&metrica, plus the period)
 // ---------------------------------------------------------------------------
 
 export const METRIC_KEYS = ["quejas", "menciones", "negativo", "nss", "cambio"] as const;
 export type MetricKey = (typeof METRIC_KEYS)[number];
+/** Metrics of the cases layer. */
+export const CASE_METRIC_KEYS = ["casos", "vencidos"] as const;
+export type CaseMetricKey = (typeof CASE_METRIC_KEYS)[number];
+
+/** conversacion: aggregated mentions (readers); casos: operational cases (every role, within its scope). */
+export const LAYERS = ["conversacion", "casos"] as const;
+export type Layer = (typeof LAYERS)[number];
+/** The conversation is org-wide: only roles that read everything; a department sees its own cases. */
+export function mapLayers(role: Role): readonly Layer[] {
+  return role === "dependencia" ? ["casos"] : LAYERS;
+}
+/** Case states of the filter: open (default), all, or one state. */
+export const CASE_STATUS_FILTERS = ["open", "all", "new", "in_review", "assigned", "accepted", "in_progress", "resolved", "closed", "returned", "discarded"] as const;
 
 const guid = z.guid();
 const optional = <T extends z.ZodType>(schema: T) => schema.optional().catch(undefined);
 
 const filtersSchema = z.object({
+  capa: z.enum(LAYERS).catch("conversacion"),
   tema: optional(z.string().trim().min(1).max(80)),
   dependencia: optional(guid),
   sentimiento: optional(z.enum(SENTIMENTS)),
-  colonia: optional(guid),
-  metrica: z.enum(METRIC_KEYS).catch("quejas"),
+  prioridad: optional(z.enum(PRIORITIES)),
+  estado: z.enum(CASE_STATUS_FILTERS).catch("open"),
+  // A colonia, or "sin": what has no location.
+  colonia: optional(z.union([guid, z.literal("sin")])),
+  metrica: z.enum([...METRIC_KEYS, ...CASE_METRIC_KEYS]).catch("quejas"),
+  // Large catalogs: the table also lists the colonias in zero.
+  ceros: optional(z.literal("1")),
 });
 export type MapFilters = z.infer<typeof filtersSchema>;
-const FILTER_KEYS = ["tema", "dependencia", "sentimiento", "colonia", "metrica"] as const;
+const FILTER_KEYS = ["capa", "tema", "dependencia", "sentimiento", "prioridad", "estado", "colonia", "metrica", "ceros"] as const;
+/** Up to this many colonias the table lists them all; above, the ones in zero on request. */
+export const TABLE_ALL_ROWS = 200;
 const PERIOD_KEYS = ["periodo", "desde", "hasta"] as const;
 
 const first = (v: string | string[] | undefined | null) => (Array.isArray(v) ? v[0] : (v ?? undefined));
@@ -41,7 +63,9 @@ export function mapHref(current: URLSearchParams, changes: Partial<Record<(typeo
   const next = new URLSearchParams();
   for (const key of [...PERIOD_KEYS, ...FILTER_KEYS]) {
     const value = key in changes ? changes[key as keyof typeof changes] : current.get(key);
-    if (value && !(key === "metrica" && value === "quejas")) next.set(key, value);
+    const isDefault =
+      (key === "metrica" && value === "quejas") || (key === "capa" && value === "conversacion") || (key === "estado" && value === "open");
+    if (value && !isDefault) next.set(key, value);
   }
   const s = next.toString();
   return s ? `/mapa?${s}` : "/mapa";

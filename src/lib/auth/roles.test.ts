@@ -11,7 +11,7 @@ describe("sectionsForRole", () => {
     assert.deepEqual(menu("comunicacion"), [
       "Dashboard", "Bandeja", "Casos", "Mapa", "Alertas", "Reportes", "Asistente", "Salud", "Configuración",
     ]);
-    assert.deepEqual(menu("dependencia"), ["Bandeja", "Casos", "Alertas", "Asistente"]);
+    assert.deepEqual(menu("dependencia"), ["Bandeja", "Casos", "Mapa", "Alertas", "Asistente"]);
     assert.deepEqual(menu("lectura"), ["Dashboard", "Casos", "Mapa", "Alertas", "Reportes", "Asistente", "Salud"]);
   });
 
@@ -56,9 +56,11 @@ describe("canAccessPath", () => {
   });
 
   it("blocks dependencia from executive sections", () => {
-    for (const path of ["/dashboard", "/mapa", "/reportes", "/configuracion"]) {
+    for (const path of ["/dashboard", "/reportes", "/configuracion"]) {
       assert.equal(canAccessPath("dependencia", path), false, path);
     }
+    // The map opens with only the cases of its area (mapLayers + RLS).
+    assert.equal(canAccessPath("dependencia", "/mapa"), true);
     assert.equal(canAccessPath("dependencia", "/bandeja/123"), true);
   });
 

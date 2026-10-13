@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildMapStats, mapCsv, mapHref, METRICS, parseMapFilters, rankRows, scaleMax, type MapRow } from "./model.ts";
+import { buildMapStats, mapCsv, mapHref, mapLayers, METRICS, parseMapFilters, rankRows, scaleMax, type MapRow } from "./model.ts";
 
 const ID = "00000000-0000-4000-c000-000000000001";
 const ID2 = "00000000-0000-4000-c000-000000000002";
@@ -26,11 +26,15 @@ const row = (over: Partial<MapRow>): MapRow => ({
 describe("parseMapFilters", () => {
   it("keeps valid filters and drops malformed ones", () => {
     assert.deepEqual(parseMapFilters({ tema: "drenaje", dependencia: "x", sentimiento: "negative", colonia: ID, metrica: "nss" }), {
+      capa: "conversacion",
+      estado: "open",
+      prioridad: undefined,
       tema: "drenaje",
       dependencia: undefined,
       sentimiento: "negative",
       colonia: ID,
       metrica: "nss",
+      ceros: undefined,
     });
     assert.equal(parseMapFilters(new URLSearchParams("metrica=otra")).metrica, "quejas");
   });
@@ -100,5 +104,12 @@ describe("mapCsv", () => {
     assert.ok(csv.startsWith("﻿Colonia,Menciones"));
     const line = csv.trim().split("\n")[1];
     assert.ok(line.startsWith("'=HYPERLINK(1),5,2,0,0,5,100,-100,0,2,agua,aproximado"), line);
+  });
+});
+
+describe("mapLayers", () => {
+  it("gives a department only its cases layer", () => {
+    assert.deepEqual(mapLayers("dependencia"), ["casos"]);
+    assert.deepEqual(mapLayers("lectura"), ["conversacion", "casos"]);
   });
 });

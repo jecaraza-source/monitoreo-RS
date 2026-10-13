@@ -127,7 +127,7 @@ async function Cases({ searchParams }: { searchParams: PageProps<"/casos">["sear
 }
 
 function isFiltered(f: Filters) {
-  return Boolean(f.q || f.department || f.neighborhood || f.priority || (f.status && f.status !== "open"));
+  return Boolean(f.q || f.department || f.neighborhood || f.priority || f.category || f.from || f.to || (f.status && f.status !== "open"));
 }
 
 function PageLink({ filters, page, disabled, children }: { filters: Filters; page: number; disabled: boolean; children: React.ReactNode }) {
@@ -137,6 +137,9 @@ function PageLink({ filters, page, disabled, children }: { filters: Filters; pag
   if (filters.department) params.set("dependencia", filters.department);
   if (filters.neighborhood) params.set("colonia", filters.neighborhood);
   if (filters.priority) params.set("prioridad", filters.priority);
+  if (filters.category) params.set("categoria", filters.category);
+  if (filters.from) params.set("desde", filters.from);
+  if (filters.to) params.set("hasta", filters.to);
   if (filters.q) params.set("q", filters.q);
   if (page > 1) params.set("pagina", String(page));
   return (

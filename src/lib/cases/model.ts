@@ -180,6 +180,9 @@ export const EVENT_LABELS: Record<string, string> = {
   reopen_evidence: "Agregó evidencia de que el problema persiste",
   task_added: "Agregó una tarea",
   task_status: "Actualizó una tarea",
+  location_confirmed: "Confirmó la ubicación",
+  location_corrected: "Corrigió la ubicación",
+  location_cleared: "Quitó la ubicación",
 };
 
 export const FIELD_LABELS: Record<string, string> = {
