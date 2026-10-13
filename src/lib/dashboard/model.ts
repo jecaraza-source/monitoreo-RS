@@ -1,5 +1,6 @@
 // Dashboard data shapes and derived metrics. Pure: shared by the server page,
 // the client charts and unit tests.
+import { authorName, type AuthorKind } from "../authors/label.ts";
 import { filtersToSearch, type InboxFilters, type Sentiment } from "../inbox/model.ts";
 
 export type Totals = {
@@ -119,7 +120,8 @@ export function parseDashboard(
       url: (r.url as string | null) ?? null,
       publishedAt: String(r.published_at),
       source: sourceNames.get(String(r.source_id)) ?? null,
-      author: (r.display_name as string | null) ?? (r.handle ? `@${r.handle}` : null),
+      // Unverified accounts are never named (their stored handle is a pseudonym).
+      author: r.handle ? authorName({ display_name: (r.display_name as string | null) ?? null, handle: String(r.handle), kind: (r.kind as AuthorKind) ?? "citizen" }) : null,
       authorKind: (r.kind as string | null) ?? null,
       sentiment: (r.sentiment as Sentiment | null) ?? null,
       interactions: n(r.interactions),

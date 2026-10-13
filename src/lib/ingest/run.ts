@@ -237,7 +237,7 @@ async function runSource(
   return result;
 }
 
-/** Upserts authors (media/public figures only), inserts new mentions and refreshes metrics of known ones. */
+/** Resolves authors (verified or pseudonymous), inserts new mentions and refreshes metrics of known ones. */
 async function storeMentions(
   admin: Admin,
   row: SourceRow,
@@ -247,25 +247,25 @@ async function storeMentions(
   if (mentions.length === 0) return totals;
 
   const authors = new Map<string, AuthorRef>();
-  for (const m of mentions) if (m.author) authors.set(`${m.author.platform}:${m.author.handle}`, m.author);
+  for (const m of mentions) if (m.author) authors.set(`${m.author.platform}:${m.author.handle.trim().slice(0, 200)}`, m.author);
   const authorIds = new Map<string, string>();
   if (authors.size) {
-    const { data, error } = await admin
-      .from("authors")
-      .upsert(
-        [...authors.values()].map((a) => ({
-          org_id: row.org_id,
-          platform: a.platform,
-          handle: a.handle.slice(0, 200),
-          display_name: a.displayName?.slice(0, 200) ?? null,
-          followers: a.followers,
-          kind: a.kind,
-        })),
-        { onConflict: "org_id,platform,handle" },
-      )
-      .select("id, platform, handle");
+    // The catalog of verified authors and the source's own outlet decide who is
+    // media or a public figure; everyone else is kept only as a pseudonym.
+    const { data, error } = await admin.rpc("upsert_authors", {
+      p_org_id: row.org_id,
+      p_source_id: row.id,
+      p_rows: [...authors.values()].map((a) => ({
+        platform: a.platform,
+        handle: a.handle.trim().slice(0, 200),
+        display_name: a.vouched ? (a.displayName?.slice(0, 200) ?? null) : null,
+        followers: a.vouched ? a.followers : null,
+        kind: a.kind,
+        vouched: a.vouched,
+      })) as unknown as Json,
+    });
     if (error) throw new Error(`authors: ${error.message}`);
-    for (const a of data ?? []) authorIds.set(`${a.platform}:${a.handle}`, a.id);
+    for (const a of data ?? []) authorIds.set(`${a.platform}:${a.handle}`, a.author_id);
   }
 
   for (let i = 0; i < mentions.length; i += INSERT_CHUNK) {
@@ -274,7 +274,7 @@ async function storeMentions(
       url: m.url,
       text: m.text,
       published_at: m.publishedAt,
-      author_id: m.author ? (authorIds.get(`${m.author.platform}:${m.author.handle.slice(0, 200)}`) ?? null) : null,
+      author_id: m.author ? (authorIds.get(`${m.author.platform}:${m.author.handle.trim().slice(0, 200)}`) ?? null) : null,
       metrics: m.metrics,
       // The exact query version that captured it; kept when the item reappears.
       query_id: m.queryId,

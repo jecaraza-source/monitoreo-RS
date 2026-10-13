@@ -143,7 +143,7 @@ export const rssConnector: Connector<RssConfig> = {
         text,
         publishedAt: (item.publishedAt && item.publishedAt < now ? item.publishedAt : now).toISOString(),
         kind: "article",
-        author: { platform: "rss", handle: host, displayName: outlet, followers: null, kind: "media" },
+        author: { platform: "rss", handle: host, displayName: outlet, followers: null, kind: "media", vouched: true },
         metrics: {},
       });
     }

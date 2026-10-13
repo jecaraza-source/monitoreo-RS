@@ -1,5 +1,6 @@
 "use client";
 
+import { AUTHOR_KIND_LABEL } from "@/lib/authors/label";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ExternalLink, Lightbulb, MapPin, Plus, Tag, X } from "lucide-react";
@@ -62,7 +63,9 @@ export function CaseMentions({
           <li key={m.id} className="flex flex-col gap-1.5 rounded-lg border p-3 text-sm">
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span className="font-medium text-foreground">{m.author?.name ?? "Autor desconocido"}</span>
-              {m.author?.kind === "media" && <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase">Medio</span>}
+              {m.author && m.author.kind !== "citizen" && (
+                <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase">{AUTHOR_KIND_LABEL[m.author.kind]}</span>
+              )}
               <span>· {formatDateTime(m.published_at)}</span>
               {m.primary && <span className="rounded-full bg-muted px-2 py-0.5">Mención principal</span>}
               {m.url && (

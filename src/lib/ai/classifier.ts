@@ -10,7 +10,7 @@
 
 import type Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
-import { addUsage, emptyUsage, estimateCost, type TokenUsage } from "./pricing.ts";
+import { addUsage, callCost, emptyUsage, type TokenUsage } from "./pricing.ts";
 
 export const MAX_BATCH = 20;
 export const ESCALATE_BELOW_CONFIDENCE = 0.6;
@@ -299,7 +299,7 @@ export type MessagesClient = {
     messages: {
       create(
         params: Anthropic.Beta.Messages.MessageCreateParamsNonStreaming,
-        options?: { signal?: AbortSignal },
+        options?: { signal?: AbortSignal; timeout?: number },
       ): Promise<Anthropic.Beta.Messages.BetaMessage>;
     };
   };
@@ -307,7 +307,8 @@ export type MessagesClient = {
 
 export type ModelPlan = { fast: string; smart: string };
 
-export type CallRecord = { model: string; usage: TokenUsage; costUsd: number | null };
+/** One provider call. costUsd null = cost unknown (no tariff): never counted as 0. */
+export type CallRecord = { model: string; usage: TokenUsage; costUsd: number | null; tariff: string | null };
 
 export type BatchResult = {
   /** mention id → classification and the model that produced it. */
@@ -360,7 +361,7 @@ async function callOnce(
     { signal },
   );
   const usage = usageOf(message);
-  calls.push({ model: message.model ?? model, usage, costUsd: estimateCost(message.model ?? model, usage) });
+  calls.push({ model: message.model ?? model, usage, ...callCost(message.model ?? model, usage) });
   return parseResponse(message, ctx, mentions.length);
 }
 
@@ -424,9 +425,14 @@ export async function classifyBatch(
   return { results, failed: [], calls, escalated: toEscalate.length };
 }
 
-export function totalUsage(calls: CallRecord[]): { usage: TokenUsage; costUsd: number } {
+/** Totals of a set of calls: costUsd adds the priced ones; unpricedCalls says how many have cost unknown. */
+export function totalUsage(calls: CallRecord[]): { usage: TokenUsage; costUsd: number; unpricedCalls: number } {
   return calls.reduce(
-    (acc, c) => ({ usage: addUsage(acc.usage, c.usage), costUsd: acc.costUsd + (c.costUsd ?? 0) }),
-    { usage: emptyUsage(), costUsd: 0 },
+    (acc, c) => ({
+      usage: addUsage(acc.usage, c.usage),
+      costUsd: acc.costUsd + (c.costUsd ?? 0),
+      unpricedCalls: acc.unpricedCalls + (c.costUsd === null ? 1 : 0),
+    }),
+    { usage: emptyUsage(), costUsd: 0, unpricedCalls: 0 },
   );
 }

@@ -10,13 +10,22 @@ import type { z } from "zod";
 
 export type SourceType = "meta" | "rss" | "youtube" | "x";
 
-/** Media outlets and public figures only: citizens are never stored as authors (CLAUDE.md). */
+/**
+ * The account that published an item. Connectors only claim what the source
+ * configuration proves: `vouched` is true for the outlet, page or channel the
+ * source is configured to read (RSS host, Meta page, YouTube channel id). Any
+ * other account (e.g. a channel found by an open YouTube search) is not
+ * verified: ingestion stores it as a pseudonym, without name or followers,
+ * unless the org's catalog of verified authors lists it (upsert_authors).
+ */
 export type AuthorRef = {
   platform: SourceType;
   handle: string;
   displayName: string | null;
   followers: number | null;
-  kind: "media" | "public_figure";
+  /** What the account would be if vouched; null when the connector cannot tell. */
+  kind: "media" | "public_figure" | null;
+  vouched: boolean;
 };
 
 export type NormalizedMention = {

@@ -4,6 +4,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { refreshMentionStats } from "@/lib/dashboard/refresh";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database, Json } from "@/lib/supabase/database.types";
+import { dbLedger } from "./ledger";
+import { AiLimitError, meterClient, type AiClient } from "./meter";
 import {
   classifyBatch,
   DEFAULT_TOPICS,
@@ -74,7 +76,11 @@ export type OrgCounters = {
   dead: number;
   released: number;
   aiCalls: number;
+  /** Priced calls only; calls without tariff are in unpricedCalls (cost unknown, not 0). */
   costUsd: number;
+  unpricedCalls: number;
+  /** A quota or budget stopped this org's batches in the run (message for people). */
+  limitedBy?: string;
 };
 
 export type ClassifySummary = {
@@ -110,7 +116,8 @@ type LoadedContext = {
 
 function originOf(row: PendingRow): string {
   const source = SOURCE_LABEL[row.source_type] ?? "Fuente";
-  if (!row.author_kind) return `${source} · comentario o publicación ciudadana`;
+  // Unverified accounts (citizens) are never named to the model.
+  if (!row.author_kind || row.author_kind === "citizen") return `${source} · comentario o publicación ciudadana`;
   const who = row.author_name ?? "autor sin nombre";
   return row.author_kind === "media" ? `${source} · nota de ${who} (medio)` : `${source} · publicación de ${who}`;
 }
@@ -180,7 +187,7 @@ export async function classifyPending(
 
 function counters(summary: ClassifySummary, orgId: string): OrgCounters {
   summary.orgs ??= {};
-  return (summary.orgs[orgId] ??= { claimed: 0, saved: 0, keptCorrection: 0, stale: 0, retry: 0, dead: 0, released: 0, aiCalls: 0, costUsd: 0 });
+  return (summary.orgs[orgId] ??= { claimed: 0, saved: 0, keptCorrection: 0, stale: 0, retry: 0, dead: 0, released: 0, aiCalls: 0, costUsd: 0, unpricedCalls: 0 });
 }
 
 async function classifyLoop(
@@ -198,6 +205,8 @@ async function classifyLoop(
   // Cancels in-flight Claude calls when the run's time is over.
   const budget = AbortSignal.timeout(TIME_BUDGET_MS + 10_000);
   const maxBatches = options.maxBatches ?? Infinity;
+  /** Orgs stopped by a quota or budget in this run → message. */
+  const limited = new Map<string, string>();
 
   const enoughTime = () => deadline - Date.now() >= MIN_BATCH_MS && summary.batches < maxBatches;
 
@@ -232,6 +241,12 @@ async function classifyLoop(
 
     for (let b = 0; b < batches.length; b++) {
       const batch = batches[b];
+      const limit = limited.get(batch.orgId);
+      if (limit) {
+        // The org reached a quota or budget: its mentions wait (no attempt spent).
+        await release(admin, runId, [batch], summary, false, limit);
+        continue;
+      }
       if (!enoughTime()) {
         await release(admin, runId, batches.slice(b), summary, false);
         return summary;
@@ -242,6 +257,13 @@ async function classifyLoop(
         const loaded = await contexts.get(key)!;
         await runBatch(admin, client, models, loaded, batch.orgId, batch.rows, summary, runId, budget);
       } catch (error) {
+        if (error instanceof AiLimitError) {
+          counters(summary, batch.orgId).limitedBy = error.message;
+          limited.set(batch.orgId, error.message);
+          console.warn("[classify] limit:", batch.orgId, error.reason);
+          await release(admin, runId, [batch], summary, false, error.message);
+          continue;
+        }
         // Provider down, bad key, timeout or a failed save: this batch and the
         // rest go back without spending an attempt (a save that failed rolled
         // back as a whole), and the run stops.
@@ -251,6 +273,8 @@ async function classifyLoop(
         return summary;
       }
     }
+    // Do not claim again what a limited org would only release once more.
+    if (limited.size) return summary;
   }
   return summary;
 }
@@ -288,27 +312,21 @@ async function runBatch(
   signal: AbortSignal,
 ) {
   const mentions: MentionInput[] = rows.map((r) => ({ id: r.id, text: r.text, origin: originOf(r), publishedAt: r.published_at }));
-  const result = await classifyBatch(client, models, loaded.ctx, mentions, { signal });
+  // Each call reserves the org's capacity (concurrency, budgets) and is reconciled in ai_calls/ai_usage.
+  const metered = meterClient(client as unknown as AiClient, { orgId, userId: null, purpose: "classify", ttlSeconds: LEASE_SECONDS }, dbLedger);
+  const result = await classifyBatch(metered, models, loaded.ctx, mentions, { signal });
   summary.batches++;
   summary.escalated += result.escalated;
   const org = counters(summary, orgId);
 
-  // Usage is recorded before saving: a call that happened is paid for even if the save fails.
+  // Usage is already reconciled by the metered client: a call that happened is paid for even if the save fails.
   for (const call of result.calls) {
-    summary.costUsd += call.costUsd ?? 0;
     org.aiCalls++;
-    org.costUsd += call.costUsd ?? 0;
-    const { error } = await admin.rpc("record_ai_usage", {
-      p_org_id: orgId,
-      p_model: call.model,
-      p_purpose: "classify",
-      p_input_tokens: call.usage.inputTokens,
-      p_output_tokens: call.usage.outputTokens,
-      p_cache_read_tokens: call.usage.cacheReadTokens,
-      p_cache_write_tokens: call.usage.cacheWriteTokens,
-      p_cost_usd: call.costUsd ?? 0,
-    });
-    if (error) console.error("[classify] ai_usage:", error.message);
+    if (call.costUsd === null) org.unpricedCalls++;
+    else {
+      summary.costUsd += call.costUsd;
+      org.costUsd += call.costUsd;
+    }
   }
 
   const results = [...result.results].map(([mentionId, c]) => ({
@@ -353,10 +371,10 @@ async function logWorkerRuns(admin: Admin, runId: string, trigger: "cron" | "man
     kind: "classify",
     trigger,
     org_id: orgId,
-    status: summary.stoppedBy ? (c.saved > 0 ? "partial" : "error") : c.retry + c.dead + c.stale > 0 ? "partial" : "ok",
+    status: summary.stoppedBy ? (c.saved > 0 ? "partial" : "error") : c.limitedBy || c.retry + c.dead + c.stale > 0 ? "partial" : "ok",
     started_at: startedAt,
     counters: { ...c, costUsd: Math.round(c.costUsd * 10_000) / 10_000 },
-    stopped_by: summary.stoppedBy ?? null,
+    stopped_by: summary.stoppedBy ?? c.limitedBy ?? null,
   }));
   if (!rows.length) return;
   const { error } = await admin.from("worker_runs").insert(rows);

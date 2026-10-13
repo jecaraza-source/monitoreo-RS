@@ -17,7 +17,7 @@ import { KPI_VERSION, MIN_MENTIONS_TO_COMPARE } from "../kpi/dictionary.ts";
 import { comparabilityNotes, compareDepartments, kpiValues, type KpiSnapshot, type KpiValue } from "../kpi/snapshot.ts";
 import type { ReportPeriod } from "../reports/period.ts";
 import type { CallRecord, MessagesClient } from "./classifier.ts";
-import { estimateCost, type TokenUsage } from "./pricing.ts";
+import { callCost, type TokenUsage } from "./pricing.ts";
 
 // ---------------------------------------------------------------------------
 // ReportFacts
@@ -714,7 +714,7 @@ async function create(
 ): Promise<Anthropic.Beta.Messages.BetaMessage> {
   const message = await client.beta.messages.create({ model, ...params });
   const usage = usageOf(message);
-  calls.push({ model: message.model ?? model, usage, costUsd: estimateCost(message.model ?? model, usage) });
+  calls.push({ model: message.model ?? model, usage, ...callCost(message.model ?? model, usage) });
   return message;
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { authorBadge, authorName } from "@/lib/authors/label";
 import { motion, useReducedMotion } from "framer-motion";
 import { AlarmClock, Building2, ExternalLink, FolderKanban, MapPin, Siren, Tag } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -42,7 +43,8 @@ export function MentionCard({
   const reduce = useReducedMotion();
   const c = item.classifications;
   const source = lookups.sources.get(item.source_id);
-  const author = item.authors?.display_name ?? (item.authors ? `@${item.authors.handle}` : "Autor desconocido");
+  const author = authorName(item.authors);
+  const badge = authorBadge(item.authors);
   const neighborhood = c?.neighborhood_id ? lookups.neighborhoods.get(c.neighborhood_id) : null;
   const ticket = item.tickets[0];
   const overdue = ticket ? isOverdue(ticket) : false;
@@ -74,7 +76,7 @@ export function MentionCard({
           <span className="size-2 shrink-0 rounded-full bg-primary" title="Nueva" aria-label="Nueva" />
         )}
         <span className="max-w-[45%] shrink-0 truncate font-medium">{author}</span>
-        {item.authors?.kind === "media" && <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase">Medio</span>}
+        {badge && <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase">{badge}</span>}
         <span className="min-w-0 truncate text-muted-foreground">
           · {source ? `${SOURCE_LABELS[source.type]} · ${source.name}` : "Fuente"}
         </span>

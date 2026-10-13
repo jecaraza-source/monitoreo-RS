@@ -242,7 +242,9 @@ test.describe("WhatsApp", () => {
       const again = await request.get("/api/cron/whatsapp", { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } });
       expect(await again.json()).toMatchObject({ ok: true, claimed: 0 });
 
-      // PENDIENTES lists it; its folio answers with the detail and two buttons.
+      // PENDIENTES lists it (8 shown, most overdue first): backdate it so the seed's
+      // random open turns cannot push it out of the list.
+      await db.from("tickets").update({ due_at: new Date(Date.now() - 60 * 24 * hour).toISOString() }).eq("id", ticket!.id);
       expect((await fromMeta(request, { type: "text", text: { body: "Pendientes" } })).status()).toBe(200);
       const list = (await sentTo(request)).at(-1)!;
       expect(list.text!.body).toContain(folio);

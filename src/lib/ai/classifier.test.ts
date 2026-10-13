@@ -205,8 +205,10 @@ describe("needsEscalation / estimateCost", () => {
 
   it("prices known models and returns null for unknown ones", () => {
     const usage = { inputTokens: 1_000_000, outputTokens: 1_000_000, cacheReadTokens: 1_000_000, cacheWriteTokens: 0 };
-    assert.equal(estimateCost("claude-haiku-5-5", usage), 0.1 + 0.5 + 0.01);
     assert.equal(estimateCost("claude-opus-5-5", usage), 4 + 20 + 0.2);
+    // Haiku above 100K prompt tokens has no published cache rate: unknown, not a guess.
+    assert.equal(estimateCost("claude-haiku-5-5", usage), null);
+    assert.equal(estimateCost("claude-haiku-5-5", { inputTokens: 50_000, outputTokens: 1_000, cacheReadTokens: 10_000, cacheWriteTokens: 0 }), (50_000 * 0.1 + 1_000 * 0.5 + 10_000 * 0.01) / 1e6);
     assert.equal(estimateCost("modelo-x", usage), null);
   });
 });

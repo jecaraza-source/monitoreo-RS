@@ -51,6 +51,22 @@ const handler = (path: string, url: URL) => {
 };
 
 describe("youtubeConnector", () => {
+  it("vouches only for the configured channel", async () => {
+    const result = await youtubeConnector.fetchSince(
+      { id: "s", config: { channelId: "UCabcdefghijklmnopqrstuv", includeComments: false }, cursor: {} },
+      since,
+      { fetch: ytFetch(handler, []), env, now },
+    );
+    assert.deepEqual(result.mentions[0].author, {
+      platform: "youtube",
+      handle: "UCabcdefghijklmnopqrstuv",
+      displayName: "TV Regional",
+      followers: null,
+      kind: "media",
+      vouched: true,
+    });
+  });
+
   it("returns videos with stats and new comments; skips videos with comments disabled", async () => {
     const calls: URL[] = [];
     const result = await youtubeConnector.fetchSince(
@@ -67,7 +83,8 @@ describe("youtubeConnector", () => {
     const [video, comment] = result.mentions;
     assert.equal(video.text, "Informe del ayuntamiento & obras — Resumen de obras en San Andrés");
     assert.deepEqual(video.metrics, { views: 1500, likes: 40, comments: 2 });
-    assert.equal(video.author?.displayName, "TV Regional");
+    // An open search does not make the channel a media outlet: not vouched, no name kept.
+    assert.deepEqual(video.author, { platform: "youtube", handle: "UCabcdefghijklmnopqrstuv", displayName: null, followers: null, kind: null, vouched: false });
     assert.equal(comment.author, null);
     assert.equal(comment.url, "https://www.youtube.com/watch?v=vid1&lc=c2");
 

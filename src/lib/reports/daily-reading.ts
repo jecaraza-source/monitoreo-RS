@@ -1,15 +1,20 @@
 import "server-only";
-import Anthropic from "@anthropic-ai/sdk";
-import { generateDailyReading, NarrativeError } from "@/lib/ai/narrative";
+import { randomUUID } from "node:crypto";
+import { meteredAnthropic } from "@/lib/ai/ledger";
+import { AiLimitError } from "@/lib/ai/meter";
+import { generateDailyReading } from "@/lib/ai/narrative";
 import type { Member } from "@/lib/auth/session";
 import { toMxDay } from "@/lib/dashboard/period";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { loadReportFacts, recordUsage } from "./data";
+import { loadReportFacts } from "./data";
 import { rangeLabel, type ReportPeriod } from "./period";
 
 export const READING_TTL_MS = 60 * 60 * 1000;
 const HOUR = 3_600_000;
+/** Longer than one generation (facts + up to 3 calls); a crashed holder frees it on its own. */
+const LEASE_SECONDS = 120;
+const LEASE = "daily_reading";
 
 export type DailyReading =
   | { status: "ok"; sentences: string[]; generatedAt: string }
@@ -37,7 +42,8 @@ export function last24h(now = new Date()): ReportPeriod {
   };
 }
 
-// One generation per org at a time inside this instance.
+// One generation per org at a time: across instances by the lease persisted in
+// ai_leases; inside this instance the Map also shares the same promise.
 const inFlight = new Map<string, Promise<DailyReading>>();
 
 /**
@@ -74,14 +80,33 @@ export async function getDailyReading(member: Member): Promise<DailyReading> {
 
 async function regenerate(orgId: string): Promise<DailyReading> {
   const admin = createAdminClient();
+  const holder = randomUUID();
+  const { data: acquired, error: leaseError } = await admin.rpc("acquire_ai_lease", {
+    p_org_id: orgId,
+    p_name: LEASE,
+    p_holder: holder,
+    p_ttl_seconds: LEASE_SECONDS,
+  });
+  if (leaseError) {
+    console.error("[daily-reading] lease:", leaseError.message);
+    return { status: "unavailable", reason: "No se pudo redactar la lectura en este momento." };
+  }
+  // Another instance is writing it: show the previous one meanwhile (getDailyReading falls back).
+  if (!acquired) return { status: "unavailable", reason: "La lectura del día se está actualizando; vuelve en un momento." };
   try {
+    // The lease holder re-checks: another instance may have just finished it.
+    const { data: fresh } = await admin.from("daily_readings").select("sentences, generated_at").eq("org_id", orgId).maybeSingle();
+    if (fresh && Date.now() - Date.parse(fresh.generated_at) < READING_TTL_MS) {
+      return { status: "ok", sentences: fresh.sentences, generatedAt: fresh.generated_at };
+    }
     const facts = await loadReportFacts(admin, orgId, last24h());
     if (!facts.kpis.find((k) => k.key === "mentions")?.value) {
       return { status: "unavailable", reason: "Sin menciones en las últimas 24 horas." };
     }
     const model = process.env.CLAUDE_MODEL_FAST!;
-    const { sentences, calls } = await generateDailyReading(new Anthropic(), model, facts);
-    await recordUsage(orgId, "daily_reading", calls);
+    // Org-level work (whoever opens the dashboard): no per-user quota, budgets and concurrency apply.
+    const client = meteredAnthropic({ orgId, userId: null, purpose: "daily_reading", ttlSeconds: LEASE_SECONDS });
+    const { sentences } = await generateDailyReading(client, model, facts);
     const generatedAt = new Date().toISOString();
     const { error } = await admin
       .from("daily_readings")
@@ -89,8 +114,11 @@ async function regenerate(orgId: string): Promise<DailyReading> {
     if (error) console.error("[daily-reading] save:", error.message);
     return { status: "ok", sentences, generatedAt };
   } catch (error) {
-    if (error instanceof NarrativeError) await recordUsage(orgId, "daily_reading", error.calls);
+    if (error instanceof AiLimitError) return { status: "unavailable", reason: error.message };
     console.error("[daily-reading]", error instanceof Error ? error.message : error);
     return { status: "unavailable", reason: "No se pudo redactar la lectura en este momento." };
+  } finally {
+    const { error } = await admin.rpc("release_ai_lease", { p_org_id: orgId, p_name: LEASE, p_holder: holder });
+    if (error) console.error("[daily-reading] release lease:", error.message);
   }
 }

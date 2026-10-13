@@ -1,11 +1,13 @@
 // Assistant loop for /asistente: streams Claude's answer, runs the read-only
 // tools from tools.ts when asked and emits charts and inbox links. Framework-
 // free (the caller injects the SDK client and the tool runner) so tests can
-// drive it with fakes.
+// drive it with fakes. The caller's signal (client disconnect + timeout)
+// reaches the SDK stream and stops the loop between rounds and tools.
 
 import type Anthropic from "@anthropic-ai/sdk";
 import type { CallRecord } from "./classifier.ts";
-import { estimateCost } from "./pricing.ts";
+import type { StreamingClient } from "./meter.ts";
+import { callCost } from "./pricing.ts";
 import { ASSISTANT_TOOLS, TOOL_LABELS, type ToolChart, type ToolLink, type ToolOutput } from "./tools.ts";
 
 export const MAX_TOOL_ROUNDS = 6;
@@ -21,16 +23,7 @@ export type AssistantEvent =
   | { type: "error"; message: string }
   | { type: "done" };
 
-export type StreamingClient = {
-  beta: {
-    messages: {
-      stream(params: Anthropic.Beta.Messages.MessageCreateParamsStreaming | Anthropic.Beta.Messages.MessageCreateParamsNonStreaming): {
-        on(event: "text", listener: (delta: string) => void): unknown;
-        finalMessage(): Promise<Anthropic.Beta.Messages.BetaMessage>;
-      };
-    };
-  };
-};
+export type { StreamingClient };
 
 export type AssistantScope = {
   municipality: string;
@@ -105,12 +98,15 @@ function usageRecord(message: Anthropic.Beta.Messages.BetaMessage, model: string
     cacheReadTokens: u.cache_read_input_tokens ?? 0,
     cacheWriteTokens: u.cache_creation_input_tokens ?? 0,
   };
-  return { model: message.model ?? model, usage, costUsd: estimateCost(message.model ?? model, usage) };
+  return { model: message.model ?? model, usage, ...callCost(message.model ?? model, usage) };
 }
 
 /**
  * Runs one assistant turn: stream → (tools → stream)* until Claude answers
- * without tools or MAX_TOOL_ROUNDS is reached. Returns the calls for ai_usage.
+ * without tools or MAX_TOOL_ROUNDS is reached. Every completed call is handed
+ * to `onCall` as soon as it ends (so a later failing round never loses it) and
+ * returned. When `signal` aborts, the stream in flight is cancelled and no
+ * further round or tool starts; the abort reason is thrown.
  */
 export async function runAssistant(input: {
   client: StreamingClient;
@@ -119,8 +115,11 @@ export async function runAssistant(input: {
   history: ChatMessage[];
   runTool: (name: string, input: unknown) => Promise<ToolOutput & { error?: string }>;
   emit: (event: AssistantEvent) => void;
+  signal?: AbortSignal;
+  onCall?: (call: CallRecord) => void;
 }): Promise<CallRecord[]> {
   const calls: CallRecord[] = [];
+  const signal = input.signal;
   const messages: Anthropic.Beta.Messages.BetaMessageParam[] = trimHistory(input.history).map((m) => ({ role: m.role, content: m.content }));
   if (!messages.length) {
     input.emit({ type: "error", message: "Escribe una pregunta." });
@@ -128,8 +127,10 @@ export async function runAssistant(input: {
   }
 
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+    signal?.throwIfAborted();
     const lastRound = round === MAX_TOOL_ROUNDS;
-    const stream = input.client.beta.messages.stream({
+    const stream = input.client.beta.messages.stream(
+      {
       model: input.model,
       max_tokens: 4000,
       thinking: { type: "adaptive" },
@@ -139,10 +140,14 @@ export async function runAssistant(input: {
       ...(lastRound ? {} : { tools: ASSISTANT_TOOLS }),
       messages,
       stream: true,
-    });
+      },
+      { signal },
+    );
     stream.on("text", (delta) => input.emit({ type: "text", delta }));
     const message = await stream.finalMessage();
-    calls.push(usageRecord(message, input.model));
+    const call = usageRecord(message, input.model);
+    calls.push(call);
+    input.onCall?.(call);
 
     if (message.stop_reason === "refusal") {
       input.emit({ type: "error", message: "No puedo ayudar con esa solicitud." });
@@ -154,6 +159,7 @@ export async function runAssistant(input: {
     messages.push({ role: "assistant", content: message.content as Anthropic.Beta.Messages.BetaContentBlockParam[] });
     const results: Anthropic.Beta.Messages.BetaToolResultBlockParam[] = [];
     for (const use of toolUses) {
+      signal?.throwIfAborted();
       input.emit({ type: "tool", name: use.name, label: TOOL_LABELS[use.name] ?? use.name });
       try {
         const out = await input.runTool(use.name, use.input);

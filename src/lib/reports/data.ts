@@ -1,8 +1,8 @@
 import "server-only";
-import Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { CallRecord } from "@/lib/ai/classifier";
-import { buildReportFacts, generateNarrative, NarrativeError, readTargets, type AnyNarrative, type ReportContext, type ReportFacts } from "@/lib/ai/narrative";
+import type { MessagesClient } from "@/lib/ai/classifier";
+import { meteredAnthropic } from "@/lib/ai/ledger";
+import { buildReportFacts, generateNarrative, readTargets, type AnyNarrative, type ReportContext, type ReportFacts } from "@/lib/ai/narrative";
 import { parseKpiSnapshot } from "@/lib/kpi/snapshot";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database, Json } from "@/lib/supabase/database.types";
@@ -135,25 +135,6 @@ export function smartModel(): string {
   return model;
 }
 
-/** ai_usage is written by the service role only. */
-export async function recordUsage(orgId: string, purpose: string, calls: CallRecord[]): Promise<void> {
-  if (!calls.length) return;
-  const admin = createAdminClient();
-  for (const call of calls) {
-    const { error } = await admin.rpc("record_ai_usage", {
-      p_org_id: orgId,
-      p_model: call.model,
-      p_purpose: purpose,
-      p_input_tokens: call.usage.inputTokens,
-      p_output_tokens: call.usage.outputTokens,
-      p_cache_read_tokens: call.usage.cacheReadTokens,
-      p_cache_write_tokens: call.usage.cacheWriteTokens,
-      p_cost_usd: call.costUsd ?? 0,
-    });
-    if (error) console.error(`[${purpose}] ai_usage:`, error.message);
-  }
-}
-
 export function reportTitle(facts: ReportFacts): string {
   const kind = { daily: "Reporte diario", weekly: "Reporte semanal", monthly: "Reporte mensual" }[facts.period.kind];
   return `${kind} · ${facts.period.label}`;
@@ -177,12 +158,15 @@ export async function createReportDraft(
     jobId?: string | null;
     /** The editor who asked for it (null for the cron). */
     createdBy?: string | null;
-    anthropic?: Anthropic;
+    /** Test seam: an already metered client. */
+    anthropic?: MessagesClient;
   },
 ): Promise<string> {
   const period = reportPeriod(input.kind, input.endDay);
   const facts = await loadReportFacts(client, input.orgId, period);
-  const narrative = await writeNarrative(input.orgId, facts, input.anthropic);
+  // Each call reserves quota and is reconciled (ai_calls/ai_usage) even if a later attempt fails.
+  const ai = input.anthropic ?? meteredAnthropic({ orgId: input.orgId, userId: input.createdBy ?? null, purpose: "report", ttlSeconds: 300 });
+  const narrative = (await generateNarrative(ai, smartModel(), facts)).narrative;
   const { data, error } = await createAdminClient()
     .from("reports")
     .insert({
@@ -205,17 +189,6 @@ export async function createReportDraft(
     .single();
   if (error) throw new Error(`No se pudo guardar el reporte: ${error.message}`);
   return data.id;
-}
-
-async function writeNarrative(orgId: string, facts: ReportFacts, anthropic?: Anthropic) {
-  try {
-    const result = await generateNarrative(anthropic ?? new Anthropic(), smartModel(), facts);
-    await recordUsage(orgId, "report", result.calls);
-    return result.narrative;
-  } catch (error) {
-    if (error instanceof NarrativeError) await recordUsage(orgId, "report", error.calls);
-    throw error;
-  }
 }
 
 /**

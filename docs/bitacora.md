@@ -3,6 +3,50 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Etapa 10 — Cuotas y presupuesto de IA, costos versionados, asistente cancelable y autores verificados (13 oct 2026, base `27137bd`)
+
+- **Antes:**
+  - Sólo había un límite por minuto en el asistente; nada impedía que peticiones simultáneas rebasaran un tope.
+  - Un modelo sin tarifa costaba 0.
+  - El asistente perdía lo consumido si una ronda posterior fallaba, y cerrar el chat no detenía al proveedor.
+  - La lectura del día se coordinaba sólo en memoria.
+  - Todo canal de una búsqueda de YouTube era «medio», y de los ciudadanos se guardaban usuario, nombre y
+    seguidores.
+- **Después:**
+  - **Reservas** (`reserve_ai`, `settle_ai`, `release_ai`), serializadas por organización:
+    - concurrencia por propósito;
+    - solicitudes por persona y día;
+    - presupuesto diario y mensual en US$ y tokens por día;
+    - mensajes en español.
+  - **Costo desconocido** separado del conocido (`ai_calls.cost_usd` null, `ai_usage.unpriced_*`).
+  - **Tarifas versionadas** con normalización de identificadores; panel de consumo con aviso de tarifa no
+    configurada y conciliación con la factura.
+  - **Asistente:** cancelación y tope de tiempo llegan al SDK; cada ronda se concilia al terminar.
+  - **Lectura del día:** lease persistido en `ai_leases`.
+  - **Catálogo de autores verificados** con evidencia y responsable.
+  - **Cuentas no verificadas:** seudónimo sin identidad; constraints que impiden etiquetarlas como medio.
+  - **Política aplicada** a rankings, prompts, bandeja, casos y filtro por autor.
+- **Archivos:** ver `docs/etapa-10-ia-autores.md` § 8. Migración `20261103000000_ai_governance.sql` y su `down.sql`.
+- **Pruebas:**
+  - lint, typecheck y 399 unitarias;
+  - pgTAP 852/852 tras `db reset`, incluidos `ai_governance` (41) y `verified_authors` (32);
+  - backfill probado sobre el seed anterior;
+  - reversión y reaplicación;
+  - build canario + `check:bundle`;
+  - e2e 43 en verde y 3 omitidas (las mismas que en main): 25 reservas simultáneas no rebasan la concurrencia ni el presupuesto; panel; catálogo; bandeja.
+- **Hallazgos corregidos antes de entregar:**
+  - un check que llamaba a `private.*` fallaba para `service_role`; se dejó en línea;
+  - `map_cases.test.sql` y una e2e de WhatsApp dependían del azar del seed.
+- **Conteo previo (sólo lectura):** producción y preview tienen 3 medios o figuras de demostración sin fuente
+  configurada (X y YouTube) que pasan a seudónimo; se recuperan dándolos de alta en el catálogo con la misma
+  cuenta. No hay filas de `ai_usage` con costo 0.
+- **Limitaciones:** las tarifas viven en código; la estimación es un techo alto; una llamada cancelada antes de
+  iniciar no deja consumo y lo cubre la conciliación mensual; los seudónimos no son reversibles.
+- **Activación / reversión:**
+  - activar: migración en preview y producción, luego deploy, y opcionalmente límites y catálogo;
+  - revertir: deploy anterior y `down.sql`.
+- **Pendiente:** Node 22/24; asistente con casos; tarifas configurables sin commit si se requiere.
+
 ## Etapa 9 — Indicadores de conversación y atención, reportes con instantánea y versiones (13 oct 2026, base `f1a8a15`)
 
 - **Antes:**

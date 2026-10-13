@@ -15,6 +15,8 @@ create temp table free on commit drop as
   where m.org_id = '00000000-0000-4000-a000-000000000001'
     and not exists (select 1 from public.tickets t where t.mention_id = m.id)
     and not exists (select 1 from public.case_mentions cm where cm.mention_id = m.id)
+    -- The seed leaves ~10 % pending at random: these need a classification.
+    and exists (select 1 from public.classifications c where c.mention_id = m.id)
   order by m.id limit 3;
 grant all on ids, free to authenticated;
 create function pg_temp.v(p_k text) returns uuid language sql as $$ select v from ids where k = p_k $$;
