@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { OptionSelect } from "@/components/inbox/option-select";
 import { Input } from "@/components/ui/input";
 import { CASE_STATUSES, CASE_STATUS_LABELS } from "@/lib/cases/model";
@@ -23,6 +23,16 @@ export function CaseFilters({
   const params = useSearchParams();
   const [loading, startTransition] = useTransition();
   const [q, setQ] = useState(params.get("q") ?? "");
+
+  const from = params.get("desde");
+  const to = params.get("hasta");
+  const category = params.get("categoria");
+
+  function clearMapFilters() {
+    const next = new URLSearchParams(params);
+    for (const key of ["desde", "hasta", "categoria", "pagina"]) next.delete(key);
+    startTransition(() => router.replace(`${pathname}?${next}`, { scroll: false }));
+  }
 
   function set(key: string, value: string | null) {
     const next = new URLSearchParams(params);
@@ -76,7 +86,7 @@ export function CaseFilters({
         value={params.get("colonia")}
         onChange={(v) => set("colonia", v)}
         emptyLabel="Todas las colonias"
-        options={neighborhoods.map((n) => ({ value: n.id, label: n.name }))}
+        options={[{ value: "sin", label: "Sin colonia" }, ...neighborhoods.map((n) => ({ value: n.id, label: n.name }))]}
       />
       <OptionSelect
         label="Prioridad"
@@ -85,6 +95,17 @@ export function CaseFilters({
         emptyLabel="Toda prioridad"
         options={PRIORITIES.map((p) => ({ value: p, label: PRIORITY_LABELS[p] }))}
       />
+      {(from || to || category) && (
+        // Filters that come from the map (period of opening and category): shown so the count is explainable.
+        <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground">
+          {[from || to ? `Abiertos ${from ? `del ${from}` : ""} ${to ? `al ${to}` : ""}`.replace(/\s+/g, " ").trim() : null, category ? `Categoría: ${category}` : null]
+            .filter(Boolean)
+            .join(" · ")}
+          <button type="button" onClick={clearMapFilters} className="rounded-full p-0.5 hover:text-foreground" aria-label="Quitar periodo y categoría">
+            <X className="size-3" aria-hidden />
+          </button>
+        </span>
+      )}
     </div>
   );
 }

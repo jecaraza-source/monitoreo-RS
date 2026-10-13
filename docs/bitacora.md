@@ -3,6 +3,49 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Etapa 8 — Mapa de conversación y casos operativos (13 oct 2026, base `aa94177`)
+
+- **Antes:**
+  - `/mapa` sólo con la conversación por colonia, para roles de lectura total.
+  - Los casos no tenían ubicación propia y no había capa de casos.
+  - Periodos en horas, distintos de la bandeja; sin tabla equivalente.
+  - Sin manejo de mapa base caído ni de polígonos inválidos.
+- **Después:**
+  - Capas separadas Conversación y Casos; `dependencia` entra sólo a la de sus casos (RLS).
+  - Filtros de periodo, colonia, categoría, prioridad, estado y dependencia, con los mismos predicados que
+    `/casos` y la bandeja (días de CDMX).
+  - Ubicación del caso confirmada, inferida o no disponible, con origen y confianza. Sólo las confirmadas
+    llevan punto (redondeado a ~100 m en el mapa). Admin y comunicación confirman o corrigen con motivo, y
+    queda el historial.
+  - Intensidad, *clusters*, leyenda con unidad y denominador, panel con enlace a `/casos` y a la bandeja,
+    tablas accesibles y listados de lo que no tiene ubicación.
+  - Avisos de mapa base caído, WebGL, catálogo vacío y polígonos inválidos. Extractos enmascarados.
+  - La política de lectura de `cases` se reescribió con la misma regla en forma de conjuntos:
+    `map_case_rows` pasó de 2.2 s a 80 ms con 20 000 casos, y `/casos` también se beneficia.
+- **Archivos:** ver `docs/etapa-8-mapa.md` § 8. Migración `20261101000000_map_cases.sql` y su `down.sql`.
+- **Pruebas:**
+  - lint, typecheck y 363 unitarias;
+  - pgTAP 734/734 tras `db reset` (`map_cases` 43);
+  - reversión, reaplicación sentencia por sentencia y en una transacción, con casos previos, y backfill
+    repetido;
+  - build canario + `check:bundle`;
+  - e2e 34/34 (mapa: tabla y teclado con mapa base bloqueado, conteos iguales a `/casos`, confirmar y
+    corregir con historial, lectura y dependencia);
+  - mediciones con 1 500 colonias, 20 000 casos y 100 000 menciones (§ 6 del documento).
+- **Hallazgo corregido antes de entregar:** el backfill dependía de un indicador local a la transacción y
+  no surtía efecto si el archivo se corría sentencia por sentencia. Ahora el indicador es de sesión.
+- **Conteo previo (sólo lectura):**
+  - producción: 1 caso, con colonia;
+  - preview: 3 casos sin colonia;
+  - ambas: 61 colonias, todas con polígono.
+- **Limitaciones:** puntos capturados como coordenadas, sin geocodificación; las menciones siguen siendo
+  por colonia; más de unas 2 000 colonias requiere teselas o caché de geometrías.
+- **Activación / reversión:**
+  - activar: migración en preview y producción, luego deploy;
+  - revertir: commit y `down.sql`, exportando antes las ubicaciones confirmadas.
+- **Pendiente:** Node 22/24; selector de punto en el mapa; teselas vectoriales para catálogos grandes;
+  medir la carga en Vercel.
+
 ## Etapa 7 — SLA con calendario, escalamiento, outbox y reportes programados (13 oct 2026, base `0206063`)
 
 - **Antes:**

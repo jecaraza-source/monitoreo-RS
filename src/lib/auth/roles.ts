@@ -45,7 +45,8 @@ export const SECTIONS: readonly Section[] = [
   { key: "inbox", href: "/bandeja", label: "Bandeja", roles: ["admin", "comunicacion", "dependencia"] },
   // Cases: dependencia sees only cases assigned to it (RLS); lectura reads without acting.
   { key: "cases", href: "/casos", label: "Casos", roles: ["admin", "comunicacion", "dependencia", "lectura"] },
-  { key: "map", href: "/mapa", label: "Mapa", roles: ["admin", "comunicacion", "lectura"] },
+  // Map: a department sees only the cases layer of its own area (RLS).
+  { key: "map", href: "/mapa", label: "Mapa", roles: ["admin", "comunicacion", "dependencia", "lectura"] },
   { key: "alerts", href: "/alertas", label: "Alertas", roles: ["admin", "comunicacion", "dependencia", "lectura"] },
   { key: "reports", href: "/reportes", label: "Reportes", roles: ["admin", "comunicacion", "lectura"] },
   { key: "assistant", href: "/asistente", label: "Asistente", roles: ["admin", "comunicacion", "dependencia", "lectura"] },

@@ -1,6 +1,6 @@
 import "server-only";
 import type { Member } from "@/lib/auth/session";
-import { PRIORITIES, type Priority, type Sentiment, type TicketStatus } from "@/lib/inbox/model";
+import { dayEnd, dayStart, PRIORITIES, type Priority, type Sentiment, type TicketStatus } from "@/lib/inbox/model";
 import type { Database } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { CASE_STATUSES, OPEN_CASE_STATUSES, type CaseStatus } from "./model";
@@ -14,13 +14,19 @@ export type CaseFilters = {
   /** "open" (default), "all", or one status. */
   status?: string;
   department?: string;
+  /** A colonia, or "sin" for cases without one. */
   neighborhood?: string;
   priority?: string;
+  category?: string;
+  /** Opened between these Mexico City days (YYYY-MM-DD, inclusive), as on the map. */
+  from?: string;
+  to?: string;
   q?: string;
   page?: number;
 };
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const day = (v: string | undefined) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)) ? v : undefined);
 
 export function parseCaseFilters(params: Record<string, string | string[] | undefined>): CaseFilters {
   const one = (k: string) => (typeof params[k] === "string" ? (params[k] as string) : undefined);
@@ -29,8 +35,11 @@ export function parseCaseFilters(params: Record<string, string | string[] | unde
   return {
     status: status === "all" || (CASE_STATUSES as readonly string[]).includes(status ?? "") ? status : "open",
     department: uuid.test(one("dependencia") ?? "") ? one("dependencia") : undefined,
-    neighborhood: uuid.test(one("colonia") ?? "") ? one("colonia") : undefined,
+    neighborhood: one("colonia") === "sin" || uuid.test(one("colonia") ?? "") ? one("colonia") : undefined,
     priority: (PRIORITIES as readonly string[]).includes(one("prioridad") ?? "") ? one("prioridad") : undefined,
+    category: one("categoria")?.trim().slice(0, 100) || undefined,
+    from: day(one("desde")),
+    to: day(one("hasta")),
     q: one("q")?.trim().slice(0, 100) || undefined,
     page: Number.isInteger(page) && page > 1 ? page : 1,
   };
@@ -64,8 +73,13 @@ export async function listCases(member: Member, filters: CaseFilters): Promise<{
   if (filters.status === "open" || !filters.status) query = query.in("status", [...OPEN_CASE_STATUSES]);
   else if (filters.status !== "all") query = query.eq("status", filters.status as CaseStatus);
   if (filters.department) query = query.eq("department_id", filters.department);
-  if (filters.neighborhood) query = query.eq("neighborhood_id", filters.neighborhood);
+  if (filters.neighborhood === "sin") query = query.is("neighborhood_id", null);
+  else if (filters.neighborhood) query = query.eq("neighborhood_id", filters.neighborhood);
   if (filters.priority) query = query.eq("priority", filters.priority as Priority);
+  // Same predicates as map_case_rows, so the map and this list count the same cases.
+  if (filters.category) query = query.eq("category", filters.category);
+  if (filters.from) query = query.gte("opened_at", dayStart(filters.from));
+  if (filters.to) query = query.lt("opened_at", dayEnd(filters.to));
   if (filters.q) {
     const folio = /^c-?(\d{1,7})$/i.exec(filters.q);
     query = folio
@@ -167,6 +181,21 @@ export type CaseDetail = Database["public"]["Tables"]["cases"]["Row"] & {
   cycles: CaseCycle[];
   /** Departments with an active assignment (lead first), also for departments that only read their own tickets. */
   areas: { department_id: string; is_primary: boolean }[];
+  /** Every change of location (who, when, from what, why), newest first. */
+  locationHistory: CaseLocationEvent[];
+};
+
+export type CaseLocationEvent = {
+  id: number;
+  at: string;
+  actor_name: string;
+  status: "confirmed" | "inferred" | "unavailable";
+  source: string | null;
+  confidence: number | null;
+  neighborhood_id: string | null;
+  lat: number | null;
+  lng: number | null;
+  reason: string | null;
 };
 
 type RawClassification = { sentiment: Sentiment; topic: string | null; neighborhood_id: string | null };
@@ -193,7 +222,7 @@ export async function getCase(member: Member, id: string): Promise<CaseDetail | 
   if (error) throw new Error(`No se pudo cargar el caso: ${error.message}`);
   if (!row) return null;
 
-  const [mentions, tickets, events, notes, people, merged, tasks, updates, evidence, validations, cycles, areas] = await Promise.all([
+  const [mentions, tickets, events, notes, people, merged, tasks, updates, evidence, validations, cycles, areas, locations] = await Promise.all([
     supabase
       .from("case_mentions")
       .select(
@@ -234,6 +263,13 @@ export async function getCase(member: Member, id: string): Promise<CaseDetail | 
       .order("at", { ascending: false }),
     supabase.from("case_cycle_times").select("*").eq("case_id", id).order("cycle", { ascending: false }),
     supabase.rpc("case_areas", { p_case_id: id }),
+    supabase
+      .from("case_location_events")
+      .select("id, at, actor_name, status, source, confidence, neighborhood_id, lat, lng, reason")
+      .eq("case_id", id)
+      .order("at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(100),
   ]);
 
   const list = ((mentions.data ?? []) as unknown as RawMention[])
@@ -276,6 +312,12 @@ export async function getCase(member: Member, id: string): Promise<CaseDetail | 
     validations: (validations.data ?? []) as CaseValidation[],
     cycles: cycles.data ?? [],
     areas: areas.data ?? [],
+    locationHistory: ((locations.data ?? []) as CaseLocationEvent[]).map((e) => ({
+      ...e,
+      confidence: e.confidence === null ? null : Number(e.confidence),
+      lat: e.lat === null ? null : Number(e.lat),
+      lng: e.lng === null ? null : Number(e.lng),
+    })),
   };
 }
 

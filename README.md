@@ -190,7 +190,7 @@ Palancas: subir el umbral de escalamiento (`ESCALATE_BELOW_CONFIDENCE`), usar So
   |---|---|
   | admin | Dashboard, Bandeja (con Revisión), Casos, Mapa, Alertas, Reportes, Asistente, Salud, Configuración (Proyectos, Catálogos, Usuarios, Identidad, Emergencias) |
   | comunicacion | Dashboard, Bandeja (con Revisión), Casos, Mapa, Alertas, Reportes, Asistente, Salud, Configuración (sólo Proyectos) |
-  | dependencia | Bandeja, Casos, Alertas, Asistente (sólo con lo turnado o asignado a su dependencia) |
+  | dependencia | Bandeja, Casos, Mapa (sólo la capa de sus casos), Alertas, Asistente (sólo con lo turnado o asignado a su dependencia) |
   | lectura | Dashboard, Casos (sólo consulta), Mapa, Alertas, Reportes, Asistente, Salud (sólo el resumen) |
 
   Esto controla la navegación; la visibilidad de los datos la impone RLS.
@@ -469,14 +469,26 @@ móvil da 86–90 de rendimiento y 100 de accesibilidad.
 
 ## Mapa
 
-`/mapa` (admin, comunicación y lectura): colonias coloreadas por quejas, menciones, % negativo,
-sentimiento neto o cambio en quejas contra el periodo anterior; filtros de periodo, tema, dependencia y
-sentimiento en la URL (compartible). Clic en una colonia (o en el ranking) abre su panel: indicadores,
-temas, turnos por dependencia (abiertos, vencidos, resueltos) y últimas menciones, todo con enlace a la
-bandeja filtrada; el ranking se descarga en CSV. Datos: `map_stats()` (sobre `mention_stats_hourly`) y
-`neighborhood_detail()`, ambas sólo para lectores de toda la organización. Las menciones no tienen
-coordenadas: el mapa es por colonia y nunca ubica personas. Las que no tienen colonia identificada se
-cuentan aparte.
+`/mapa` tiene dos capas (detalle en `docs/etapa-8-mapa.md`):
+
+- **Conversación** (admin, comunicación y lectura): colonias coloreadas por quejas, menciones, % negativo,
+  sentimiento neto o cambio contra el periodo anterior. Datos: `map_stats()`, `neighborhood_detail()` y
+  `map_unlocated_mentions()` (menciones sin colonia, contadas y listadas sin texto).
+- **Casos** (todos los roles; `dependencia` sólo ve esta capa y sólo sus casos, por RLS): casos por colonia
+  o vencidos, con puntos agrupados sólo para ubicaciones **confirmadas** por un analista (redondeadas a ~100 m).
+  Una colonia inferida cuenta en su colonia, nunca como punto. Datos: `map_case_rows()`.
+
+Filtros en la URL (periodo en días de CDMX, colonia o «sin», categoría, prioridad, estado y dependencia).
+Son los mismos predicados de `/casos` y de la bandeja, así que los conteos coinciden y cada panel enlaza a la
+lista con los mismos filtros. Cada capa tiene una tabla equivalente (navegable con teclado) y el listado de
+lo que no tiene ubicación. Si el mapa de calles no carga, se muestran sólo las colonias; las colonias sin
+polígono o con polígono inválido se explican y siguen en la tabla. Las capas no llevan títulos, textos ni
+domicilios; los extractos del panel se enmascaran (correos, teléfonos y números).
+
+La ubicación de cada caso es confirmada, inferida o no disponible, con origen y confianza. Admin y
+comunicación la confirman, corrigen o quitan en `/casos/[id]` con motivo (`set_case_location`,
+`clear_case_location`); cada cambio queda en `case_location_events`. Carga medida y límites de escala:
+`docs/etapa-8-mapa.md` § 6 (`supabase/perf/`).
 
 ## Percepción de funcionarios
 

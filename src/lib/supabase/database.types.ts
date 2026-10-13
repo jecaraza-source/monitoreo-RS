@@ -227,6 +227,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"case_location_events": {
+                  Row: {
+                    "actor_id": string | null,"actor_name": string,"at": string,"case_id": string,"confidence": number | null,"id": number,"lat": number | null,"lng": number | null,"neighborhood_id": string | null,"org_id": string,"previous": Json | null,"reason": string | null,"source": string | null,"status": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "actor_id"?: string | null,"actor_name"?: string,"at"?: string,"case_id": string,"confidence"?: number | null,"id"?: never,"lat"?: number | null,"lng"?: number | null,"neighborhood_id"?: string | null,"org_id": string,"previous"?: Json | null,"reason"?: string | null,"source"?: string | null,"status": string
+                  }
+                  Update: {
+                    "actor_id"?: string | null,"actor_name"?: string,"at"?: string,"case_id"?: string,"confidence"?: number | null,"id"?: never,"lat"?: number | null,"lng"?: number | null,"neighborhood_id"?: string | null,"org_id"?: string,"previous"?: Json | null,"reason"?: string | null,"source"?: string | null,"status"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "case_location_events_org_id_case_id_fkey"
+      columns: ["org_id","case_id"]
+isOneToOne: false
+      referencedRelation: "cases"
+      referencedColumns: ["org_id","id"]
+    },{
+      foreignKeyName: "case_location_events_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"case_mentions": {
                   Row: {
                     "added_at": string,"added_by": string | null,"case_id": string,"mention_id": string,"org_id": string,"reason": string | null
@@ -403,14 +429,14 @@ isOneToOne: false
                   ]
                 },"cases": {
                   Row: {
-                    "accept_due_at": string | null,"accepted_at": string | null,"assigned_at": string | null,"backfill_key": string | null,"category": string | null,"closed_at": string | null,"commitment": string | null,"coordinator_user_id": string | null,"cycle": number,"department_id": string | null,"description": string,"due_at": string | null,"folio": string | null,"id": string,"merged_into_id": string | null,"neighborhood_id": string | null,"number": number,"opened_at": string,"opened_by": string | null,"org_id": string,"primary_mention_id": string | null,"priority": Database["public"]['Enums']["priority"],"resolved_at": string | null,"responsible_user_id": string | null,"result": string | null,"sla_terms": Json | null,"sla_version_id": string | null,"status": Database["public"]['Enums']["case_status"],"status_reason": string | null,"title": string,"updated_at": string
+                    "accept_due_at": string | null,"accepted_at": string | null,"assigned_at": string | null,"backfill_key": string | null,"category": string | null,"closed_at": string | null,"commitment": string | null,"coordinator_user_id": string | null,"cycle": number,"department_id": string | null,"description": string,"due_at": string | null,"folio": string | null,"id": string,"location_confidence": number | null,"location_lat": number | null,"location_lng": number | null,"location_source": string | null,"location_status": string,"location_updated_at": string | null,"location_updated_by": string | null,"merged_into_id": string | null,"neighborhood_id": string | null,"number": number,"opened_at": string,"opened_by": string | null,"org_id": string,"primary_mention_id": string | null,"priority": Database["public"]['Enums']["priority"],"resolved_at": string | null,"responsible_user_id": string | null,"result": string | null,"sla_terms": Json | null,"sla_version_id": string | null,"status": Database["public"]['Enums']["case_status"],"status_reason": string | null,"title": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "accept_due_at"?: string | null,"accepted_at"?: string | null,"assigned_at"?: string | null,"backfill_key"?: string | null,"category"?: string | null,"closed_at"?: string | null,"commitment"?: string | null,"coordinator_user_id"?: string | null,"cycle"?: number,"department_id"?: string | null,"description"?: string,"due_at"?: string | null,"folio"?: never,"id"?: string,"merged_into_id"?: string | null,"neighborhood_id"?: string | null,"number": number,"opened_at"?: string,"opened_by"?: string | null,"org_id": string,"primary_mention_id"?: string | null,"priority"?: Database["public"]['Enums']["priority"],"resolved_at"?: string | null,"responsible_user_id"?: string | null,"result"?: string | null,"sla_terms"?: Json | null,"sla_version_id"?: string | null,"status"?: Database["public"]['Enums']["case_status"],"status_reason"?: string | null,"title": string,"updated_at"?: string
+                    "accept_due_at"?: string | null,"accepted_at"?: string | null,"assigned_at"?: string | null,"backfill_key"?: string | null,"category"?: string | null,"closed_at"?: string | null,"commitment"?: string | null,"coordinator_user_id"?: string | null,"cycle"?: number,"department_id"?: string | null,"description"?: string,"due_at"?: string | null,"folio"?: never,"id"?: string,"location_confidence"?: number | null,"location_lat"?: number | null,"location_lng"?: number | null,"location_source"?: string | null,"location_status"?: string,"location_updated_at"?: string | null,"location_updated_by"?: string | null,"merged_into_id"?: string | null,"neighborhood_id"?: string | null,"number": number,"opened_at"?: string,"opened_by"?: string | null,"org_id": string,"primary_mention_id"?: string | null,"priority"?: Database["public"]['Enums']["priority"],"resolved_at"?: string | null,"responsible_user_id"?: string | null,"result"?: string | null,"sla_terms"?: Json | null,"sla_version_id"?: string | null,"status"?: Database["public"]['Enums']["case_status"],"status_reason"?: string | null,"title": string,"updated_at"?: string
                   }
                   Update: {
-                    "accept_due_at"?: string | null,"accepted_at"?: string | null,"assigned_at"?: string | null,"backfill_key"?: string | null,"category"?: string | null,"closed_at"?: string | null,"commitment"?: string | null,"coordinator_user_id"?: string | null,"cycle"?: number,"department_id"?: string | null,"description"?: string,"due_at"?: string | null,"folio"?: never,"id"?: string,"merged_into_id"?: string | null,"neighborhood_id"?: string | null,"number"?: number,"opened_at"?: string,"opened_by"?: string | null,"org_id"?: string,"primary_mention_id"?: string | null,"priority"?: Database["public"]['Enums']["priority"],"resolved_at"?: string | null,"responsible_user_id"?: string | null,"result"?: string | null,"sla_terms"?: Json | null,"sla_version_id"?: string | null,"status"?: Database["public"]['Enums']["case_status"],"status_reason"?: string | null,"title"?: string,"updated_at"?: string
+                    "accept_due_at"?: string | null,"accepted_at"?: string | null,"assigned_at"?: string | null,"backfill_key"?: string | null,"category"?: string | null,"closed_at"?: string | null,"commitment"?: string | null,"coordinator_user_id"?: string | null,"cycle"?: number,"department_id"?: string | null,"description"?: string,"due_at"?: string | null,"folio"?: never,"id"?: string,"location_confidence"?: number | null,"location_lat"?: number | null,"location_lng"?: number | null,"location_source"?: string | null,"location_status"?: string,"location_updated_at"?: string | null,"location_updated_by"?: string | null,"merged_into_id"?: string | null,"neighborhood_id"?: string | null,"number"?: number,"opened_at"?: string,"opened_by"?: string | null,"org_id"?: string,"primary_mention_id"?: string | null,"priority"?: Database["public"]['Enums']["priority"],"resolved_at"?: string | null,"responsible_user_id"?: string | null,"result"?: string | null,"sla_terms"?: Json | null,"sla_version_id"?: string | null,"status"?: Database["public"]['Enums']["case_status"],"status_reason"?: string | null,"title"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -1684,6 +1710,9 @@ isOneToOne: false
               "kind": string,"ticket_id": string
             }[]
                            },
+"clear_case_location":
+{ Args: { "p_case_id": string,"p_reason": string }; Returns: undefined
+                           },
 "clear_source_secret":
 { Args: { "p_source_id": string }; Returns: undefined
                            },
@@ -1756,8 +1785,16 @@ isOneToOne: false
 "log_event":
 { Args: { "p_action": string,"p_details"?: Json,"p_entity": string,"p_entity_id": string,"p_org_id": string }; Returns: undefined
                            },
+"map_case_rows":
+{ Args: { "p_filters"?: Json,"p_org_id": string }; Returns: {
+              "category": string,"department_id": string,"folio": string,"id": string,"lat": number,"lng": number,"location_confidence": number,"location_status": string,"neighborhood_id": string,"opened_at": string,"overdue": boolean,"priority": Database["public"]['Enums']["priority"],"status": Database["public"]['Enums']["case_status"]
+            }[]
+                           },
 "map_stats":
 { Args: { "p_department"?: string,"p_from": string,"p_org_id": string,"p_prev_from": string,"p_sentiment"?: Database["public"]['Enums']["sentiment"],"p_to": string,"p_topic"?: string }; Returns: Json
+                           },
+"map_unlocated_mentions":
+{ Args: { "p_department"?: string,"p_from": string,"p_limit"?: number,"p_org_id": string,"p_sentiment"?: Database["public"]['Enums']["sentiment"],"p_to": string,"p_topic"?: string }; Returns: Json
                            },
 "mention_stats":
 { Args: { "p_from": string,"p_org_id": string,"p_to": string }; Returns: {
@@ -1853,6 +1890,9 @@ isOneToOne: false
       } },
 "save_sla_config":
 { Args: { "p_calendar": Json,"p_holidays": Json,"p_org_id": string,"p_targets": Json }; Returns: Json
+                           },
+"set_case_location":
+{ Args: { "p_case_id": string,"p_lat"?: number,"p_lng"?: number,"p_neighborhood_id": string,"p_reason"?: string }; Returns: Json
                            },
 "set_department_contacts":
 { Args: { "p_department_id": string,"p_head_user_id": string,"p_link_user_id": string }; Returns: undefined

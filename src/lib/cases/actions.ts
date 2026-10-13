@@ -254,3 +254,57 @@ export async function applyTicketBackfill(): Promise<CaseActionResult<BackfillRe
   const r = data as { cases_created: number; tickets_linked: number };
   return { ok: true, message: `${r.cases_created} casos creados con ${r.tickets_linked} turnos.`, data: data as BackfillReport };
 }
+
+// ---------------------------------------------------------------------------
+// Location (coordinators: admin and comunicación). The database checks the
+// role, the colonia of the org, the point inside the colonia and the reason.
+// ---------------------------------------------------------------------------
+
+const coordinate = (min: number, max: number) =>
+  z.preprocess((v) => (v === "" || v === undefined ? null : v), z.coerce.number().min(min, "El punto está fuera de México.").max(max, "El punto está fuera de México.").nullable());
+
+const locationSchema = z
+  .object({
+    caseId: id,
+    neighborhoodId: id,
+    lat: coordinate(14, 33),
+    lng: coordinate(-119, -86),
+    reason: reason.default(""),
+  })
+  .refine((v) => (v.lat === null) === (v.lng === null), { message: "El punto necesita latitud y longitud." });
+
+export async function setCaseLocation(input: unknown): Promise<CaseActionResult> {
+  const m = await member(["admin", "comunicacion"]);
+  if (!m) return FORBIDDEN;
+  const parsed = locationSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const v = parsed.data;
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("set_case_location", {
+    p_case_id: v.caseId,
+    p_neighborhood_id: v.neighborhoodId,
+    p_lat: v.lat ?? undefined,
+    p_lng: v.lng ?? undefined,
+    p_reason: v.reason || undefined,
+  });
+  if (error) return fail(error, "guardar la ubicación");
+  refresh(v.caseId);
+  revalidatePath("/mapa");
+  const op = (data as { operation?: string } | null)?.operation;
+  return { ok: true, message: op === "location_corrected" ? "Ubicación corregida." : "Ubicación confirmada." };
+}
+
+const clearSchema = z.object({ caseId: id, reason: reason.min(3, "Escribe el motivo de la corrección.") });
+
+export async function clearCaseLocation(input: unknown): Promise<CaseActionResult> {
+  const m = await member(["admin", "comunicacion"]);
+  if (!m) return FORBIDDEN;
+  const parsed = clearSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("clear_case_location", { p_case_id: parsed.data.caseId, p_reason: parsed.data.reason });
+  if (error) return fail(error, "quitar la ubicación");
+  refresh(parsed.data.caseId);
+  revalidatePath("/mapa");
+  return { ok: true, message: "Ubicación quitada: el caso queda sin ubicación." };
+}

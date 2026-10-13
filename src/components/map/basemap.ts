@@ -50,10 +50,12 @@ export function withBasemap(base: StyleSpecification, own: StyleSpecification): 
 }
 
 /** Swaps in the street basemap once loaded, keeping the map's current colonias data and filters. */
-export function applyBasemap(map: maplibregl.Map, theme: Theme, currentStyle: () => StyleSpecification) {
+export function applyBasemap(map: maplibregl.Map, theme: Theme, currentStyle: () => StyleSpecification, onResult?: (loaded: boolean) => void) {
   let cancelled = false;
   loadBasemap(theme).then((base) => {
-    if (cancelled || !base) return;
+    if (cancelled) return;
+    onResult?.(Boolean(base));
+    if (!base) return;
     map.setStyle(withBasemap(base, currentStyle()));
   });
   return () => {
