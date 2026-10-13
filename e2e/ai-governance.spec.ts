@@ -4,20 +4,20 @@ import { admin, login, toast, USERS } from "./helpers";
 // Stage 10: AI quotas that resist concurrency, unknown cost never shown as 0,
 // the consumption panel and the catalog of verified authors.
 const ORG_A = "00000000-0000-4000-a000-000000000001";
-// Org B is a fictitious tenant used only by tests: its limits are restored at the end.
-const ORG_B = "00000000-0000-4000-a000-00000000000b";
-const ADMIN_B = "00000000-0000-4000-d000-000000000011";
+const ADMIN_A = "00000000-0000-4000-d000-000000000001";
 
 type Reservation = { allowed: boolean; call_id: string | null; reason: string | null; message: string | null };
 
 test.describe("cuotas y presupuesto de IA", () => {
   test("reservas simultáneas no exceden la concurrencia ni el presupuesto", async () => {
     const db = admin();
-    const { data: previous } = await db.from("ai_limits").select("*").eq("org_id", ORG_B).maybeSingle();
+    // The fictitious seed municipality exists locally and in preview; its limits are restored at the end
+    // and what it already spent or has in flight is taken into account.
+    const { data: previous } = await db.from("ai_limits").select("*").eq("org_id", ORG_A).maybeSingle();
     const started = new Date().toISOString();
     const reserve = (usd: number) =>
       db.rpc("reserve_ai", {
-        p_org_id: ORG_B,
+        p_org_id: ORG_A,
         p_user_id: null as unknown as string,
         p_purpose: "report",
         p_model: "claude-opus-5-5",
@@ -31,31 +31,36 @@ test.describe("cuotas y presupuesto de IA", () => {
       return results.map((r) => (r.data as Reservation[])[0]);
     };
     const cleanup = async () => {
-      await db.from("ai_calls").delete().eq("org_id", ORG_B).gte("created_at", started);
+      await db.from("ai_calls").delete().eq("org_id", ORG_A).eq("purpose", "report").gte("created_at", started);
     };
     try {
-      // 1) 25 requests at once against a concurrency of 3: exactly 3 pass.
-      await db.from("ai_limits").upsert({ org_id: ORG_B, max_concurrent: { report: 3 }, updated_by: ADMIN_B });
+      const inFlight = async () => {
+        const { data } = await db.from("ai_calls").select("reserved_usd").eq("org_id", ORG_A).eq("status", "reserved").gt("expires_at", new Date().toISOString());
+        return data ?? [];
+      };
+      // 1) 25 report requests at once against a concurrency of 3: only the free slots pass.
+      const before = (await db.from("ai_calls").select("id", { count: "exact", head: true }).eq("org_id", ORG_A).eq("purpose", "report").eq("status", "reserved").gt("expires_at", new Date().toISOString())).count ?? 0;
+      await db.from("ai_limits").upsert({ org_id: ORG_A, daily_budget_usd: null, monthly_budget_usd: null, daily_token_budget: null, max_concurrent: { report: 3 }, updated_by: ADMIN_A });
       const first = await outcome(25, 0.01);
-      expect(first.filter((r) => r.allowed)).toHaveLength(3);
+      expect(first.filter((r) => r.allowed)).toHaveLength(Math.max(0, 3 - before));
       expect(first.filter((r) => !r.allowed).every((r) => r.reason === "concurrency" && /máximo 3 a la vez/.test(r.message ?? ""))).toBe(true);
       await cleanup();
 
-      // 2) 25 requests of US$0.15 at once against what is left of a US$1.00 daily budget.
+      // 2) 25 requests of US$0.15 at once against a daily budget US$1.00 above what is spent and in flight.
       const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City" }).format(new Date());
-      const { data: spent } = await db.from("ai_usage").select("cost_usd").eq("org_id", ORG_B).eq("day", today);
-      const spentToday = (spent ?? []).reduce((s, r) => s + Number(r.cost_usd), 0);
-      await db.from("ai_limits").upsert({ org_id: ORG_B, daily_budget_usd: 1, max_concurrent: { report: 50 }, updated_by: ADMIN_B });
+      const { data: spent } = await db.from("ai_usage").select("cost_usd").eq("org_id", ORG_A).eq("day", today);
+      const used = (spent ?? []).reduce((s, r) => s + Number(r.cost_usd), 0) + (await inFlight()).reduce((s, r) => s + Number(r.reserved_usd ?? 0), 0);
+      const budget = Math.ceil((used + 1) * 100) / 100;
+      await db.from("ai_limits").upsert({ org_id: ORG_A, daily_budget_usd: budget, max_concurrent: { report: 50 }, updated_by: ADMIN_A });
       const second = await outcome(25, 0.15);
-      const allowed = second.filter((r) => r.allowed).length;
-      expect(allowed).toBe(Math.max(0, Math.floor((1 - spentToday + 1e-9) / 0.15)));
+      expect(second.filter((r) => r.allowed)).toHaveLength(Math.floor((budget - used + 1e-9) / 0.15));
       expect(second.find((r) => !r.allowed)?.message).toMatch(/presupuesto diario de IA/);
-      const { data: held } = await db.from("ai_calls").select("reserved_usd").eq("org_id", ORG_B).eq("status", "reserved").gte("created_at", started);
-      expect(spentToday + (held ?? []).reduce((s, r) => s + Number(r.reserved_usd), 0)).toBeLessThanOrEqual(1.000001);
+      const held = (await inFlight()).reduce((s, r) => s + Number(r.reserved_usd ?? 0), 0);
+      expect((spent ?? []).reduce((s, r) => s + Number(r.cost_usd), 0) + held).toBeLessThanOrEqual(budget + 1e-6);
     } finally {
       await cleanup();
       if (previous) await db.from("ai_limits").upsert(previous);
-      else await db.from("ai_limits").delete().eq("org_id", ORG_B);
+      else await db.from("ai_limits").delete().eq("org_id", ORG_A);
     }
   });
 
