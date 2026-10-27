@@ -13,7 +13,7 @@ import { CI_KIND_LABELS, CI_SEVERITY_LABELS, CI_STATUS_LABELS, type CiStatus } f
 export function CiReports({ reports, canEdit }: { reports: CiReport[]; canEdit: boolean }) {
   if (reports.length === 0) return <p className="text-sm text-muted-foreground">Sin reportes registrados.</p>;
   return (
-    <ul className="flex flex-col gap-2" aria-label="Reportes de la oficina">
+    <ul className="flex flex-col gap-2" aria-label="Reportes de Radar Social">
       {reports.map((r) => (
         <ReportItem key={r.id} report={r} canEdit={canEdit} />
       ))}

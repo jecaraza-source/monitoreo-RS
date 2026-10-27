@@ -36,11 +36,11 @@ describe("sectionsForRole", () => {
     assert.equal(has("comunicacion", office), true);
     assert.equal(has("lectura", office), true);
     assert.equal(has("dependencia", office), false);
-    assert.equal(sectionsForRole("admin", office).find((s) => s.key === "counterintel")?.label, "Oficina de Contrainteligencia");
-    assert.equal(canAccessPath("admin", "/contrainteligencia"), false);
-    assert.equal(canAccessPath("admin", "/contrainteligencia", office), true);
-    assert.equal(canAccessPath("comunicacion", "/contrainteligencia", { officials: true, counterintel: false }), false);
-    assert.equal(canAccessPath("dependencia", "/contrainteligencia", office), false);
+    assert.equal(sectionsForRole("admin", office).find((s) => s.key === "counterintel")?.label, "Radar Social");
+    assert.equal(canAccessPath("admin", "/radar-social"), false);
+    assert.equal(canAccessPath("admin", "/radar-social", office), true);
+    assert.equal(canAccessPath("comunicacion", "/radar-social", { officials: true, counterintel: false }), false);
+    assert.equal(canAccessPath("dependencia", "/radar-social", office), false);
   });
 });
 

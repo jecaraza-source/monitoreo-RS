@@ -54,8 +54,8 @@ export default async function SettingsPage() {
                   <TableHead>Dependencia</TableHead>
                   <TableHead>Último acceso</TableHead>
                   <TableHead title="Módulo restringido de percepción de funcionarios">Funcionarios</TableHead>
-                  <TableHead title="Oficina de Contrainteligencia: sólo los funcionarios autorizados, también Administración">
-                    Contrainteligencia
+                  <TableHead title="Radar Social: sólo los funcionarios autorizados, también Administración">
+                    Radar Social
                   </TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>

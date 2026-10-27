@@ -23,7 +23,7 @@ export async function getOverview(member: Member, days: number): Promise<CiOverv
   const from = new Date(Date.now() - days * 86_400_000);
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("ci_overview", { p_org_id: member.orgId, p_from: from.toISOString() });
-  if (error) throw new Error(`No se pudo cargar la Oficina de Contrainteligencia: ${error.message}`);
+  if (error) throw new Error(`No se pudo cargar Radar Social: ${error.message}`);
   return parseOverview(data);
 }
 

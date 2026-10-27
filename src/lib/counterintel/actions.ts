@@ -8,8 +8,8 @@ import { CI_KINDS, CI_SEVERITIES, CI_STATUSES, parseIndicators, parseMentionRefs
 
 export type CiResult = { ok: boolean; message: string };
 
-const PATH = "/contrainteligencia";
-const FORBIDDEN: CiResult = { ok: false, message: "No tienes permiso para registrar en la Oficina de Contrainteligencia." };
+const PATH = "/radar-social";
+const FORBIDDEN: CiResult = { ok: false, message: "No tienes permiso para registrar en Radar Social." };
 
 const reportSchema = z.object({
   kind: z.enum(CI_KINDS, "Elige el tipo de reporte."),
@@ -35,7 +35,7 @@ async function editor() {
 function failure(error: { code?: string; message: string }, what: string): CiResult {
   if (error.code === "42501") return FORBIDDEN;
   if (error.code === "22023") return { ok: false, message: error.message };
-  console.error(`[contrainteligencia] ${what}:`, error.code);
+  console.error(`[radar-social] ${what}:`, error.code);
   return { ok: false, message: `No se pudo ${what}.` };
 }
 

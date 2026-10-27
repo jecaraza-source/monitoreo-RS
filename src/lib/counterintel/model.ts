@@ -1,4 +1,4 @@
-// Oficina de Contrainteligencia: kinds, labels and parsing of ci_overview().
+// Radar Social: kinds, labels and parsing of ci_overview().
 // Pure, so it is unit-tested without a database.
 
 export const CI_KINDS = ["disinformation", "impersonation", "bot_network", "threat"] as const;

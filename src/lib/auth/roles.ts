@@ -57,8 +57,8 @@ export const SECTIONS: readonly Section[] = [
   // Counter-intelligence office: only the officials an admin authorizes (admins too need the grant).
   {
     key: "counterintel",
-    href: "/contrainteligencia",
-    label: "Oficina de Contrainteligencia",
+    href: "/radar-social",
+    label: "Radar Social",
     roles: ["admin", "comunicacion", "lectura"],
     grant: "counterintel",
   },
