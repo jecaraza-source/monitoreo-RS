@@ -162,6 +162,37 @@ async function handle(req, res, raw) {
       res.end(JSON.stringify({ id }));
       return;
     }
+    // Radar Social verification services (RADAR_*_URL point here in tests).
+    // A domain or query containing "falso" is flagged / has results; anything else is clean.
+    if (req.url.startsWith("/radar/")) {
+      const url = new URL(req.url, "http://mock");
+      const hit = (text) => /falso/i.test(text ?? "");
+      const json = (body) => {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(body));
+      };
+      if (url.pathname === "/radar/urlhaus/host/") {
+        const host = new URLSearchParams(raw).get("host");
+        return json(hit(host) ? { query_status: "ok", urls_count: 1, urls: [{ url: `http://${host}/pago`, url_status: "online", threat: "phishing", date_added: "2026-10-20 10:00:00 UTC" }] } : { query_status: "no_results" });
+      }
+      if (url.pathname === "/radar/phishstats/phishing") return json(hit(url.searchParams.get("_where")) ? [{ url: "https://pago-falso.mx/login", title: "Apoyos", date: "2026-10-21T00:00:00Z", score: 9 }] : []);
+      if (url.pathname === "/radar/safebrowsing/threatMatches:find") return json(hit(raw) ? { matches: [{ threatType: "SOCIAL_ENGINEERING", threat: { url: "x" } }] } : {});
+      if (url.pathname === "/radar/crtsh/") {
+        const term = (url.searchParams.get("q") ?? "").replaceAll("%", "");
+        return json([
+          { name_value: `${term}.gob.mx\nwww.${term}.gob.mx`, not_before: "2026-01-01T00:00:00", issuer_name: "O=Let's Encrypt" },
+          { name_value: `apoyos-${term}-falso.mx`, not_before: "2026-10-20T00:00:00", issuer_name: "O=Let's Encrypt" },
+        ]);
+      }
+      if (url.pathname === "/radar/factcheck/claims:search") {
+        return json(hit(url.searchParams.get("query")) ? { claims: [{ text: "Se cancela el apoyo para adultos mayores", claimant: "Redes sociales", claimReview: [{ publisher: { name: "Verificador de prueba" }, url: "https://verificador.test/1", textualRating: "Falso", reviewDate: "2026-10-22T00:00:00Z" }] }] } : {});
+      }
+      if (url.pathname === "/radar/gdelt/doc/doc") {
+        return json({ articles: [{ url: "https://medio.test/nota-1", title: "Desmienten rumor sobre el agua", domain: "medio.test", seendate: "20261026T120000Z", sourcecountry: "Mexico" }] });
+      }
+      res.writeHead(404).end();
+      return;
+    }
     if (req.url === "/whatsapp/sent" && req.method === "GET") {
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(whatsapp));

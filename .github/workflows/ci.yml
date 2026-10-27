@@ -105,6 +105,14 @@ jobs:
             echo "WHATSAPP_QUIET_HOURS=off"
             echo "E2E_WHATSAPP_APP_SECRET=e2e-whatsapp-secret"
             echo "E2E_WHATSAPP_PHONE_NUMBER_ID=PN_E2E"
+            # Radar Social verification services, answered by the mock.
+            echo "ABUSECH_AUTH_KEY=mock"
+            echo "GOOGLE_SAFE_BROWSING_API_KEY=mock"
+            echo "GOOGLE_FACTCHECK_API_KEY=mock"
+            for p in URLHAUS PHISHSTATS SAFE_BROWSING CRTSH FACTCHECK GDELT; do
+              lower=$(echo "$p" | tr 'A-Z' 'a-z' | tr -d '_')
+              echo "RADAR_${p}_URL=http://127.0.0.1:4010/radar/${lower}"
+            done
           } >> "$GITHUB_ENV"
       - run: npm run build
       - run: npx playwright install --with-deps chromium

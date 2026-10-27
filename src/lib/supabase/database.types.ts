@@ -615,6 +615,32 @@ isOneToOne: false
       referencedColumns: ["org_id","id"]
     }
                   ]
+                },"ci_checks": {
+                  Row: {
+                    "checked_at": string,"checked_by": string,"details": NonNullable<Json>,"id": string,"org_id": string,"provider": string,"report_id": string | null,"status": string,"subject": string,"summary": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "checked_at"?: string,"checked_by"?: string,"details"?: NonNullable<Json>,"id"?: string,"org_id": string,"provider": string,"report_id"?: string | null,"status": string,"subject": string,"summary"?: string
+                  }
+                  Update: {
+                    "checked_at"?: string,"checked_by"?: string,"details"?: NonNullable<Json>,"id"?: string,"org_id"?: string,"provider"?: string,"report_id"?: string | null,"status"?: string,"subject"?: string,"summary"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ci_checks_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ci_checks_report_id_fkey"
+      columns: ["report_id"]
+isOneToOne: false
+      referencedRelation: "ci_reports"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"ci_reports": {
                   Row: {
                     "closed_at": string | null,"closed_note": string | null,"created_at": string,"created_by": string,"id": string,"indicators": (string)[],"kind": string,"mention_ids": (string)[],"org_id": string,"severity": Database["public"]['Enums']["priority"],"status": string,"summary": string,"title": string,"updated_at": string
@@ -631,6 +657,26 @@ isOneToOne: false
       foreignKeyName: "ci_reports_org_id_fkey"
       columns: ["org_id"]
 isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"ci_settings": {
+                  Row: {
+                    "official_domains": (string)[],"org_id": string,"updated_at": string,"updated_by": string | null,"watch_terms": (string)[]
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "official_domains"?: (string)[],"org_id": string,"updated_at"?: string,"updated_by"?: string | null,"watch_terms"?: (string)[]
+                  }
+                  Update: {
+                    "official_domains"?: (string)[],"org_id"?: string,"updated_at"?: string,"updated_by"?: string | null,"watch_terms"?: (string)[]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ci_settings_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: true
       referencedRelation: "organizations"
       referencedColumns: ["id"]
     }
