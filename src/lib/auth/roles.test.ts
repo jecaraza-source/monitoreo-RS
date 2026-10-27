@@ -16,7 +16,7 @@ describe("sectionsForRole", () => {
   });
 
   it("shows Funcionarios only with the explicit grant", () => {
-    const granted = { officials: true };
+    const granted = { officials: true, counterintel: false };
     assert.ok(sectionsForRole("comunicacion", granted).some((s) => s.key === "officials"));
     assert.ok(sectionsForRole("lectura", granted).some((s) => s.key === "officials"));
     assert.ok(!sectionsForRole("dependencia", granted).some((s) => s.key === "officials"));
@@ -26,6 +26,21 @@ describe("sectionsForRole", () => {
     assert.equal(canViewOfficials("admin", false), true);
     assert.equal(canViewOfficials("comunicacion", false), false);
     assert.equal(canViewOfficials("dependencia", true), false);
+  });
+
+  it("shows the counter-intelligence office only with its own grant, also to admins", () => {
+    const office = { officials: false, counterintel: true };
+    const has = (role: (typeof ROLES)[number], access?: typeof office) => sectionsForRole(role, access).some((s) => s.key === "counterintel");
+    assert.equal(has("admin"), false);
+    assert.equal(has("admin", office), true);
+    assert.equal(has("comunicacion", office), true);
+    assert.equal(has("lectura", office), true);
+    assert.equal(has("dependencia", office), false);
+    assert.equal(sectionsForRole("admin", office).find((s) => s.key === "counterintel")?.label, "Oficina de Contrainteligencia");
+    assert.equal(canAccessPath("admin", "/contrainteligencia"), false);
+    assert.equal(canAccessPath("admin", "/contrainteligencia", office), true);
+    assert.equal(canAccessPath("comunicacion", "/contrainteligencia", { officials: true, counterintel: false }), false);
+    assert.equal(canAccessPath("dependencia", "/contrainteligencia", office), false);
   });
 });
 

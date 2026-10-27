@@ -3,6 +3,45 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Oficina de Contrainteligencia (27 oct 2026, base `2aba4a3`)
+
+- **Qué es:** sección restringida para seguir:
+  - desinformación sobre el municipio;
+  - cuentas o páginas que suplantan al ayuntamiento o a sus funcionarios;
+  - bots coordinados;
+  - amenazas a funcionarios o instalaciones.
+- **Acceso** (migración `20261109000000_counterintel.sql`):
+  - permiso explícito por usuario (`memberships.can_view_counterintel`), que se da en Configuración → Usuarios;
+  - **también Administración lo necesita**: la oficina se limita a los funcionarios autorizados;
+  - Consulta lee; Administración y Comunicación registran;
+  - una dependencia nunca puede recibirlo;
+  - cada consulta queda en la bitácora (`view`, `counterintel`).
+- **Registro de la oficina** (`ci_reports`):
+  - campos: tipo, gravedad, indicadores (URLs, dominios, etiquetas, nombres de página) y menciones de evidencia del
+    mismo municipio;
+  - estados: abierto, en seguimiento y cerrado con nota;
+  - sin borrado; todo cambio queda auditado.
+- **Pistas** (`ci_overview`):
+  - menciones que contienen un indicador de un reporte abierto o en seguimiento;
+  - posibles amenazas: gravedad alta o emergencia sobre violencia o seguridad pública;
+  - nunca se nombra a ciudadanos; sólo a medios y figuras públicas.
+- **Decisión de diseño:** desde la etapa 10, las cuentas no verificadas se guardan con seudónimo. Por eso la
+  suplantación se sigue por contenido, no por el nombre de la cuenta. No se debilitó esa protección.
+- **Límites (CLAUDE.md):**
+  - no se registran ni se siguen ciudadanos, periodistas u opositores por sus opiniones;
+  - la página lo dice;
+  - los tipos de reporte son sólo los cuatro de la oficina.
+- **Pruebas:**
+  - pgTAP 971/971, con `counterintel` (27);
+  - 428 unitarias;
+  - e2e `counterintel.spec.ts` (3) y la batería completa: 72 pasan, 11 omitidas;
+  - reversión y doble aplicación.
+- **Pendiente:** al compilar, Next.js 16.4.0 avisó de una vulnerabilidad conocida y recomienda actualizar. No se
+  actualizó en este cambio.
+- **Activación / reversión:**
+  - activar: SQL en preview y producción, deploy y dar el permiso en Usuarios;
+  - revertir: el despliegue anterior y `docs/rollback/20261109000000_counterintel.down.sql`.
+
 ## Ajustes posteriores a la etapa 12 (13 oct 2026, base `c8463a9`)
 
 - **Fuentes:** la lista de Configuración → Fuentes muestra primero la más reciente (PR #36).

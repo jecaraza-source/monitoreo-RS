@@ -615,6 +615,26 @@ isOneToOne: false
       referencedColumns: ["org_id","id"]
     }
                   ]
+                },"ci_reports": {
+                  Row: {
+                    "closed_at": string | null,"closed_note": string | null,"created_at": string,"created_by": string,"id": string,"indicators": (string)[],"kind": string,"mention_ids": (string)[],"org_id": string,"severity": Database["public"]['Enums']["priority"],"status": string,"summary": string,"title": string,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "closed_at"?: string | null,"closed_note"?: string | null,"created_at"?: string,"created_by"?: string,"id"?: string,"indicators"?: (string)[],"kind": string,"mention_ids"?: (string)[],"org_id": string,"severity"?: Database["public"]['Enums']["priority"],"status"?: string,"summary"?: string,"title": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "closed_at"?: string | null,"closed_note"?: string | null,"created_at"?: string,"created_by"?: string,"id"?: string,"indicators"?: (string)[],"kind"?: string,"mention_ids"?: (string)[],"org_id"?: string,"severity"?: Database["public"]['Enums']["priority"],"status"?: string,"summary"?: string,"title"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ci_reports_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"classification_reviews": {
                   Row: {
                     "ai_output": NonNullable<Json>,"changes": NonNullable<Json>,"created_at": string,"decided_at": string | null,"decided_by": string | null,"decision_reason": string | null,"id": string,"mention_id": string,"org_id": string,"reasons": (string)[],"status": string
@@ -851,14 +871,14 @@ isOneToOne: false
                   ]
                 },"memberships": {
                   Row: {
-                    "can_view_officials": boolean,"created_at": string,"department_id": string | null,"id": string,"org_id": string,"role": Database["public"]['Enums']["membership_role"],"user_id": string
+                    "can_view_counterintel": boolean,"can_view_officials": boolean,"created_at": string,"department_id": string | null,"id": string,"org_id": string,"role": Database["public"]['Enums']["membership_role"],"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "can_view_officials"?: boolean,"created_at"?: string,"department_id"?: string | null,"id"?: string,"org_id": string,"role": Database["public"]['Enums']["membership_role"],"user_id": string
+                    "can_view_counterintel"?: boolean,"can_view_officials"?: boolean,"created_at"?: string,"department_id"?: string | null,"id"?: string,"org_id": string,"role": Database["public"]['Enums']["membership_role"],"user_id": string
                   }
                   Update: {
-                    "can_view_officials"?: boolean,"created_at"?: string,"department_id"?: string | null,"id"?: string,"org_id"?: string,"role"?: Database["public"]['Enums']["membership_role"],"user_id"?: string
+                    "can_view_counterintel"?: boolean,"can_view_officials"?: boolean,"created_at"?: string,"department_id"?: string | null,"id"?: string,"org_id"?: string,"role"?: Database["public"]['Enums']["membership_role"],"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -1835,6 +1855,9 @@ isOneToOne: false
 "assign_case":
 { Args: { "p_accept_due_at": string,"p_case_id": string,"p_commitment"?: string,"p_department_id": string,"p_due_at": string,"p_reason"?: string,"p_responsible_user_id"?: string,"p_support_ids"?: (string)[] }; Returns: Json
                            },
+"can_view_counterintel":
+{ Args: { "p_org_id": string }; Returns: boolean
+                           },
 "can_view_officials":
 { Args: { "p_org_id": string }; Returns: boolean
                            },
@@ -1868,6 +1891,9 @@ isOneToOne: false
                            },
 "case_transition_needs_reason":
 { Args: { "p_from": Database["public"]['Enums']["case_status"],"p_to": Database["public"]['Enums']["case_status"] }; Returns: boolean
+                           },
+"ci_overview":
+{ Args: { "p_from": string,"p_org_id": string }; Returns: Json
                            },
 "claim_mentions":
 { Args: { "p_claim_id": string,"p_lease_seconds": number,"p_limit": number,"p_max_attempts": number }; Returns: {

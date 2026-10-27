@@ -56,6 +56,12 @@ export const getSession = cache(async (): Promise<Session | null> => {
     const { data: granted } = await supabase.rpc("can_view_officials", { p_org_id: membership.org_id });
     officials = granted === true;
   }
+  // The counter-intelligence office needs its own grant for every role, admins included.
+  let counterintel = false;
+  if (membership.role !== "dependencia") {
+    const { data: granted } = await supabase.rpc("can_view_counterintel", { p_org_id: membership.org_id });
+    counterintel = granted === true;
+  }
 
   return {
     userId: claims.sub,
@@ -68,7 +74,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
       role: membership.role,
       departmentId: membership.department_id,
       departmentName: membership.departments?.name ?? null,
-      access: { officials },
+      access: { officials, counterintel },
     },
   };
 });

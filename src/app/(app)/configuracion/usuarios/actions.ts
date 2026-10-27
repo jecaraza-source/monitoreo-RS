@@ -143,6 +143,44 @@ export async function setOfficialsAccess(input: unknown): Promise<{ ok: boolean;
 }
 
 // ---------------------------------------------------------------------------
+// Access to the counter-intelligence office (Oficina de Contrainteligencia)
+// ---------------------------------------------------------------------------
+
+/**
+ * Grants or revokes the office. Every role but dependencia may hold it, admins
+ * included (they too need the grant); the change is audited like any membership change.
+ */
+export async function setCounterintelAccess(input: unknown): Promise<{ ok: boolean; message: string }> {
+  let admin;
+  try {
+    admin = await requireRole(["admin"]);
+  } catch {
+    return { ok: false, message: "Sólo un administrador puede dar este acceso." };
+  }
+  const parsed = accessSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("memberships")
+    .update({ can_view_counterintel: parsed.data.allowed })
+    .eq("org_id", admin.orgId)
+    .eq("user_id", parsed.data.userId)
+    .in("role", ["admin", "comunicacion", "lectura"])
+    .select("user_id");
+  if (error) {
+    console.error("[usuarios] counterintel access:", error.code);
+    return { ok: false, message: "No se pudo cambiar el acceso." };
+  }
+  if (!data?.length) return { ok: false, message: "Una dependencia no puede recibir este acceso." };
+  revalidatePath("/configuracion/usuarios");
+  revalidatePath("/", "layout");
+  return {
+    ok: true,
+    message: parsed.data.allowed ? "Acceso a la Oficina de Contrainteligencia otorgado." : "Acceso a la Oficina de Contrainteligencia retirado.",
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Edit and remove members
 // ---------------------------------------------------------------------------
 

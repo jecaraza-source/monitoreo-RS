@@ -40,7 +40,7 @@ describe("menu entries need real authorization", () => {
 
   it("every menu entry and subsection matches the path check used by pages", () => {
     for (const role of ROLES) {
-      for (const s of SECTIONS) assert.equal(canAccessPath(role, s.href, { officials: true }), s.roles.includes(role), `${role} ${s.href}`);
+      for (const s of SECTIONS) assert.equal(canAccessPath(role, s.href, { officials: true, counterintel: true }), s.roles.includes(role), `${role} ${s.href}`);
       for (const s of SUBSECTIONS) assert.equal(canAccessPath(role, s.href), s.roles.includes(role), `${role} ${s.href}`);
     }
   });

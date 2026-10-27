@@ -22,9 +22,9 @@ test.describe("menú con autorización real", () => {
       await login(page, USER_BY_ROLE[role], "/ayuda");
       const nav = page.getByRole("navigation", { name: "Secciones" }).or(page.getByRole("navigation", { name: "Administración y ayuda" }));
       const hrefs = await nav.getByRole("link").evaluateAll((links) => links.map((a) => (a as HTMLAnchorElement).getAttribute("href")!));
-      // The menu shows exactly the sections of the role (officials depends on a per-user grant).
-      const restricted = new Set(SECTIONS.filter((s) => s.restricted).map((s) => s.href));
-      expect(new Set(hrefs.filter((h) => !restricted.has(h)))).toEqual(new Set(SECTIONS.filter((s) => s.roles.includes(role) && !s.restricted).map((s) => s.href)));
+      // The menu shows exactly the sections of the role (granted modules depend on a per-user grant).
+      const restricted = new Set(SECTIONS.filter((s) => s.grant).map((s) => s.href));
+      expect(new Set(hrefs.filter((h) => !restricted.has(h)))).toEqual(new Set(SECTIONS.filter((s) => s.roles.includes(role) && !s.grant).map((s) => s.href)));
       for (const href of hrefs) {
         await page.goto(href);
         await expect(page, href).toHaveURL(new RegExp(`${href}(/|\\?|$)`));
