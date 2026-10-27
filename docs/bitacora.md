@@ -3,6 +3,35 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Radar Social: herramientas de verificación (27 oct 2026, base `9bab03e`)
+
+- **Migración `20261110000000_radar_checks.sql`:**
+  - `ci_settings`: dominios oficiales y términos a vigilar por municipio, normalizados y validados;
+  - `ci_checks`: registro de cada consulta (servicio, indicador, resultado, quién y cuándo). Sólo se agregan
+    registros; no se editan ni se borran.
+  - El acceso es el mismo de Radar Social: el permiso para leer; además Administración o Comunicación para consultar.
+- **Servicios** (`src/lib/counterintel/providers.ts`):
+  - reputación de dominios y URLs de los indicadores: URLhaus (`ABUSECH_AUTH_KEY`), PhishStats (abierto) y Google
+    Safe Browsing (`GOOGLE_SAFE_BROWSING_API_KEY`);
+  - dominios parecidos: certificados públicos de crt.sh con un término vigilado, sin los dominios oficiales ni sus
+    subdominios;
+  - verificaciones publicadas: Google Fact Check (`GOOGLE_FACTCHECK_API_KEY`);
+  - notas en medios de los últimos 7 días: GDELT (abierto).
+  - Sólo varía la consulta; los hosts son fijos. Cada llamada tiene tiempo y tamaño máximos.
+  - Sin llave, el servicio aparece «sin configurar».
+  - Límite: 10 consultas por minuto por persona.
+- **Límites:** se consultan indicadores (dominios, URLs, afirmaciones, temas), no personas; la página lo indica.
+- **Pruebas:**
+  - pgTAP 987/987, con `radar_checks` (16);
+  - 437 unitarias, con los proveedores (9);
+  - e2e `radar-tools.spec.ts` con el simulador (no corre contra preview, que llamaría a los servicios reales);
+  - batería completa: 73 pasan, 11 omitidas.
+- **Activación:**
+  - SQL en preview y producción, luego deploy;
+  - las llaves opcionales se configuran en Vercel;
+  - en Radar Social, guardar los dominios oficiales y los términos.
+- **Revertir:** el despliegue anterior y `docs/rollback/20261110000000_radar_checks.down.sql`.
+
 ## Radar Social (27 oct 2026, base `47cc67a`)
 
 - «Oficina de Contrainteligencia» se llama ahora **Radar Social**, para que quepa en el menú.

@@ -70,6 +70,7 @@ tipo *Sensitive*); el build de CI comprueba que ninguna aparezca en el bundle de
 | `ALERTS_FROM_EMAIL` · `REPORTS_FROM_EMAIL` | config | Remitentes (dominio verificado en Resend) |
 | `META_APP_SECRET` · `META_GRAPH_VERSION` | **secreto** · config | Conector de Facebook/Instagram |
 | `YOUTUBE_API_KEY` | **secreto** | Conector de YouTube |
+| `ABUSECH_AUTH_KEY` · `GOOGLE_SAFE_BROWSING_API_KEY` · `GOOGLE_FACTCHECK_API_KEY` | **secreto** | Opcionales: Radar Social revisa indicadores en URLhaus y Safe Browsing, y busca verificaciones en Google Fact Check |
 | `RSS_ALLOWED_HOSTS` | config | Opcional: hosts de feeds permitidos (`diario.mx`, `.diario.mx` para subdominios) |
 | `WHATSAPP_TOKEN` · `WHATSAPP_PHONE_NUMBER_ID` · `WHATSAPP_TEMPLATE_LANG` | **secreto** · config | Canal de WhatsApp con funcionarios (ver [WhatsApp](#whatsapp)) |
 | `WHATSAPP_APP_SECRET` · `WHATSAPP_VERIFY_TOKEN` | **secreto** | Firma y verificación del webhook de WhatsApp (por omisión la firma usa `META_APP_SECRET`) |

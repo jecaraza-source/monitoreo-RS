@@ -6,22 +6,25 @@ import { toast } from "sonner";
 import { formatDateTime } from "@/components/inbox/format";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { IndicatorChecks } from "@/components/counterintel/radar-checks";
+import { CheckIndicatorsButton } from "@/components/counterintel/radar-tools";
 import { updateCiReportStatus } from "@/lib/counterintel/actions";
-import type { CiReport } from "@/lib/counterintel/data";
+import type { CiReport, RadarCheck } from "@/lib/counterintel/data";
 import { CI_KIND_LABELS, CI_SEVERITY_LABELS, CI_STATUS_LABELS, type CiStatus } from "@/lib/counterintel/model";
+import { indicatorTarget } from "@/lib/counterintel/providers";
 
-export function CiReports({ reports, canEdit }: { reports: CiReport[]; canEdit: boolean }) {
+export function CiReports({ reports, canEdit, checks = {} }: { reports: CiReport[]; canEdit: boolean; checks?: Record<string, RadarCheck[]> }) {
   if (reports.length === 0) return <p className="text-sm text-muted-foreground">Sin reportes registrados.</p>;
   return (
     <ul className="flex flex-col gap-2" aria-label="Reportes de Radar Social">
       {reports.map((r) => (
-        <ReportItem key={r.id} report={r} canEdit={canEdit} />
+        <ReportItem key={r.id} report={r} canEdit={canEdit} checks={checks[r.id] ?? []} />
       ))}
     </ul>
   );
 }
 
-function ReportItem({ report, canEdit }: { report: CiReport; canEdit: boolean }) {
+function ReportItem({ report, canEdit, checks }: { report: CiReport; canEdit: boolean; checks: RadarCheck[] }) {
   const router = useRouter();
   const [closing, setClosing] = useState(false);
   const [note, setNote] = useState("");
@@ -65,6 +68,12 @@ function ReportItem({ report, canEdit }: { report: CiReport; canEdit: boolean })
             </a>
           ))}
         </p>
+      )}
+      <IndicatorChecks checks={checks} />
+      {canEdit && report.indicators.some((i) => indicatorTarget(i)) && (
+        <div className="mt-2">
+          <CheckIndicatorsButton reportId={report.id} />
+        </div>
       )}
       {report.status === "closed" && report.closedNote && <p className="mt-2 text-xs">Cierre: {report.closedNote}</p>}
       {canEdit && report.status !== "closed" && (

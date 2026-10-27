@@ -5,11 +5,13 @@ import { CiMatches } from "@/components/counterintel/ci-matches";
 import { CiReportForm } from "@/components/counterintel/ci-report-form";
 import { CiReports } from "@/components/counterintel/ci-reports";
 import { CiThreats } from "@/components/counterintel/ci-threats";
+import { LookalikeResults, SearchResults } from "@/components/counterintel/radar-checks";
+import { LookalikeButton, RadarSearchForm, RadarSettingsForm } from "@/components/counterintel/radar-tools";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireSection } from "@/lib/auth/session";
-import { getOverview, getReports } from "@/lib/counterintel/data";
+import { getOverview, getRadarChecks, getRadarSettings, getReports, radarConfigured } from "@/lib/counterintel/data";
 
 export const metadata: Metadata = { title: "Radar Social" };
 
@@ -32,7 +34,13 @@ export default function CounterintelPage() {
 async function Counterintel() {
   // Section + explicit grant (admins too); the database checks it again.
   const member = await requireSection("/radar-social");
-  const [overview, reports] = await Promise.all([getOverview(member, DAYS), getReports(member)]);
+  const [overview, reports, settings, checks] = await Promise.all([
+    getOverview(member, DAYS),
+    getReports(member),
+    getRadarSettings(member),
+    getRadarChecks(member),
+  ]);
+  const configured = radarConfigured();
   const canEdit = member.role === "admin" || member.role === "comunicacion";
 
   return (
@@ -50,7 +58,51 @@ async function Counterintel() {
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {canEdit && <CiReportForm />}
-          <CiReports reports={reports} canEdit={canEdit} />
+          <CiReports reports={reports} canEdit={canEdit} checks={Object.fromEntries(checks.byReport)} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle as="h2">Dominios parecidos</CardTitle>
+          <CardDescription>
+            Certificados públicos (crt.sh) emitidos para dominios que usan un término vigilado y no son oficiales: es
+            como suelen aparecer las páginas falsas. Los indicadores de cada reporte se revisan en URLhaus, PhishStats y
+            Google Safe Browsing.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          {canEdit ? (
+            <RadarSettingsForm officialDomains={settings.officialDomains} watchTerms={settings.watchTerms} />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Dominios oficiales: {settings.officialDomains.join(", ") || "—"} · Términos: {settings.watchTerms.join(", ") || "—"}
+            </p>
+          )}
+          {canEdit && (
+            <div>
+              <LookalikeButton disabled={settings.watchTerms.length === 0} />
+            </div>
+          )}
+          <LookalikeResults checks={checks.lookalikes} />
+          <p className="text-xs text-muted-foreground">
+            Servicios con llave: URLhaus {configured.urlhaus ? "configurado" : "sin configurar"} · Safe Browsing{" "}
+            {configured.safe_browsing ? "configurado" : "sin configurar"} · Fact Check {configured.factcheck ? "configurado" : "sin configurar"}.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle as="h2">Verificaciones y medios</CardTitle>
+          <CardDescription>
+            Busca si una afirmación ya fue verificada (Google Fact Check) y cómo la cubren los medios en los últimos 7 días
+            (GDELT). Busca temas y afirmaciones, no personas.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          {canEdit && <RadarSearchForm factCheckReady={configured.factcheck} />}
+          <SearchResults checks={checks.searches} />
         </CardContent>
       </Card>
 
