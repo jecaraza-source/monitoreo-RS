@@ -58,7 +58,8 @@ test.describe("Oficina de Contrainteligencia", () => {
 
     await context.clearCookies();
     await login(page, USERS.lectura, "/contrainteligencia");
-    await expect(page.getByText(TITLE)).toBeVisible();
+    // Scoped to the visible list: while the page streams, React briefly keeps a hidden copy of it.
+    await expect(page.getByRole("list", { name: "Reportes de la oficina" }).getByText(TITLE)).toBeVisible();
     await expect(page.getByRole("form", { name: "Nuevo reporte" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Pasar a seguimiento" })).toHaveCount(0);
 
