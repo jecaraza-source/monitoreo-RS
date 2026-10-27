@@ -23,6 +23,7 @@ export type SectionKey =
   | "reports"
   | "assistant"
   | "officials"
+  | "counterintel"
   | "health"
   | "settings"
   | "help";
@@ -32,13 +33,13 @@ export type Section = {
   href: string;
   label: string;
   roles: readonly Role[];
-  /** Also needs an explicit per-user grant (memberships.can_view_officials). */
-  restricted?: boolean;
+  /** Also needs this explicit per-user grant (memberships.can_view_*). */
+  grant?: keyof Access;
 };
 
 /** Per-user grants on top of the role. */
-export type Access = { officials: boolean };
-const NO_GRANTS: Access = { officials: false };
+export type Access = { officials: boolean; counterintel: boolean };
+const NO_GRANTS: Access = { officials: false, counterintel: false };
 
 // Order here is the sidebar order.
 export const SECTIONS: readonly Section[] = [
@@ -52,7 +53,15 @@ export const SECTIONS: readonly Section[] = [
   { key: "reports", href: "/reportes", label: "Reportes", roles: ["admin", "comunicacion", "lectura"] },
   { key: "assistant", href: "/asistente", label: "Asistente", roles: ["admin", "comunicacion", "dependencia", "lectura"] },
   // Perception of officials: restricted to members an admin authorizes.
-  { key: "officials", href: "/funcionarios", label: "Funcionarios", roles: ["admin", "comunicacion", "lectura"], restricted: true },
+  { key: "officials", href: "/funcionarios", label: "Funcionarios", roles: ["admin", "comunicacion", "lectura"], grant: "officials" },
+  // Counter-intelligence office: only the officials an admin authorizes (admins too need the grant).
+  {
+    key: "counterintel",
+    href: "/contrainteligencia",
+    label: "Oficina de Contrainteligencia",
+    roles: ["admin", "comunicacion", "lectura"],
+    grant: "counterintel",
+  },
   // Health of the monitor: detail for admin and comunicacion, a freshness summary for lectura.
   { key: "health", href: "/salud", label: "Salud", roles: ["admin", "comunicacion", "lectura"] },
   { key: "settings", href: "/configuracion", label: "Configuración", roles: ["admin", "comunicacion"] },
@@ -99,7 +108,7 @@ export function isRole(value: unknown): value is Role {
 }
 
 export function sectionsForRole(role: Role, access: Access = NO_GRANTS): Section[] {
-  return SECTIONS.filter((section) => section.roles.includes(role) && (!section.restricted || access.officials));
+  return SECTIONS.filter((section) => section.roles.includes(role) && (!section.grant || access[section.grant]));
 }
 
 /** Whether the member may open the officials module: admins always, others when granted. */
@@ -116,7 +125,7 @@ export function sectionForPath(pathname: string): Section | undefined {
 export function canAccessPath(role: Role, pathname: string, access: Access = NO_GRANTS): boolean {
   const section = sectionForPath(pathname);
   if (section && !section.roles.includes(role)) return false;
-  if (section?.restricted && !access.officials) return false;
+  if (section?.grant && !access[section.grant]) return false;
   const subsection = SUBSECTIONS.find((sub) => isUnder(pathname, sub.href));
   return !subsection || subsection.roles.includes(role);
 }

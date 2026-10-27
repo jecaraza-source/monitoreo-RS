@@ -2,9 +2,25 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { setOfficialsAccess } from "@/app/(app)/configuracion/usuarios/actions";
+import { setCounterintelAccess, setOfficialsAccess } from "@/app/(app)/configuracion/usuarios/actions";
 
-export function OfficialsAccessToggle({ userId, email, allowed }: { userId: string; email: string; allowed: boolean }) {
+const MODULES = {
+  officials: { label: "Funcionarios", action: setOfficialsAccess },
+  counterintel: { label: "Oficina de Contrainteligencia", action: setCounterintelAccess },
+} as const;
+
+export function OfficialsAccessToggle({
+  userId,
+  email,
+  allowed,
+  module = "officials",
+}: {
+  userId: string;
+  email: string;
+  allowed: boolean;
+  module?: keyof typeof MODULES;
+}) {
+  const { label, action } = MODULES[module];
   const [pending, startTransition] = useTransition();
   // Optimistic: the box flips at once and goes back if the server refuses.
   const [checked, setChecked] = useState(allowed);
@@ -14,12 +30,12 @@ export function OfficialsAccessToggle({ userId, email, allowed }: { userId: stri
         type="checkbox"
         checked={checked}
         disabled={pending}
-        aria-label={`Acceso a Funcionarios para ${email}`}
+        aria-label={`Acceso a ${label} para ${email}`}
         onChange={(e) => {
           const next = e.target.checked;
           setChecked(next);
           startTransition(async () => {
-            const result = await setOfficialsAccess({ userId, allowed: next });
+            const result = await action({ userId, allowed: next });
             if (result.ok) return void toast.success(result.message);
             setChecked(!next);
             toast.error(result.message);

@@ -20,9 +20,10 @@ export default async function SettingsPage() {
   const [{ data: members }, { data: departments }, { data: grants }] = await Promise.all([
     supabase.rpc("org_members", { p_org_id: member.orgId }),
     supabase.from("departments").select("id, name").eq("org_id", member.orgId).order("name"),
-    supabase.from("memberships").select("user_id, can_view_officials").eq("org_id", member.orgId),
+    supabase.from("memberships").select("user_id, can_view_officials, can_view_counterintel").eq("org_id", member.orgId),
   ]);
   const officialsAccess = new Map((grants ?? []).map((g) => [g.user_id, g.can_view_officials]));
+  const counterintelAccess = new Map((grants ?? []).map((g) => [g.user_id, g.can_view_counterintel]));
 
   return (
     <>
@@ -53,6 +54,9 @@ export default async function SettingsPage() {
                   <TableHead>Dependencia</TableHead>
                   <TableHead>Último acceso</TableHead>
                   <TableHead title="Módulo restringido de percepción de funcionarios">Funcionarios</TableHead>
+                  <TableHead title="Oficina de Contrainteligencia: sólo los funcionarios autorizados, también Administración">
+                    Contrainteligencia
+                  </TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -72,6 +76,18 @@ export default async function SettingsPage() {
                         "—"
                       ) : (
                         <OfficialsAccessToggle userId={m.user_id} email={m.email} allowed={officialsAccess.get(m.user_id) ?? false} />
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {m.role === "dependencia" ? (
+                        "—"
+                      ) : (
+                        <OfficialsAccessToggle
+                          module="counterintel"
+                          userId={m.user_id}
+                          email={m.email}
+                          allowed={counterintelAccess.get(m.user_id) ?? false}
+                        />
                       )}
                     </TableCell>
                     <TableCell>
