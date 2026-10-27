@@ -3,6 +3,15 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Radar Social (27 oct 2026, base `47cc67a`)
+
+- «Oficina de Contrainteligencia» se llama ahora **Radar Social**, para que quepa en el menú.
+- Cambia en el menú, el título de la página, la columna de Configuración → Usuarios y los avisos.
+- La dirección pasa de `/contrainteligencia` a `/radar-social`.
+- Las tablas, funciones y permisos de la base no cambian (`ci_reports`, `ci_overview`, `can_view_counterintel`):
+  sin SQL. Los permisos ya otorgados se conservan.
+- Pruebas: tipos, lint, 428 unitarias; e2e de Radar Social, menú por rol, usuarios y funcionarios.
+
 ## Actualización de seguridad de dependencias (27 oct 2026, base `6f0a86f`)
 
 - **Next.js 16.4.0 → 16.4.3** (y `eslint-config-next`). Corrige tres avisos:

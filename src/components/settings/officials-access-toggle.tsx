@@ -6,7 +6,7 @@ import { setCounterintelAccess, setOfficialsAccess } from "@/app/(app)/configura
 
 const MODULES = {
   officials: { label: "Funcionarios", action: setOfficialsAccess },
-  counterintel: { label: "Oficina de Contrainteligencia", action: setCounterintelAccess },
+  counterintel: { label: "Radar Social", action: setCounterintelAccess },
 } as const;
 
 export function OfficialsAccessToggle({

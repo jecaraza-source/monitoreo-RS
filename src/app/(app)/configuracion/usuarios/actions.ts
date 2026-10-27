@@ -143,7 +143,7 @@ export async function setOfficialsAccess(input: unknown): Promise<{ ok: boolean;
 }
 
 // ---------------------------------------------------------------------------
-// Access to the counter-intelligence office (Oficina de Contrainteligencia)
+// Access to the counter-intelligence office (Radar Social)
 // ---------------------------------------------------------------------------
 
 /**
@@ -176,7 +176,7 @@ export async function setCounterintelAccess(input: unknown): Promise<{ ok: boole
   revalidatePath("/", "layout");
   return {
     ok: true,
-    message: parsed.data.allowed ? "Acceso a la Oficina de Contrainteligencia otorgado." : "Acceso a la Oficina de Contrainteligencia retirado.",
+    message: parsed.data.allowed ? "Acceso a Radar Social otorgado." : "Acceso a Radar Social retirado.",
   };
 }
 

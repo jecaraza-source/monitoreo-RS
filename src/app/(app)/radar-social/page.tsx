@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { requireSection } from "@/lib/auth/session";
 import { getOverview, getReports } from "@/lib/counterintel/data";
 
-export const metadata: Metadata = { title: "Oficina de Contrainteligencia" };
+export const metadata: Metadata = { title: "Radar Social" };
 
 const DAYS = 30;
 
@@ -19,7 +19,7 @@ export default function CounterintelPage() {
   return (
     <>
       <PageHeader
-        title="Oficina de Contrainteligencia"
+        title="Radar Social"
         description="Desinformación sobre el municipio, cuentas que suplantan al ayuntamiento o a sus funcionarios, bots coordinados y amenazas. Acceso sólo para funcionarios autorizados; cada consulta queda en la bitácora."
       />
       <Suspense fallback={<Skeleton className="h-96 w-full" />}>
@@ -31,7 +31,7 @@ export default function CounterintelPage() {
 
 async function Counterintel() {
   // Section + explicit grant (admins too); the database checks it again.
-  const member = await requireSection("/contrainteligencia");
+  const member = await requireSection("/radar-social");
   const [overview, reports] = await Promise.all([getOverview(member, DAYS), getReports(member)]);
   const canEdit = member.role === "admin" || member.role === "comunicacion";
 
@@ -39,14 +39,14 @@ async function Counterintel() {
     <div className="flex flex-col gap-4">
       <p className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
         <ShieldAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
-        La oficina trabaja sobre contenidos, cuentas que se presentan como oficiales, dominios y narrativas. No se registra
+        Radar Social trabaja sobre contenidos, cuentas que se presentan como oficiales, dominios y narrativas. No se registra
         ni se da seguimiento a ciudadanos, periodistas u opositores por sus opiniones; las críticas no son desinformación.
       </p>
 
       <Card>
         <CardHeader>
-          <CardTitle as="h2">Registro de la oficina</CardTitle>
-          <CardDescription>Lo que la oficina sigue, con sus indicadores y evidencias. Los reportes se cierran con una nota; no se borran.</CardDescription>
+          <CardTitle as="h2">Registro de reportes</CardTitle>
+          <CardDescription>Lo que se sigue, con sus indicadores y evidencias. Los reportes se cierran con una nota; no se borran.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {canEdit && <CiReportForm />}
