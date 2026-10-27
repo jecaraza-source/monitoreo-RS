@@ -3,6 +3,25 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Actualización de seguridad de dependencias (27 oct 2026, base `6f0a86f`)
+
+- **Next.js 16.4.0 → 16.4.3** (y `eslint-config-next`). Corrige tres avisos:
+  - [GHSA-2464-fhr4-w9xw](https://github.com/advisories/GHSA-2464-fhr4-w9xw): ejecución remota de código en la
+    optimización de imágenes con SVG (crítico);
+  - [GHSA-673q-mjm6-r5xr](https://github.com/advisories/GHSA-673q-mjm6-r5xr): ejecución remota de código en
+    `use cache` con arreglos tipados (crítico);
+  - [GHSA-p3m5-59mp-jv5r](https://github.com/advisories/GHSA-p3m5-59mp-jv5r): denegación de servicio con Server
+    Actions (alto). Este sí aplica a la app, que usa Server Actions en casi todo.
+- **`npm audit fix` sin `--force`** (sólo versiones menores dentro de los rangos):
+  - `zod` 4.6.7: corrige agotamiento de memoria al validar colecciones grandes (alto); valida todas las Server
+    Actions;
+  - dependencias de `shadcn` (herramienta de desarrollo): `undici`, `body-parser`, `fast-uri` e `ip-address`.
+- **Resultado:** `npm audit` reporta 0 vulnerabilidades. `next build` ya no muestra el aviso de seguridad.
+- **Prueba ajustada:** `counterintel.spec.ts` busca el título del reporte dentro de la lista visible. Mientras la
+  página se transmite, React deja por un momento una copia oculta, y la búsqueda en toda la página la encontraba.
+- **Pruebas:** tipos, lint, 428 unitarias, pgTAP 971/971 y la batería e2e completa (72 pasan, 11 omitidas).
+- **Sin SQL.** Revertir: el despliegue anterior.
+
 ## Oficina de Contrainteligencia (27 oct 2026, base `2aba4a3`)
 
 - **Qué es:** sección restringida para seguir:
