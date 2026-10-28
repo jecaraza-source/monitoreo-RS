@@ -21,6 +21,8 @@ su propio documento de `docs/`.
   - ventana y reanudación como YouTube;
   - el límite de la plataforma o una llave rechazada se informan en Salud con su acción;
   - hosts fijos, con tiempo y tamaño máximos (`fetchText` ahora acepta POST).
+  - Si la base todavía no tiene los tipos nuevos (SQL pendiente), la captura sigue leyendo los anteriores en vez
+    de detenerse. Lo detectó `e2e-preview`: preview no tenía el SQL y no se leía ninguna fuente.
 - **Pruebas:**
   - 444 unitarias, con Bluesky (4) y Reddit (3);
   - pgTAP 987/987;
