@@ -28,12 +28,13 @@ async function editor() {
   }
 }
 const FORBIDDEN = { ok: false as const, message: "No tienes permiso para administrar fuentes." };
+const UNOFFICIAL_ADMIN_ONLY = { ok: false as const, message: "Sólo administración puede conectar o configurar fuentes no oficiales." };
 const idSchema = z.guid("Identificador inválido.");
 
 const saveSchema = z.object({
   id: idSchema.nullable(),
   name: z.string().trim().min(2, "Ponle nombre a la fuente.").max(120),
-  type: z.enum(["meta", "rss", "youtube", "x", "bluesky", "reddit"]),
+  type: z.enum(["meta", "rss", "youtube", "x", "bluesky", "reddit", "rss_bridge", "apify"]),
   config: z.record(z.string(), z.unknown()),
   /** Write-only credential; empty keeps the stored one. */
   secret: z.string().max(2000).optional(),
@@ -48,6 +49,8 @@ export async function saveSource(input: unknown): Promise<SourceActionResult<{ i
 
   const connector = getConnector(type as SourceType);
   if (!connector.enabled) return { ok: false, message: `${connector.label}: este conector aún no está disponible.` };
+  // The database enforces it too (guard_unofficial_source); checked here for a clear message.
+  if (!connector.official && member.role !== "admin") return UNOFFICIAL_ADMIN_ONLY;
   const config = connector.configSchema.safeParse(parsed.data.config);
   if (!config.success) return { ok: false, message: config.error.issues[0]?.message ?? "Configuración inválida." };
 
@@ -62,6 +65,7 @@ export async function saveSource(input: unknown): Promise<SourceActionResult<{ i
     ? await supabase.from("sources").update(row).eq("id", id).eq("org_id", member.orgId).select("id, type").single()
     : await supabase.from("sources").insert({ ...row, type, org_id: member.orgId, is_active: true }).select("id, type").single();
   if (saved.error || !saved.data) {
+    if (saved.error?.code === "42501" && !connector.official) return UNOFFICIAL_ADMIN_ONLY;
     console.error("[sources] save:", saved.error?.code);
     return { ok: false, message: "No se pudo guardar la fuente." };
   }

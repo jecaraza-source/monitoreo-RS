@@ -135,14 +135,18 @@ export function nextAttempt(s: SourceSnapshot, now: Date, connectorEnabled = tru
 /** A concrete next step for an error message (no secrets in the text: errors are already redacted). */
 export function actionForError(error: string | null, sourceType?: string): HealthAction {
   const e = (error ?? "").toLowerCase();
+  // Server keys first: "APIFY_TOKEN" is not a page token.
+  if (/falta configurar (bluesky|reddit|apify)|rechazó la cuenta o la contraseña de aplicación|rechazó reddit_client|rechazó apify_token/.test(e)) {
+    return { kind: "wait", label: "Configurar o renovar la llave del servidor en Vercel (Administración)" };
+  }
   if (/token|meta 190|vuelve a conectarla|falta la credencial/.test(e)) {
     return { kind: "edit", label: "Reconectar el token de la página", href: "/configuracion/fuentes" };
   }
   if (/no está permitida|url de la fuente|http 404|http 410|no devuelve un feed|configuración inválida/.test(e)) {
-    return { kind: "edit", label: sourceType === "rss" ? "Revisar la URL del feed" : "Revisar la configuración", href: "/configuracion/fuentes" };
+    return { kind: "edit", label: sourceType === "rss" || sourceType === "rss_bridge" ? "Revisar la URL del feed" : "Revisar la configuración", href: "/configuracion/fuentes" };
   }
-  if (/falta configurar (bluesky|reddit)|rechazó la cuenta o la contraseña de aplicación|rechazó reddit_client/.test(e)) {
-    return { kind: "wait", label: "Configurar o renovar la llave del servidor en Vercel (Administración)" };
+  if (/no existe en apify/.test(e)) {
+    return { kind: "edit", label: "Revisar la tarea de Apify (nombre y corridas exitosas)", href: "/configuracion/fuentes" };
   }
   if (/cuota|limitó las consultas|youtube_api_key/.test(e)) {
     return { kind: "wait", label: "Esperar a que se renueve la cuota (se reintenta solo)" };

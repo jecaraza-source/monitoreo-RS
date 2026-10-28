@@ -69,6 +69,7 @@ export const blueskyConnector: Connector<BlueskyConfig> = {
   type: "bluesky",
   label: "Bluesky",
   enabled: true,
+  official: true,
   requiresSecret: false,
   configSchema: blueskyConfigSchema,
   defaultRequireMatch: true,

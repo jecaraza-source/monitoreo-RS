@@ -8,15 +8,18 @@ export type ConnectorInfo = {
   type: SourceType;
   label: string;
   enabled: boolean;
+  /** Unofficial (scraper or feed bridge): marked as such, admin-only to connect. */
+  official: boolean;
   requiresSecret: boolean;
   defaultRequireMatch: boolean;
 };
 
 export function connectorInfo(): ConnectorInfo[] {
-  return Object.values(CONNECTORS).map(({ type, label, enabled, requiresSecret, defaultRequireMatch }) => ({
+  return Object.values(CONNECTORS).map(({ type, label, enabled, official, requiresSecret, defaultRequireMatch }) => ({
     type,
     label,
     enabled,
+    official,
     requiresSecret,
     defaultRequireMatch,
   }));

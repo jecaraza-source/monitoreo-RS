@@ -72,6 +72,7 @@ tipo *Sensitive*); el build de CI comprueba que ninguna aparezca en el bundle de
 | `YOUTUBE_API_KEY` | **secreto** | Conector de YouTube |
 | `BLUESKY_IDENTIFIER` · `BLUESKY_APP_PASSWORD` | config · **secreto** | Conector de Bluesky (cuenta institucional y contraseña de aplicación) |
 | `REDDIT_CLIENT_ID` · `REDDIT_CLIENT_SECRET` · `REDDIT_USER_AGENT` | config · **secreto** · config | Conector de Reddit (app tipo «script» de la cuenta institucional) |
+| `APIFY_TOKEN` | **secreto** | Opcional: fuentes «Apify (no oficial)»; lee la última corrida de tareas programadas en Apify |
 | `ABUSECH_AUTH_KEY` · `GOOGLE_SAFE_BROWSING_API_KEY` · `GOOGLE_FACTCHECK_API_KEY` | **secreto** | Opcionales: Radar Social revisa indicadores en URLhaus y Safe Browsing, y busca verificaciones en Google Fact Check |
 | `RSS_ALLOWED_HOSTS` | config | Opcional: hosts de feeds permitidos (`diario.mx`, `.diario.mx` para subdominios) |
 | `WHATSAPP_TOKEN` · `WHATSAPP_PHONE_NUMBER_ID` · `WHATSAPP_TEMPLATE_LANG` | **secreto** · config | Canal de WhatsApp con funcionarios (ver [WhatsApp](#whatsapp)) |
@@ -324,8 +325,16 @@ menciones normalizadas sin tocar la base:
 | `x` | Deshabilitado: requiere plan de pago de la API de X | — |
 | `bluesky` | Publicaciones por búsqueda y/o de una cuenta (sólo esa cuenta aparece con nombre) | `BLUESKY_IDENTIFIER`, `BLUESKY_APP_PASSWORD` |
 | `reddit` | Publicaciones por búsqueda y/o de un subreddit (los autores no se guardan) | `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` |
+| `rss_bridge` | **No oficial.** Feed que arma una instancia propia de RSSHub o RSS-Bridge a partir de un perfil, canal o búsqueda (Telegram, Instagram, TikTok…). Se lee como RSS, con el mismo filtro de destinos | — (la instancia la hospeda el municipio; agrega su host a `RSS_ALLOWED_HOSTS` si lo usas) |
+| `apify` | **No oficial.** Resultados de la última corrida exitosa de una tarea de Apify (el scraper y su programación viven en Apify) | `APIFY_TOKEN` |
 
 Los autores de comentarios (ciudadanos) no se guardan; sólo medios y páginas oficiales.
+
+Las fuentes **no oficiales** (`rss_bridge`, `apify`) leen contenido público fuera de la API oficial de la red:
+pueden ir contra sus términos de uso y dejar de funcionar sin aviso. Son decisión de la administración: sólo un
+admin las conecta o cambia (la base lo exige con `guard_unofficial_source`); comunicación puede probarlas,
+pausarlas o borrarlas. Se marcan «No oficial» en Fuentes y en la bandeja, los reportes lo indican, y nunca
+guardan autores.
 
 **Autores verificados (etapa 10):**
 

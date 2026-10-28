@@ -8,8 +8,8 @@ import { refreshMentionStats } from "@/lib/dashboard/refresh";
 import type { Json } from "@/lib/supabase/database.types";
 import { assignQueries, compileQueries, type Assigned, type CompiledQuery } from "./assign";
 
-/** Source types every database has (initial schema); newer ones need their migration. */
-const LEGACY_TYPES: readonly SourceType[] = ["meta", "rss", "youtube", "x"];
+/** Source types every applied database has; newer ones need their migration. */
+const LEGACY_TYPES: readonly SourceType[] = ["meta", "rss", "youtube", "x", "bluesky", "reddit"];
 import { applyResult, planWindow, readBackfill, type CoverageState } from "./coverage";
 
 type Admin = ReturnType<typeof createAdminClient>;

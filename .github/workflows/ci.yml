@@ -113,6 +113,9 @@ jobs:
             echo "REDDIT_CLIENT_SECRET=e2e-secret"
             echo "REDDIT_AUTH_URL=http://127.0.0.1:4010/reddit/token"
             echo "REDDIT_API_URL=http://127.0.0.1:4010/reddit/api"
+            # Apify (unofficial source), answered by the mock.
+            echo "APIFY_TOKEN=e2e-apify"
+            echo "APIFY_API_URL=http://127.0.0.1:4010/apify"
             # Radar Social verification services, answered by the mock.
             echo "ABUSECH_AUTH_KEY=mock"
             echo "GOOGLE_SAFE_BROWSING_API_KEY=mock"

@@ -79,6 +79,7 @@ export const youtubeConnector: Connector<YoutubeConfig> = {
   type: "youtube",
   label: "YouTube",
   enabled: true,
+  official: true,
   requiresSecret: false,
   configSchema: youtubeConfigSchema,
   defaultRequireMatch: true,
