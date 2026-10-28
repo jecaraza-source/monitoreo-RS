@@ -33,7 +33,7 @@ const refresh = () => {
 
 const verifySchema = z
   .object({
-    platform: z.enum(["rss", "meta", "youtube", "x"]),
+    platform: z.enum(["rss", "meta", "youtube", "x", "bluesky"]),
     handle: z.string().trim().min(1, "Escribe la cuenta.").max(200),
     kind: z.enum(["media", "public_figure"]),
     display_name: z.string().trim().min(1, "Escribe el nombre público.").max(200),
@@ -46,7 +46,7 @@ const verifySchema = z
       .optional()
       .transform((v) => v || null),
   })
-  .transform((v) => ({ ...v, handle: v.platform === "x" || v.platform === "meta" ? v.handle.replace(/^@/, "") : v.handle }))
+  .transform((v) => ({ ...v, handle: v.platform === "x" || v.platform === "meta" ? v.handle.replace(/^@/, "") : v.platform === "bluesky" ? v.handle.replace(/^@/, "").toLowerCase() : v.handle }))
   .refine((v) => v.platform !== "youtube" || /^UC[\w-]{22}$/.test(v.handle), { message: "El ID de canal empieza con UC y tiene 24 caracteres.", path: ["handle"] });
 
 /** Adds a verified media outlet or public figure. Identity and org come from the session (RPC). */

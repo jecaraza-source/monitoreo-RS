@@ -8,7 +8,7 @@
 
 import type { z } from "zod";
 
-export type SourceType = "meta" | "rss" | "youtube" | "x";
+export type SourceType = "meta" | "rss" | "youtube" | "x" | "bluesky" | "reddit";
 
 /**
  * The account that published an item. Connectors only claim what the source
@@ -78,6 +78,15 @@ export type ConnectorContext = {
   secret: string | null;
   env: {
     youtubeApiKey?: string;
+    blueskyIdentifier?: string;
+    blueskyAppPassword?: string;
+    blueskyService?: string;
+    redditClientId?: string;
+    redditClientSecret?: string;
+    redditUserAgent?: string;
+    /** Test/staging overrides of the provider hosts (the real ones by default). */
+    redditAuthUrl?: string;
+    redditApiUrl?: string;
     metaAppSecret?: string;
     metaGraphVersion?: string;
   };
@@ -123,6 +132,14 @@ export function resolveContext(ctx: Partial<ConnectorContext> = {}): ConnectorCo
     secret: ctx.secret ?? null,
     env: ctx.env ?? {
       youtubeApiKey: process.env.YOUTUBE_API_KEY,
+      blueskyIdentifier: process.env.BLUESKY_IDENTIFIER,
+      blueskyAppPassword: process.env.BLUESKY_APP_PASSWORD,
+      blueskyService: process.env.BLUESKY_SERVICE,
+      redditClientId: process.env.REDDIT_CLIENT_ID,
+      redditClientSecret: process.env.REDDIT_CLIENT_SECRET,
+      redditUserAgent: process.env.REDDIT_USER_AGENT,
+      redditAuthUrl: process.env.REDDIT_AUTH_URL,
+      redditApiUrl: process.env.REDDIT_API_URL,
       metaAppSecret: process.env.META_APP_SECRET,
       metaGraphVersion: process.env.META_GRAPH_VERSION,
     },

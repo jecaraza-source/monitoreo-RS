@@ -15,6 +15,7 @@ const PLATFORMS = [
   { value: "meta", label: "Facebook" },
   { value: "youtube", label: "YouTube" },
   { value: "x", label: "X" },
+  { value: "bluesky", label: "Bluesky" },
 ] as const;
 
 const EMPTY = { platform: "youtube" as (typeof PLATFORMS)[number]["value"], handle: "", kind: "media" as "media" | "public_figure", display_name: "", evidence: "", evidence_url: "" };

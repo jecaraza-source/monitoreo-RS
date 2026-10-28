@@ -26,4 +26,5 @@ export const HANDLE_HINTS = {
   meta: "Usuario o ID de la página",
   youtube: "ID del canal (empieza con UC)",
   x: "Usuario sin @",
+  bluesky: "Cuenta completa sin @, p. ej. medio.bsky.social",
 } as const;

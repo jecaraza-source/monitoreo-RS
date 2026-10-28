@@ -45,7 +45,7 @@ const INCIDENT_DB: Record<Classification["incident_type"], string> = {
   otro: "other",
 };
 
-const SOURCE_LABEL: Record<Enums["source_type"], string> = { meta: "Facebook", rss: "RSS", youtube: "YouTube", x: "X" };
+const SOURCE_LABEL: Record<Enums["source_type"], string> = { meta: "Facebook", rss: "RSS", youtube: "YouTube", x: "X", bluesky: "Bluesky", reddit: "Reddit" };
 
 /** Mentions claimed per round; they are grouped by project into batches of MAX_BATCH. */
 const CLAIM_LIMIT = 40;

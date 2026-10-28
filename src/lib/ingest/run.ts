@@ -7,6 +7,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { refreshMentionStats } from "@/lib/dashboard/refresh";
 import type { Json } from "@/lib/supabase/database.types";
 import { assignQueries, compileQueries, type Assigned, type CompiledQuery } from "./assign";
+
+/** Source types every database has (initial schema); newer ones need their migration. */
+const LEGACY_TYPES: readonly SourceType[] = ["meta", "rss", "youtube", "x"];
 import { applyResult, planWindow, readBackfill, type CoverageState } from "./coverage";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -75,16 +78,24 @@ export async function runIngest(options: {
   if (options.trigger === "cron") await heartbeat(admin, "start");
 
   const enabledTypes = Object.values(CONNECTORS).filter((c) => c.enabled).map((c) => c.type);
-  const { data: rows, error } = await admin.rpc("claim_sources", {
-    p_lease_id: runId,
-    p_limit: options.sourceIds ? options.sourceIds.length : BATCH_SIZE,
-    p_lease_seconds: LEASE_SECONDS,
-    p_types: enabledTypes,
-    p_source_ids: options.sourceIds,
-    p_org_id: options.orgId,
-    p_respect_backoff: options.trigger === "cron",
-    p_min_gap_seconds: options.minGapSeconds ?? 0,
-  });
+  const claim = (types: SourceType[]) =>
+    admin.rpc("claim_sources", {
+      p_lease_id: runId,
+      p_limit: options.sourceIds ? options.sourceIds.length : BATCH_SIZE,
+      p_lease_seconds: LEASE_SECONDS,
+      p_types: types,
+      p_source_ids: options.sourceIds,
+      p_org_id: options.orgId,
+      p_respect_backoff: options.trigger === "cron",
+      p_min_gap_seconds: options.minGapSeconds ?? 0,
+    });
+  let { data: rows, error } = await claim(enabledTypes);
+  // A database without a newer source type (its migration not applied yet) rejects the whole list:
+  // keep reading the types it has instead of stopping every source.
+  if (error?.code === "22P02") {
+    console.warn("[ingest] la base no tiene algún tipo de fuente nuevo; se leen los anteriores:", error.message);
+    ({ data: rows, error } = await claim(enabledTypes.filter((t) => LEGACY_TYPES.includes(t))));
+  }
   if (error) {
     if (options.trigger === "cron") await heartbeat(admin, "finish", error.message);
     throw new Error(`No se pudieron reservar las fuentes: ${error.message}`);

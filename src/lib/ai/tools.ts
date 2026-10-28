@@ -324,7 +324,7 @@ export function groupBy<K extends string>(rows: Row[], key: (r: Row) => K | null
   return groups;
 }
 
-const PLATFORM_ES: Record<string, string> = { meta: "Facebook", rss: "Medio (RSS)", youtube: "YouTube", x: "X" };
+const PLATFORM_ES: Record<string, string> = { meta: "Facebook", rss: "Medio (RSS)", youtube: "YouTube", x: "X", bluesky: "Bluesky", reddit: "Reddit" };
 const fullDate = new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Mexico_City" });
 
 // ---------------------------------------------------------------------------

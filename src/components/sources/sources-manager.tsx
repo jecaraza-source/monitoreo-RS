@@ -34,6 +34,12 @@ function describe(source: SourceView): string {
   if (source.type === "youtube") {
     return [c.query ? `“${String(c.query)}”` : null, c.channelId ? `canal ${String(c.channelId)}` : null].filter(Boolean).join(" · ");
   }
+  if (source.type === "bluesky") {
+    return [c.query ? `“${String(c.query)}”` : null, c.account ? `cuenta ${String(c.account)}` : null].filter(Boolean).join(" · ");
+  }
+  if (source.type === "reddit") {
+    return [c.query ? `“${String(c.query)}”` : null, c.subreddit ? `r/${String(c.subreddit)}` : null].filter(Boolean).join(" · ");
+  }
   return "";
 }
 

@@ -61,12 +61,21 @@ export class CancelledError extends ConnectorError {
   }
 }
 
-export type FetchTextOptions = { timeoutMs?: number; maxBytes?: number; accept?: string; signal?: AbortSignal };
+export type FetchTextOptions = {
+  timeoutMs?: number;
+  maxBytes?: number;
+  accept?: string;
+  signal?: AbortSignal;
+  /** For APIs that need them (token exchange, authorized reads); GET without a body by default. */
+  method?: "GET" | "POST";
+  headers?: Record<string, string>;
+  body?: string;
+};
 
 export async function fetchText(
   fetchImpl: typeof fetch,
   url: string,
-  { timeoutMs = 15000, maxBytes = DEFAULT_MAX_BYTES, accept = "*/*", signal: outer }: FetchTextOptions = {},
+  { timeoutMs = 15000, maxBytes = DEFAULT_MAX_BYTES, accept = "*/*", signal: outer, method = "GET", headers, body }: FetchTextOptions = {},
 ): Promise<{ status: number; text: string }> {
   const timeout = AbortSignal.timeout(timeoutMs);
   const signal = outer ? AbortSignal.any([timeout, outer]) : timeout;
@@ -79,7 +88,7 @@ export async function fetchText(
     return new ConnectorError(`${host} no respondió.`);
   };
   try {
-    const response = await fetchImpl(url, { headers: { "user-agent": USER_AGENT, accept }, redirect: "follow", signal });
+    const response = await fetchImpl(url, { method, body, headers: { "user-agent": USER_AGENT, accept, ...headers }, redirect: "follow", signal });
     return { status: response.status, text: await readCapped(response, maxBytes, signal) };
   } catch (error) {
     throw explain(error);
@@ -89,9 +98,9 @@ export async function fetchText(
 export async function fetchJson<T>(
   fetchImpl: typeof fetch,
   url: string,
-  { signal }: { signal?: AbortSignal } = {},
+  options: Pick<FetchTextOptions, "signal" | "method" | "headers" | "body"> = {},
 ): Promise<{ status: number; body: T }> {
-  const { status, text } = await fetchText(fetchImpl, url, { accept: "application/json", signal });
+  const { status, text } = await fetchText(fetchImpl, url, { accept: "application/json", ...options });
   try {
     return { status, body: JSON.parse(text) as T };
   } catch {

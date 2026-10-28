@@ -162,6 +162,36 @@ async function handle(req, res, raw) {
       res.end(JSON.stringify({ id }));
       return;
     }
+    // Bluesky (BLUESKY_SERVICE) and Reddit (REDDIT_AUTH_URL, REDDIT_API_URL) sources.
+    if (req.url.startsWith("/bluesky/") || req.url.startsWith("/reddit/")) {
+      const url = new URL(req.url, "http://mock");
+      const json = (body, status = 200) => {
+        res.writeHead(status, { "content-type": "application/json" });
+        res.end(JSON.stringify(body));
+      };
+      const hourAgo = new Date(Date.now() - 3600_000);
+      if (url.pathname === "/bluesky/xrpc/com.atproto.server.createSession") {
+        const body = JSON.parse(raw || "{}");
+        return body.password === "e2e-app-password" ? json({ accessJwt: "jwt-e2e", did: "did:plc:radar" }) : json({ error: "AuthenticationRequired", message: "Invalid identifier or password" }, 401);
+      }
+      if (url.pathname === "/bluesky/xrpc/app.bsky.feed.searchPosts") {
+        if (req.headers.authorization !== "Bearer jwt-e2e") return json({ error: "AuthRequired" }, 401);
+        return json({
+          posts: [
+            { uri: "at://did:plc:vecina/app.bsky.feed.post/e2e1", author: { did: "did:plc:vecina", handle: "vecina.bsky.social", displayName: "Vecina" }, record: { text: `Bluesky e2e: ${url.searchParams.get("q")} sin agua en la colonia Centro`, createdAt: hourAgo.toISOString() }, likeCount: 2, repostCount: 0, replyCount: 1 },
+          ],
+        });
+      }
+      if (url.pathname === "/reddit/token" && req.method === "POST") {
+        return req.headers.authorization === `Basic ${Buffer.from("e2e-client:e2e-secret").toString("base64")}` ? json({ access_token: "tok-e2e", token_type: "bearer", expires_in: 86400 }) : json({ error: "invalid_client" }, 401);
+      }
+      if (url.pathname.startsWith("/reddit/api/")) {
+        if (req.headers.authorization !== "Bearer tok-e2e") return json({ message: "Unauthorized", error: 401 }, 401);
+        return json({ data: { after: null, children: [{ kind: "t3", data: { id: "e2e1", title: `Reddit e2e: ${url.searchParams.get("q") ?? "nuevo"} baches en Alvarado`, selftext: "", created_utc: Math.floor(hourAgo.getTime() / 1000), permalink: "/r/veracruz/comments/e2e1/x/", score: 5, num_comments: 2 } }] } });
+      }
+      res.writeHead(404).end();
+      return;
+    }
     // Radar Social verification services (RADAR_*_URL point here in tests).
     // A domain or query containing "falso" is flagged / has results; anything else is clean.
     if (req.url.startsWith("/radar/")) {

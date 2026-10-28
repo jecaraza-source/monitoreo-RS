@@ -141,6 +141,9 @@ export function actionForError(error: string | null, sourceType?: string): Healt
   if (/no está permitida|url de la fuente|http 404|http 410|no devuelve un feed|configuración inválida/.test(e)) {
     return { kind: "edit", label: sourceType === "rss" ? "Revisar la URL del feed" : "Revisar la configuración", href: "/configuracion/fuentes" };
   }
+  if (/falta configurar (bluesky|reddit)|rechazó la cuenta o la contraseña de aplicación|rechazó reddit_client/.test(e)) {
+    return { kind: "wait", label: "Configurar o renovar la llave del servidor en Vercel (Administración)" };
+  }
   if (/cuota|limitó las consultas|youtube_api_key/.test(e)) {
     return { kind: "wait", label: "Esperar a que se renueve la cuota (se reintenta solo)" };
   }
