@@ -135,6 +135,8 @@ describe("actionForError", () => {
     assert.equal(actionForError("La URL de la fuente no está permitida: …", "rss").label, "Revisar la URL del feed");
     assert.equal(actionForError("Se agotó la cuota diaria de la API de YouTube").kind, "wait");
     assert.equal(actionForError("feed.example tardó demasiado en responder.").kind, "retry");
+    assert.equal(actionForError("La tarea yo~ig no existe en Apify o aún no tiene corridas exitosas.", "apify").kind, "edit");
+    assert.equal(actionForError("Falta configurar APIFY_TOKEN en el servidor.", "apify").kind, "wait");
   });
 });
 

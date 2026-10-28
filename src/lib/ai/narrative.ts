@@ -170,7 +170,7 @@ type RawMention = {
 
 const SENTIMENT_ES: Record<string, string> = { positive: "positivo", neutral: "neutral", negative: "negativo" };
 const SEVERITY_ES: Record<string, string> = { critical: "crítica", high: "alta", medium: "media", low: "baja" };
-const PLATFORM_ES: Record<string, string> = { meta: "Facebook", rss: "Medio (RSS)", youtube: "YouTube", x: "X", bluesky: "Bluesky", reddit: "Reddit" };
+const PLATFORM_ES: Record<string, string> = { meta: "Facebook", rss: "Medio (RSS)", youtube: "YouTube", x: "X", bluesky: "Bluesky", reddit: "Reddit", rss_bridge: "Puente RSS (fuente no oficial)", apify: "Apify (fuente no oficial)" };
 const TARGET_LABELS: Record<string, string> = {
   tiempo_respuesta_horas: "Meta de tiempo de atención (horas)",
   sentimiento_positivo_pct: "Meta de menciones positivas (%)",

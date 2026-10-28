@@ -15,6 +15,7 @@ import {
 } from "@/lib/sources/actions";
 import type { ConnectorInfo, SourceView } from "@/lib/sources/data";
 import { cn } from "@/lib/utils";
+import { UNOFFICIAL_NETWORKS } from "@/lib/connectors/networks";
 import { SourceForm } from "./source-form";
 
 const relative = new Intl.RelativeTimeFormat("es-MX", { numeric: "auto" });
@@ -37,18 +38,32 @@ function describe(source: SourceView): string {
   if (source.type === "bluesky") {
     return [c.query ? `“${String(c.query)}”` : null, c.account ? `cuenta ${String(c.account)}` : null].filter(Boolean).join(" · ");
   }
+  if (source.type === "rss_bridge" || source.type === "apify") {
+    const network = UNOFFICIAL_NETWORKS[c.network as keyof typeof UNOFFICIAL_NETWORKS];
+    return [network, source.type === "apify" ? `tarea ${String(c.task ?? "")}` : String(c.url ?? "")].filter(Boolean).join(" · ");
+  }
   if (source.type === "reddit") {
     return [c.query ? `“${String(c.query)}”` : null, c.subreddit ? `r/${String(c.subreddit)}` : null].filter(Boolean).join(" · ");
   }
   return "";
 }
 
-export function SourcesManager({ connectors, sources }: { connectors: ConnectorInfo[]; sources: SourceView[] }) {
+export function SourcesManager({
+  connectors,
+  sources,
+  canConnectUnofficial,
+}: {
+  connectors: ConnectorInfo[];
+  sources: SourceView[];
+  /** Only admins connect or reconfigure unofficial sources. */
+  canConnectUnofficial: boolean;
+}) {
   const [editing, setEditing] = useState<SourceView | "new" | null>(sources.length === 0 ? "new" : null);
   const [busy, setBusy] = useState<string | null>(null);
   const [tests, setTests] = useState<Record<string, TestResult | string>>({});
   const [, startTransition] = useTransition();
-  const label = (type: string) => connectors.find((c) => c.type === type)?.label ?? type;
+  const label = (type: string) => connectors.find((c) => c.type === type)?.label.replace(" (no oficial)", "") ?? type;
+  const official = (type: string) => connectors.find((c) => c.type === type)?.official ?? true;
 
   function act(id: string, kind: string, fn: () => Promise<{ ok: boolean; message: string }>) {
     setBusy(`${id}:${kind}`);
@@ -75,13 +90,17 @@ export function SourcesManager({ connectors, sources }: { connectors: ConnectorI
         <Card>
           <CardHeader>
             <CardTitle as="h2">{editing === "new" ? "Conectar fuente" : `Editar ${editing.name}`}</CardTitle>
-            <CardDescription>Sólo contenido público, por APIs oficiales o RSS.</CardDescription>
+            <CardDescription>
+              Sólo contenido público, por APIs oficiales o RSS. Las fuentes «No oficial» leen mediante servicios de
+              terceros y sólo administración las conecta.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <SourceForm
               key={editing === "new" ? "new" : editing.id}
               connectors={connectors}
               editing={editing === "new" ? null : editing}
+              canConnectUnofficial={canConnectUnofficial}
               onDone={() => setEditing(null)}
             />
           </CardContent>
@@ -109,6 +128,14 @@ export function SourcesManager({ connectors, sources }: { connectors: ConnectorI
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-medium">{source.name}</h3>
                       <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{label(source.type)}</span>
+                      {!official(source.type) && (
+                        <span
+                          className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-xs text-amber-800 dark:text-amber-300"
+                          title="Lee mediante un servicio de terceros, fuera de la API oficial de la red."
+                        >
+                          No oficial
+                        </span>
+                      )}
                       {!source.isActive && <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs">Pausada</span>}
                       {source.type === "meta" && !source.hasSecret && (
                         <span className="rounded-md bg-negative/12 px-1.5 py-0.5 text-xs text-negative">Sin token</span>
@@ -157,7 +184,14 @@ export function SourcesManager({ connectors, sources }: { connectors: ConnectorI
                     >
                       {source.isActive ? <Pause aria-hidden /> : <Play aria-hidden />}
                     </Button>
-                    <Button variant="ghost" size="icon-sm" aria-label={`Editar ${source.name}`} onClick={() => setEditing(source)}>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Editar ${source.name}`}
+                      disabled={!official(source.type) && !canConnectUnofficial}
+                      title={!official(source.type) && !canConnectUnofficial ? "Sólo administración cambia fuentes no oficiales." : undefined}
+                      onClick={() => setEditing(source)}
+                    >
                       <Pencil aria-hidden />
                     </Button>
                     <Button

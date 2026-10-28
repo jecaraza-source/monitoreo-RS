@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { KeyRound } from "lucide-react";
+import { KeyRound, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { UNOFFICIAL_NETWORKS, type UnofficialNetwork } from "@/lib/connectors/networks";
 import type { SourceType } from "@/lib/connectors/types";
 import { clearSourceSecret, saveSource } from "@/lib/sources/actions";
 import type { ConnectorInfo, SourceView } from "@/lib/sources/data";
@@ -18,9 +19,12 @@ const bool = (v: unknown, fallback: boolean) => (typeof v === "boolean" ? v : fa
 export function SourceForm({
   connectors,
   editing,
+  canConnectUnofficial,
   onDone,
 }: {
   connectors: ConnectorInfo[];
+  /** Only admins connect or reconfigure unofficial sources. */
+  canConnectUnofficial: boolean;
   /** Source being edited; null to connect a new one. */
   editing: SourceView | null;
   onDone: () => void;
@@ -37,6 +41,8 @@ export function SourceForm({
   const [channelId, setChannelId] = useState(str(cfg.channelId));
   const [account, setAccount] = useState(str(cfg.account));
   const [subreddit, setSubreddit] = useState(str(cfg.subreddit));
+  const [task, setTask] = useState(str(cfg.task));
+  const [network, setNetwork] = useState<UnofficialNetwork | "">((str(cfg.network) as UnofficialNetwork) || "");
   const [includeComments, setIncludeComments] = useState(bool(cfg.includeComments, true));
   const [requireMatch, setRequireMatch] = useState(bool(cfg.requireMatch, info.defaultRequireMatch));
   const [secret, setSecret] = useState("");
@@ -51,6 +57,10 @@ export function SourceForm({
     const config =
       type === "rss"
         ? { url, outletName: outletName || undefined, requireMatch }
+        : type === "rss_bridge"
+          ? { url, network: network || undefined, requireMatch }
+          : type === "apify"
+            ? { task, network: network || undefined, requireMatch }
         : type === "meta"
           ? { pageId, includeComments, requireMatch }
           : type === "bluesky"
@@ -77,7 +87,7 @@ export function SourceForm({
             </SelectTrigger>
             <SelectContent>
               {connectors.map((c) => (
-                <SelectItem key={c.type} value={c.type} disabled={!c.enabled}>
+                <SelectItem key={c.type} value={c.type} disabled={!c.enabled || (!c.official && !canConnectUnofficial)}>
                   {c.label}
                 </SelectItem>
               ))}
@@ -89,6 +99,62 @@ export function SourceForm({
           <Input id="source-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Diario del Valle" required />
         </div>
       </div>
+
+      {!info.official && (
+        <div role="note" className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden />
+          <p>
+            <strong>Fuente no oficial.</strong> Lee contenido público mediante un servicio de terceros, fuera de la API
+            oficial de la red: puede ir contra sus términos de uso y dejar de funcionar sin aviso. Lo que capture se
+            marca como «no oficial» en la bandeja y en los reportes, y los autores no se guardan. Sólo administración
+            puede conectarla o cambiarla.
+          </p>
+        </div>
+      )}
+
+      {(type === "rss_bridge" || type === "apify") && (
+        <div className="grid gap-4 md:grid-cols-[1fr_14rem]">
+          {type === "rss_bridge" ? (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="source-url">URL del feed en tu RSSHub o RSS-Bridge</Label>
+              <Input
+                id="source-url"
+                type="url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://rsshub.tu-dominio.mx/telegram/channel/canal"
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Usa una instancia propia; las públicas bloquean muchas rutas y limitan las consultas.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="source-task">Tarea de Apify</Label>
+              <Input id="source-task" value={task} onChange={(e) => setTask(e.target.value)} placeholder="usuario~instagram-medios" required />
+              <p className="text-xs text-muted-foreground">
+                Programa la tarea en Apify; aquí se lee el resultado de su última corrida exitosa.
+              </p>
+            </div>
+          )}
+          <div className="flex flex-col gap-2">
+            <Label id="source-network-label">Red</Label>
+            <Select value={network} onValueChange={(v) => setNetwork(v as UnofficialNetwork)}>
+              <SelectTrigger aria-labelledby="source-network-label" className="w-full">
+                <SelectValue placeholder="Elige la red">{(v: UnofficialNetwork) => UNOFFICIAL_NETWORKS[v]}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(UNOFFICIAL_NETWORKS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
 
       {type === "rss" && (
         <div className="grid gap-4 md:grid-cols-[1fr_16rem]">
@@ -207,7 +273,7 @@ export function SourceForm({
         <Button type="button" variant="ghost" onClick={onDone}>
           Cancelar
         </Button>
-        <Button type="submit" disabled={pending || !info.enabled}>
+        <Button type="submit" disabled={pending || !info.enabled || (!info.official && !canConnectUnofficial)}>
           {pending ? "Guardando…" : editing ? "Guardar cambios" : "Conectar fuente"}
         </Button>
       </div>

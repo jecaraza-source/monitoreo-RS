@@ -107,6 +107,7 @@ export const rssConnector: Connector<RssConfig> = {
   type: "rss",
   label: "RSS / Atom",
   enabled: true,
+  official: true,
   requiresSecret: false,
   configSchema: rssConfigSchema,
   defaultRequireMatch: true,

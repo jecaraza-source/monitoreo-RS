@@ -62,6 +62,7 @@ export const redditConnector: Connector<RedditConfig> = {
   type: "reddit",
   label: "Reddit",
   enabled: true,
+  official: true,
   requiresSecret: false,
   configSchema: redditConfigSchema,
   defaultRequireMatch: true,

@@ -15,7 +15,7 @@ import { runSourceNow } from "@/lib/sources/actions";
 import { cn } from "@/lib/utils";
 import { StatusBadge, TONE_BORDER } from "./status-badge";
 
-const TYPE_LABEL: Record<string, string> = { rss: "RSS", meta: "Facebook", youtube: "YouTube", x: "X", bluesky: "Bluesky", reddit: "Reddit" };
+const TYPE_LABEL: Record<string, string> = { rss: "RSS", meta: "Facebook", youtube: "YouTube", x: "X", bluesky: "Bluesky", reddit: "Reddit", rss_bridge: "Puente RSS (no oficial)", apify: "Apify (no oficial)" };
 const nf = new Intl.NumberFormat("es-MX");
 
 export type SourceRow = { source: SourceSnapshot; health: SourceHealth };

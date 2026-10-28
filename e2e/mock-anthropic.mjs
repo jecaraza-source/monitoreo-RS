@@ -162,6 +162,23 @@ async function handle(req, res, raw) {
       res.end(JSON.stringify({ id }));
       return;
     }
+    // Apify (APIFY_API_URL): latest successful run of a task and its dataset.
+    if (req.url.startsWith("/apify/")) {
+      const url = new URL(req.url, "http://mock");
+      const json = (body, status = 200) => {
+        res.writeHead(status, { "content-type": "application/json" });
+        res.end(JSON.stringify(body));
+      };
+      if (req.headers.authorization !== "Bearer e2e-apify") return json({ error: { type: "token-not-valid" } }, 401);
+      if (url.pathname === "/apify/v2/actor-tasks/radar~instagram-e2e/runs/last") {
+        return json({ data: { id: "run-e2e", status: "SUCCEEDED", finishedAt: new Date().toISOString(), defaultDatasetId: "ds-e2e" } });
+      }
+      if (url.pathname === "/apify/v2/datasets/ds-e2e/items") {
+        const hourAgo = new Date(Date.now() - 3600_000).toISOString();
+        return json([{ id: "ig-e2e1", caption: "Apify e2e: fuga de agua en la colonia Centro de Alvarado", url: "https://www.instagram.com/p/e2e1/", timestamp: hourAgo, likesCount: 4, commentsCount: 1, ownerUsername: "vecino" }]);
+      }
+      return json({ error: { type: "record-not-found", message: "Actor task was not found" } }, 404);
+    }
     // Bluesky (BLUESKY_SERVICE) and Reddit (REDDIT_AUTH_URL, REDDIT_API_URL) sources.
     if (req.url.startsWith("/bluesky/") || req.url.startsWith("/reddit/")) {
       const url = new URL(req.url, "http://mock");

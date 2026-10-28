@@ -19,7 +19,7 @@ export default async function SourcesPage() {
         interacciones) y asigna la consulta que lo capturó. Si una corrida alcanza un tope, la siguiente lee lo que
         faltó. Las menciones entran como pendientes de clasificar.
       </p>
-      <SourcesManager connectors={connectorInfo()} sources={sources} />
+      <SourcesManager connectors={connectorInfo()} sources={sources} canConnectUnofficial={member.role === "admin"} />
       <Card>
         <CardHeader>
           <CardTitle as="h2">Corridas recientes</CardTitle>

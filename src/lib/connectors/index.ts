@@ -1,6 +1,8 @@
+import { apifyConnector } from "./apify.ts";
 import { blueskyConnector } from "./bluesky.ts";
 import { metaConnector } from "./meta.ts";
 import { redditConnector } from "./reddit.ts";
+import { rssBridgeConnector } from "./rss-bridge.ts";
 import { rssConnector } from "./rss.ts";
 import type { Connector, SourceType } from "./types.ts";
 import { xConnector } from "./x.ts";
@@ -13,6 +15,8 @@ export const CONNECTORS: Record<SourceType, Connector<never>> = {
   x: xConnector as Connector<never>,
   bluesky: blueskyConnector as Connector<never>,
   reddit: redditConnector as Connector<never>,
+  rss_bridge: rssBridgeConnector as Connector<never>,
+  apify: apifyConnector as Connector<never>,
 };
 
 export function getConnector(type: SourceType): Connector<unknown> {

@@ -82,6 +82,7 @@ export const metaConnector: Connector<MetaConfig> = {
   type: "meta",
   label: "Facebook (página oficial)",
   enabled: true,
+  official: true,
   requiresSecret: true,
   configSchema: metaConfigSchema,
   // Comments on the municipality's own page are relevant even without keywords.

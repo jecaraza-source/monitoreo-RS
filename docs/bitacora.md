@@ -3,6 +3,43 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Radar Social: fuentes no oficiales (28 oct 2026, base `a66e982`)
+
+- **Decisión de la administración:** CLAUDE.md limita la captura a APIs oficiales o RSS; el titular pidió además
+  scrapers de terceros, bajo su responsabilidad. Se agregan como fuentes **marcadas «no oficial»**, sin autores y
+  sólo para administración.
+- **Migración `20261112000000_unofficial_sources.sql`:**
+  - tipos de fuente `rss_bridge` y `apify`;
+  - el disparador `guard_unofficial_source` impide que alguien que no sea admin las conecte, renombre o cambie su
+    configuración (42501); comunicación puede pausarlas, probarlas o borrarlas, y el proceso de captura (sin
+    usuario) no se bloquea;
+  - la reversión pausa esas fuentes y quita el disparador.
+- **Puente RSS** (`src/lib/connectors/rss-bridge.ts`): feed de una instancia propia de RSSHub o RSS-Bridge (perfil,
+  canal o búsqueda de Telegram, Instagram, TikTok, X…). Se lee con el conector RSS y su filtro de destinos (SSRF,
+  `RSS_ALLOWED_HOSTS`), pero como publicaciones sin autor.
+- **Apify** (`src/lib/connectors/apify.ts`):
+  - con `APIFY_TOKEN`, lee el resultado de la última corrida exitosa de una tarea (`usuario~tarea`); el scraper y
+    su programación viven en Apify;
+  - convierte los campos comunes de los actores de Instagram, TikTok, X y Facebook (texto, enlace, fecha,
+    interacciones); nunca guarda autores;
+  - avisa en Salud si la última corrida tiene más de 2 días, si la corrida no alcanza el inicio de la ventana o si
+    la tarea o el token fallan.
+- **Marca «no oficial»:** el contrato de conectores tiene `official`; Fuentes muestra la etiqueta y un aviso en el
+  formulario, y la bandeja, el asistente y los reportes nombran la fuente como «no oficial».
+- **Captura:** la lista de tipos que toda base aplicada tiene ahora incluye Bluesky y Reddit, para que una base
+  sin este SQL siga leyendo esas fuentes.
+- **Pruebas:**
+  - 451 unitarias, con Apify (5) y el puente (2);
+  - pgTAP 995/995, con `unofficial_sources.test.sql` (8);
+  - e2e `unofficial-sources.spec.ts`: comunicación no puede elegirlas; administración conecta una tarea de Apify
+    con el simulador y la prueba trae publicaciones;
+  - batería completa: 77 pasan, 11 omitidas.
+- **Activación:**
+  - SQL en preview y producción;
+  - `APIFY_TOKEN` en Vercel si se usará Apify; para el puente, hospedar RSSHub o RSS-Bridge y, si se usa
+    `RSS_ALLOWED_HOSTS`, agregar su host;
+  - conectar las fuentes (sólo administración) en Configuración → Fuentes.
+
 ## Fuentes Bluesky y Reddit (28 oct 2026, base `21246e7`)
 
 - **Migración `20261111000000_bluesky_reddit.sql`:** agrega los tipos de fuente `bluesky` y `reddit`. La reversión

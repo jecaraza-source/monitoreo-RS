@@ -8,7 +8,7 @@
 
 import type { z } from "zod";
 
-export type SourceType = "meta" | "rss" | "youtube" | "x" | "bluesky" | "reddit";
+export type SourceType = "meta" | "rss" | "youtube" | "x" | "bluesky" | "reddit" | "rss_bridge" | "apify";
 
 /**
  * The account that published an item. Connectors only claim what the source
@@ -89,6 +89,9 @@ export type ConnectorContext = {
     redditApiUrl?: string;
     metaAppSecret?: string;
     metaGraphVersion?: string;
+    apifyToken?: string;
+    /** Test/staging override of the Apify API host. */
+    apifyApiUrl?: string;
   };
   /** Upper bound of items to return (previews); a run is bounded by pages and time instead. */
   limit: number;
@@ -109,6 +112,12 @@ export type Connector<C = unknown> = {
   type: SourceType;
   label: string;
   enabled: boolean;
+  /**
+   * Reads through an official API or the publisher's own feed. Unofficial
+   * connectors (third-party scrapers and feed bridges) are marked as such
+   * wherever their content shows, and only an admin can connect them.
+   */
+  official: boolean;
   /** A per-source credential must be stored (Vault) before the source can run. */
   requiresSecret: boolean;
   configSchema: z.ZodType<C>;
@@ -142,6 +151,8 @@ export function resolveContext(ctx: Partial<ConnectorContext> = {}): ConnectorCo
       redditApiUrl: process.env.REDDIT_API_URL,
       metaAppSecret: process.env.META_APP_SECRET,
       metaGraphVersion: process.env.META_GRAPH_VERSION,
+      apifyToken: process.env.APIFY_TOKEN,
+      apifyApiUrl: process.env.APIFY_API_URL,
     },
     limit: ctx.limit ?? Number.POSITIVE_INFINITY,
     until: ctx.until,

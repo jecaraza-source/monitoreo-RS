@@ -13,6 +13,7 @@ export const xConnector: Connector<XConfig> = {
   type: "x",
   label: "X (deshabilitado)",
   enabled: false,
+  official: true,
   requiresSecret: true,
   configSchema: xConfigSchema,
   defaultRequireMatch: true,
