@@ -105,6 +105,14 @@ jobs:
             echo "WHATSAPP_QUIET_HOURS=off"
             echo "E2E_WHATSAPP_APP_SECRET=e2e-whatsapp-secret"
             echo "E2E_WHATSAPP_PHONE_NUMBER_ID=PN_E2E"
+            # Bluesky and Reddit sources, answered by the mock.
+            echo "BLUESKY_IDENTIFIER=radar.e2e.test"
+            echo "BLUESKY_APP_PASSWORD=e2e-app-password"
+            echo "BLUESKY_SERVICE=http://127.0.0.1:4010/bluesky"
+            echo "REDDIT_CLIENT_ID=e2e-client"
+            echo "REDDIT_CLIENT_SECRET=e2e-secret"
+            echo "REDDIT_AUTH_URL=http://127.0.0.1:4010/reddit/token"
+            echo "REDDIT_API_URL=http://127.0.0.1:4010/reddit/api"
             # Radar Social verification services, answered by the mock.
             echo "ABUSECH_AUTH_KEY=mock"
             echo "GOOGLE_SAFE_BROWSING_API_KEY=mock"

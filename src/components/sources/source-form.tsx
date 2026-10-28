@@ -35,6 +35,8 @@ export function SourceForm({
   const [pageId, setPageId] = useState(str(cfg.pageId));
   const [query, setQuery] = useState(str(cfg.query));
   const [channelId, setChannelId] = useState(str(cfg.channelId));
+  const [account, setAccount] = useState(str(cfg.account));
+  const [subreddit, setSubreddit] = useState(str(cfg.subreddit));
   const [includeComments, setIncludeComments] = useState(bool(cfg.includeComments, true));
   const [requireMatch, setRequireMatch] = useState(bool(cfg.requireMatch, info.defaultRequireMatch));
   const [secret, setSecret] = useState("");
@@ -51,7 +53,11 @@ export function SourceForm({
         ? { url, outletName: outletName || undefined, requireMatch }
         : type === "meta"
           ? { pageId, includeComments, requireMatch }
-          : { query: query || undefined, channelId: channelId || undefined, includeComments, requireMatch };
+          : type === "bluesky"
+            ? { query: query || undefined, account: account || undefined, requireMatch }
+            : type === "reddit"
+              ? { query: query || undefined, subreddit: subreddit || undefined, requireMatch }
+              : { query: query || undefined, channelId: channelId || undefined, includeComments, requireMatch };
     startTransition(async () => {
       const result = await saveSource({ id: editing?.id ?? null, name, type, config, secret: secret || undefined });
       if (!result.ok) return void toast.error(result.message);
@@ -150,6 +156,36 @@ export function SourceForm({
           <div className="flex flex-col gap-2">
             <Label htmlFor="source-channel">ID de canal (opcional)</Label>
             <Input id="source-channel" value={channelId} onChange={(e) => setChannelId(e.target.value)} placeholder="UC…" />
+          </div>
+        </div>
+      )}
+
+      {type === "bluesky" && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="source-query">Búsqueda</Label>
+            <Input id="source-query" value={query} onChange={(e) => setQuery(e.target.value)} placeholder='"Alvarado" ayuntamiento' />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="source-account">Cuenta (opcional)</Label>
+            <Input id="source-account" value={account} onChange={(e) => setAccount(e.target.value)} placeholder="medio.bsky.social" />
+            <p className="text-xs text-muted-foreground">
+              Sólo la cuenta configurada aparece con nombre; las demás que encuentre la búsqueda se guardan con seudónimo.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {type === "reddit" && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="source-query">Búsqueda</Label>
+            <Input id="source-query" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Alvarado Veracruz" />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="source-subreddit">Subreddit (opcional)</Label>
+            <Input id="source-subreddit" value={subreddit} onChange={(e) => setSubreddit(e.target.value)} placeholder="veracruz" />
+            <p className="text-xs text-muted-foreground">Sólo publicaciones; los autores de Reddit no se guardan.</p>
           </div>
         </div>
       )}

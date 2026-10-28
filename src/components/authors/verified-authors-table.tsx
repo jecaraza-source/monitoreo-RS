@@ -9,7 +9,7 @@ import { revokeAuthor } from "@/lib/authors/actions";
 import type { VerifiedAuthor } from "@/lib/authors/data";
 import { AUTHOR_KIND_LABEL } from "@/lib/authors/label";
 
-const PLATFORM: Record<string, string> = { rss: "Sitio / RSS", meta: "Facebook", youtube: "YouTube", x: "X" };
+const PLATFORM: Record<string, string> = { rss: "Sitio / RSS", meta: "Facebook", youtube: "YouTube", x: "X", bluesky: "Bluesky", reddit: "Reddit" };
 const date = (iso: string) => new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeZone: "America/Mexico_City" }).format(new Date(iso));
 
 function RevokeButton({ entry }: { entry: VerifiedAuthor }) {

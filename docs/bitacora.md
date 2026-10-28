@@ -3,6 +3,34 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Fuentes Bluesky y Reddit (28 oct 2026, base `21246e7`)
+
+- **Migración `20261111000000_bluesky_reddit.sql`:** agrega los tipos de fuente `bluesky` y `reddit`. La reversión
+  pausa esas fuentes; Postgres no permite borrar valores de un enum.
+- **Bluesky** (`src/lib/connectors/bluesky.ts`, API oficial del AT Protocol):
+  - entra con la cuenta institucional y una contraseña de aplicación (`BLUESKY_IDENTIFIER`, `BLUESKY_APP_PASSWORD`);
+  - lee las publicaciones de una búsqueda (`searchPosts`, de la más nueva a la más vieja) o de una cuenta
+    (`getAuthorFeed`, sin compartidos ni respuestas);
+  - sólo la cuenta configurada aparece con nombre; las demás se guardan con seudónimo, salvo las del catálogo de
+    autores verificados, que ahora acepta Bluesky.
+- **Reddit** (`src/lib/connectors/reddit.ts`, Data API oficial con OAuth de aplicación):
+  - usa `REDDIT_CLIENT_ID` y `REDDIT_CLIENT_SECRET`, con un User-Agent descriptivo;
+  - lee las publicaciones de una búsqueda, opcionalmente dentro de un subreddit, o lo nuevo de un subreddit;
+  - descarta el contenido para adultos y nunca guarda a los autores.
+- **Comunes:**
+  - ventana y reanudación como YouTube;
+  - el límite de la plataforma o una llave rechazada se informan en Salud con su acción;
+  - hosts fijos, con tiempo y tamaño máximos (`fetchText` ahora acepta POST).
+- **Pruebas:**
+  - 444 unitarias, con Bluesky (4) y Reddit (3);
+  - pgTAP 987/987;
+  - e2e `social-sources.spec.ts`: conectar y probar cada fuente con el simulador;
+  - batería completa: 75 pasan, 11 omitidas.
+- **Activación:**
+  - SQL en preview y producción;
+  - las llaves de las cuentas institucionales en Vercel;
+  - deploy y conectar las fuentes en Configuración → Fuentes.
+
 ## Radar Social: herramientas de verificación (27 oct 2026, base `9bab03e`)
 
 - **Migración `20261110000000_radar_checks.sql`:**

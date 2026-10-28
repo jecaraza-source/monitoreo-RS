@@ -1,4 +1,6 @@
+import { blueskyConnector } from "./bluesky.ts";
 import { metaConnector } from "./meta.ts";
+import { redditConnector } from "./reddit.ts";
 import { rssConnector } from "./rss.ts";
 import type { Connector, SourceType } from "./types.ts";
 import { xConnector } from "./x.ts";
@@ -9,6 +11,8 @@ export const CONNECTORS: Record<SourceType, Connector<never>> = {
   rss: rssConnector as Connector<never>,
   youtube: youtubeConnector as Connector<never>,
   x: xConnector as Connector<never>,
+  bluesky: blueskyConnector as Connector<never>,
+  reddit: redditConnector as Connector<never>,
 };
 
 export function getConnector(type: SourceType): Connector<unknown> {

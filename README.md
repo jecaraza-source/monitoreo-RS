@@ -70,6 +70,8 @@ tipo *Sensitive*); el build de CI comprueba que ninguna aparezca en el bundle de
 | `ALERTS_FROM_EMAIL` · `REPORTS_FROM_EMAIL` | config | Remitentes (dominio verificado en Resend) |
 | `META_APP_SECRET` · `META_GRAPH_VERSION` | **secreto** · config | Conector de Facebook/Instagram |
 | `YOUTUBE_API_KEY` | **secreto** | Conector de YouTube |
+| `BLUESKY_IDENTIFIER` · `BLUESKY_APP_PASSWORD` | config · **secreto** | Conector de Bluesky (cuenta institucional y contraseña de aplicación) |
+| `REDDIT_CLIENT_ID` · `REDDIT_CLIENT_SECRET` · `REDDIT_USER_AGENT` | config · **secreto** · config | Conector de Reddit (app tipo «script» de la cuenta institucional) |
 | `ABUSECH_AUTH_KEY` · `GOOGLE_SAFE_BROWSING_API_KEY` · `GOOGLE_FACTCHECK_API_KEY` | **secreto** | Opcionales: Radar Social revisa indicadores en URLhaus y Safe Browsing, y busca verificaciones en Google Fact Check |
 | `RSS_ALLOWED_HOSTS` | config | Opcional: hosts de feeds permitidos (`diario.mx`, `.diario.mx` para subdominios) |
 | `WHATSAPP_TOKEN` · `WHATSAPP_PHONE_NUMBER_ID` · `WHATSAPP_TEMPLATE_LANG` | **secreto** · config | Canal de WhatsApp con funcionarios (ver [WhatsApp](#whatsapp)) |
@@ -320,6 +322,8 @@ menciones normalizadas sin tocar la base:
 | `meta` | Publicaciones y comentarios de páginas oficiales de Facebook (Graph API) | Token de página, guardado en **Supabase Vault**; `META_APP_SECRET` para `appsecret_proof` |
 | `youtube` | Videos por búsqueda o canal, y sus comentarios | `YOUTUBE_API_KEY` (cada corrida cuesta unas 101 unidades de 10,000 diarias) |
 | `x` | Deshabilitado: requiere plan de pago de la API de X | — |
+| `bluesky` | Publicaciones por búsqueda y/o de una cuenta (sólo esa cuenta aparece con nombre) | `BLUESKY_IDENTIFIER`, `BLUESKY_APP_PASSWORD` |
+| `reddit` | Publicaciones por búsqueda y/o de un subreddit (los autores no se guardan) | `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` |
 
 Los autores de comentarios (ciudadanos) no se guardan; sólo medios y páginas oficiales.
 

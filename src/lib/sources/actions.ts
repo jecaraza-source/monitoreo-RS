@@ -33,7 +33,7 @@ const idSchema = z.guid("Identificador inválido.");
 const saveSchema = z.object({
   id: idSchema.nullable(),
   name: z.string().trim().min(2, "Ponle nombre a la fuente.").max(120),
-  type: z.enum(["meta", "rss", "youtube", "x"]),
+  type: z.enum(["meta", "rss", "youtube", "x", "bluesky", "reddit"]),
   config: z.record(z.string(), z.unknown()),
   /** Write-only credential; empty keeps the stored one. */
   secret: z.string().max(2000).optional(),

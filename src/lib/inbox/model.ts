@@ -125,7 +125,7 @@ export function bulkMessage(done: string, updated: number, failed: readonly Bulk
   return `${ok}; ${failed.length} sin cambio: ${reasons}.`;
 }
 
-export const SOURCE_LABELS: Record<SourceType, string> = { meta: "Facebook", rss: "RSS", youtube: "YouTube", x: "X" };
+export const SOURCE_LABELS: Record<SourceType, string> = { meta: "Facebook", rss: "RSS", youtube: "YouTube", x: "X", bluesky: "Bluesky", reddit: "Reddit" };
 
 export const SENTIMENTS = Object.keys(SENTIMENT_LABELS) as Sentiment[];
 export const PRIORITIES = ["critical", "high", "medium", "low"] as const satisfies readonly Priority[];
