@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { DashboardContent } from "@/components/dashboard/dashboard-content";
 import { DashboardFrame } from "@/components/dashboard/dashboard-frame";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
+import { DashboardTabs } from "@/components/dashboard/dashboard-tabs";
 import { PeriodSelector } from "@/components/dashboard/period-selector";
 import { requireSection } from "@/lib/auth/session";
 import { getDashboard } from "@/lib/dashboard/data";
@@ -25,6 +26,7 @@ async function Dashboard({ searchParams }: { searchParams: PageProps<"/dashboard
 
   return (
     <DashboardFrame toolbar={<PeriodSelector />}>
+      <DashboardTabs />
       <DashboardContent data={data} period={period} member={member} />
     </DashboardFrame>
   );

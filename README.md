@@ -572,6 +572,25 @@ Detalle en [docs/etapa-7-sla-escalamiento-envios.md](docs/etapa-7-sla-escalamien
 - Cada gráfica tiene su tabla de datos ("Ver datos").
 - Modo **Sala de juntas**: pantalla completa con actualización cada 60 s.
 
+### Voces críticas
+
+`/dashboard/voces-criticas` (mismos roles que el dashboard) lee la conversación negativa **sin identidades**:
+qué se critica, dónde y si va en aumento. Sale de `critical_voices()` (tablas base, como `kpi_snapshot`):
+
+- menciones negativas y % negativo contra el periodo anterior;
+- temas y colonias **en aumento** (5 o más negativas y +50 % o más; `src/lib/critical/model.ts`);
+- tendencia, temas, colonias, dependencias señaladas, emociones y plataformas;
+- términos frecuentes de las menciones negativas (sin @usuarios, correos ni enlaces) y las críticas con más
+  alcance, mostradas por su texto.
+
+La función nunca devuelve autores y la página no los muestra. Es la alternativa a seguir perfiles de críticos,
+periodistas u opositores, que el proyecto no hace (ver CLAUDE.md).
+
+**Búsquedas por tema.** En una consulta, «Partir de un tema» llena los grupos con las palabras del tema (agua,
+baches, alumbrado, basura, seguridad, salud, tránsito, trámites) y el nombre del municipio. Fuentes muestra
+las consultas activas convertidas a búsquedas de X (`src/lib/query/x-search.ts`) y la entrada JSON para una
+tarea de tweets en Apify: así entra lo que se dice de cada tema, sin seguir a nadie.
+
 Datos: las tarjetas, la cobertura y la atención salen de `kpi_snapshot()` (tablas base, una sola
 instantánea, reflejan una corrección de inmediato). Las gráficas usan la vista materializada
 `mention_stats_hourly` vía `dashboard_stats()`, que la ingesta, la clasificación y las correcciones refrescan

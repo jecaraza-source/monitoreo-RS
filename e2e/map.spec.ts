@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { pointInGeometry, validateGeometry, type Geometry } from "../src/lib/map/geometry";
-import { admin, login, toast, USERS } from "./helpers";
+import { admin, freshMentions, login, toast, USERS } from "./helpers";
 
 // Stage 8: layers of the map, case locations and access by role. Fictitious data.
 const ORG = "00000000-0000-4000-a000-000000000001";
@@ -54,6 +54,19 @@ async function freeMentions(n: number) {
 }
 
 test.describe("mapa de colonias", () => {
+  // Recent located mentions: the ranking needs data in the period, whatever the age of the demo data.
+  let fresh: Awaited<ReturnType<typeof freshMentions>> | null = null;
+  test.beforeAll(async () => {
+    fresh = await freshMentions("e2e-mapa", [
+      { text: "Mapa e2e: fuga de agua en la esquina", located: true },
+      { text: "Mapa e2e: sin agua desde ayer", located: true },
+      { text: "Mapa e2e: gracias por el bacheo", located: true, sentiment: "positive", topic: "baches" },
+    ]);
+  });
+  test.afterAll(async () => {
+    await fresh?.cleanUp();
+  });
+
   test("lectura cambia la métrica, abre una colonia y llega a la bandeja filtrada", async ({ page }) => {
     // A worker that fails to load leaves the canvas up but draws no colonias.
     const mapErrors: string[] = [];
