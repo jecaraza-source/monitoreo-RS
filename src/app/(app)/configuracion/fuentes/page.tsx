@@ -2,15 +2,21 @@ import type { Metadata } from "next";
 import { FailuresQueue } from "@/components/sources/failures-queue";
 import { RunsTable } from "@/components/sources/runs-table";
 import { SourcesManager } from "@/components/sources/sources-manager";
+import { XSearches } from "@/components/sources/x-searches";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireSection } from "@/lib/auth/session";
-import { connectorInfo, getOpenFailures, getRecentRuns, getSources } from "@/lib/sources/data";
+import { connectorInfo, getOpenFailures, getRecentRuns, getSources, getXSearches } from "@/lib/sources/data";
 
 export const metadata: Metadata = { title: "Fuentes" };
 
 export default async function SourcesPage() {
   const member = await requireSection("/configuracion/fuentes");
-  const [sources, runs, failures] = await Promise.all([getSources(member), getRecentRuns(member), getOpenFailures(member)]);
+  const [sources, runs, failures, xSearches] = await Promise.all([
+    getSources(member),
+    getRecentRuns(member),
+    getOpenFailures(member),
+    getXSearches(member),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -20,6 +26,7 @@ export default async function SourcesPage() {
         faltó. Las menciones entran como pendientes de clasificar.
       </p>
       <SourcesManager connectors={connectorInfo()} sources={sources} canConnectUnofficial={member.role === "admin"} />
+      <XSearches rows={xSearches.rows} input={xSearches.input} />
       <Card>
         <CardHeader>
           <CardTitle as="h2">Corridas recientes</CardTitle>

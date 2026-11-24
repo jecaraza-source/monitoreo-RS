@@ -66,7 +66,7 @@ async function contrastFailures(page: Page): Promise<Failure[]> {
   });
 }
 
-const PAGES = ["/dashboard", "/bandeja", "/casos", "/mapa", "/reportes", "/ayuda", "/salud"];
+const PAGES = ["/dashboard", "/dashboard/voces-criticas", "/bandeja", "/casos", "/mapa", "/reportes", "/ayuda", "/salud"];
 
 test.describe("accesibilidad", () => {
   test.setTimeout(180_000);

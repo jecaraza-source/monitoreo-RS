@@ -19,6 +19,7 @@ import {
   type QueryBuilderState,
 } from "@/lib/query/builder";
 import { validateQuery } from "@/lib/query/match";
+import { TOPIC_TEMPLATES } from "@/lib/query/templates";
 import { cn } from "@/lib/utils";
 import { TermInput } from "./term-input";
 
@@ -37,8 +38,11 @@ export function QueryBuilder({
   lineageId,
   initialName,
   versions,
+  placeTerm = null,
 }: {
   projectId: string;
+  /** The municipality's name, for the place group of a topic template. */
+  placeTerm?: string | null;
   /** Null for a brand-new query. */
   lineageId: string | null;
   initialName: string;
@@ -75,6 +79,21 @@ export function QueryBuilder({
     return () => clearTimeout(timer);
   }, [expression]);
 
+  // A topic template replaces the include groups (place + topic) and keeps the exclusions.
+  function applyTemplate(key: string) {
+    const template = TOPIC_TEMPLATES.find((t) => t.key === key);
+    if (!template) return;
+    setState((s) => ({
+      groups: [
+        { mode: "any", terms: placeTerm ? [placeTerm] : [] },
+        { mode: "any", terms: [...template.terms] },
+        ...s.groups.filter((g) => g.mode === "none"),
+      ],
+    }));
+    if (!name.trim() || name === "Nueva consulta") setName(template.label);
+    toast.info(`Tema «${template.label}» cargado: revisa los términos y guarda.`);
+  }
+
   const setGroup = (index: number, patch: Partial<QueryBuilderState["groups"][number]>) =>
     setState((s) => ({ groups: s.groups.map((g, i) => (i === index ? { ...g, ...patch } : g)) }));
 
@@ -97,6 +116,25 @@ export function QueryBuilder({
         <div className="flex flex-col gap-2">
           <Label htmlFor="query-name">Nombre de la consulta</Label>
           <Input id="query-name" value={name} onChange={(e) => setName(e.target.value)} className="max-w-sm" />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label id="query-template-label">Partir de un tema (opcional)</Label>
+          <Select value="" onValueChange={(v) => applyTemplate(String(v))}>
+            <SelectTrigger aria-labelledby="query-template-label" className="w-full max-w-sm">
+              <SelectValue placeholder="Agua, baches, alumbrado, seguridad…" />
+            </SelectTrigger>
+            <SelectContent>
+              {TOPIC_TEMPLATES.map((t) => (
+                <SelectItem key={t.key} value={t.key}>
+                  {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Llena los grupos con las palabras del tema y el nombre del municipio. Las consultas buscan temas, no personas.
+          </p>
         </div>
 
         <ol className="flex flex-col gap-3">

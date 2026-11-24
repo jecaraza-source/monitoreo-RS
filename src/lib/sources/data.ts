@@ -2,6 +2,7 @@ import "server-only";
 import { CONNECTORS, type SourceType } from "@/lib/connectors";
 import type { Member } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { toXSearch, tweetScraperInput, type XSearchRow } from "@/lib/query/x-search";
 
 /** What the client needs to know about each connector (the connectors themselves are server-only). */
 export type ConnectorInfo = {
@@ -139,4 +140,19 @@ export async function getOpenFailures(member: Member, limit = 50): Promise<Failu
     error: f.error,
     lastFailedAt: f.last_failed_at,
   }));
+}
+
+/** Active queries of the org as X searches (for an Apify tweet-scraper task). */
+export async function getXSearches(member: Member): Promise<{ rows: XSearchRow[]; input: string }> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("queries").select("name, expression").eq("org_id", member.orgId).eq("is_active", true).order("name");
+  const rows: XSearchRow[] = [];
+  for (const q of data ?? []) {
+    try {
+      rows.push({ name: q.name, ...toXSearch(q.expression) });
+    } catch {
+      // An invalid expression is already reported where queries are edited.
+    }
+  }
+  return { rows, input: JSON.stringify(tweetScraperInput(rows.map((r) => r.search)), null, 2) };
 }

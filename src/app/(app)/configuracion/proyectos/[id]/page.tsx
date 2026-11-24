@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireSection } from "@/lib/auth/session";
 import { getNeighborhoodOptions, getProjectDetail } from "@/lib/projects/data";
+import { placeTerm } from "@/lib/query/templates";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Proyecto" };
@@ -96,6 +97,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps<"/
             lineageId={selected?.lineageId ?? null}
             initialName={selected?.name ?? "Nueva consulta"}
             versions={selected?.versions ?? []}
+            placeTerm={placeTerm(member.orgName)}
           />
         </CardContent>
       </Card>

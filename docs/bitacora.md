@@ -3,6 +3,31 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Voces críticas y búsquedas por tema (24 nov 2026, base `35d077f`)
+
+- **Contexto:** el titular pidió seguir perfiles de ciudadanos críticos para medir sentimiento. No se construyó:
+  CLAUDE.md lo prohíbe y un gobierno con una lista de críticos crea riesgo legal (LGPDPPSO) y para las personas.
+  Se acordó la alternativa que da la misma lectura sin identidades.
+- **Migración `20261113000000_critical_voices.sql`:** función `critical_voices()` de sólo lectura, con los mismos
+  lectores que el dashboard. Agrega las menciones negativas del periodo y del anterior por tema, colonia,
+  dependencia, plataforma y emoción; trae las de más alcance y textos para los términos frecuentes. Nunca
+  devuelve autores. Lee tablas base, como `kpi_snapshot`. Reversión: quitar la función.
+- **Página `/dashboard/voces-criticas`:**
+  - pestañas General y Voces críticas en el dashboard, conservando el periodo;
+  - tarjetas: negativas, % negativo, temas y colonias en aumento (5 o más negativas y +50 %);
+  - tendencia, términos frecuentes (sin @usuarios, correos ni enlaces), temas, colonias, dependencias, emociones,
+    plataformas y críticas con más alcance (sólo texto); todo enlaza a la bandeja filtrada.
+- **Búsquedas por tema:**
+  - «Partir de un tema» en las consultas: plantillas de 8 temas municipales más el nombre del municipio;
+  - Fuentes convierte las consultas activas en búsquedas de X y arma la entrada JSON de una tarea de tweets de
+    Apify. Facebook: páginas de medios y grupos con «Guardar sólo lo que coincida».
+- **Pruebas:**
+  - unitarias: 460 (modelo del panel 4, búsquedas de X y plantillas 5);
+  - pgTAP `critical_voices.test.sql` (14); batería pgTAP 1009/1009;
+  - e2e `critical-voices.spec.ts` y Voces críticas en la revisión de contraste. Batería completa: 77 pasaron, 11 omitidas y 3 fallaron porque la tarjeta nueva de Fuentes
+    repetía el texto de una casilla; se corrigió y esas 3 pasan.
+- **Activación:** SQL en preview y producción; deploy.
+
 ## Radar Social: fuentes no oficiales (28 oct 2026, base `a66e982`)
 
 - **Decisión de la administración:** CLAUDE.md limita la captura a APIs oficiales o RSS; el titular pidió además

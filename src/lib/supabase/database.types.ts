@@ -2065,6 +2065,9 @@ isOneToOne: false
 "crisis_snapshot":
 { Args: { "p_minutes"?: number,"p_org_id": string }; Returns: Json
                            },
+"critical_voices":
+{ Args: { "p_bucket"?: string,"p_from": string,"p_org_id": string,"p_prev_from": string,"p_prev_to": string,"p_to": string }; Returns: Json
+                           },
 "dashboard_stats":
 { Args: { "p_bucket"?: string,"p_detail"?: boolean,"p_from": string,"p_org_id": string,"p_to": string }; Returns: Json
                            },
