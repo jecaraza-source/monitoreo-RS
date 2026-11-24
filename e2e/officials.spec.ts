@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { admin, login, toast, USERS } from "./helpers";
+import { admin, freshMentions, login, toast, USERS } from "./helpers";
 
-// A test official whose alias appears in the seed mentions (local and preview).
+// A test official whose alias appears in a recent mention the test creates (whatever the age of the demo data).
 const NAME = "Funcionario Prueba E2E";
 const ALIAS = "policía municipal";
 const LECTURA = "00000000-0000-4000-d000-000000000005";
@@ -12,9 +12,15 @@ async function cleanUp() {
   await db.from("memberships").update({ can_view_officials: false }).eq("user_id", LECTURA);
 }
 
+let fresh: Awaited<ReturnType<typeof freshMentions>> | null = null;
+
 test.describe("Percepción de funcionarios", () => {
   test.beforeEach(cleanUp);
-  test.afterEach(cleanUp);
+  test.afterEach(async () => {
+    await cleanUp();
+    await fresh?.cleanUp();
+    fresh = null;
+  });
 
   test("sin autorización no aparece ni se puede abrir", async ({ page }) => {
     await login(page, USERS.lectura, "/dashboard");
@@ -24,6 +30,8 @@ test.describe("Percepción de funcionarios", () => {
   });
 
   test("admin agrega un funcionario, autoriza a Consulta y ésta ve el tablero con ciudadanos anónimos", async ({ page, context }) => {
+    // Mentions are matched to the official when it is added: create them first.
+    fresh = await freshMentions("e2e-funcionario", [{ text: "La policía municipal no llegó al reporte de la colonia", citizen: true }]);
     await login(page, USERS.admin, "/configuracion/catalogos");
     await page.getByLabel("Nombre", { exact: true }).fill(NAME);
     await page.getByLabel("Cargo").fill("Cargo de prueba");

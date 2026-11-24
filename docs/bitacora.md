@@ -26,6 +26,10 @@ su propio documento de `docs/`.
   - pgTAP `critical_voices.test.sql` (14); batería pgTAP 1009/1009;
   - e2e `critical-voices.spec.ts` y Voces críticas en la revisión de contraste. Batería completa: 77 pasaron, 11 omitidas y 3 fallaron porque la tarjeta nueva de Fuentes
     repetía el texto de una casilla; se corrigió y esas 3 pasan.
+- **Pruebas con datos propios:** `e2e-preview` falló en mapa y funcionarios porque la base de preview tenía datos de
+  ejemplo de octubre (nada en los últimos 30 días). `freshMentions()` (`e2e/helpers.ts`) crea menciones
+  clasificadas de las últimas horas y refresca el rollup; mapa, funcionarios y voces críticas lo usan y las
+  borran al terminar. Probado con los datos locales envejecidos 60 días.
 - **Activación:** SQL en preview y producción; deploy.
 
 ## Radar Social: fuentes no oficiales (28 oct 2026, base `a66e982`)

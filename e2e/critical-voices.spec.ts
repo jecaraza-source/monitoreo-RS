@@ -1,13 +1,16 @@
 import { expect, test } from "@playwright/test";
-import { admin, login, USERS } from "./helpers";
+import { admin, freshMentions, login, USERS } from "./helpers";
 
 const ORG = "00000000-0000-4000-a000-000000000001";
-const SOURCE = "00000000-0000-4000-e200-000000000002";
 const MENTION = "00000000-0000-4000-9c00-0000000000e2";
 const TEXT = "Voces e2e: sin agua en la colonia Centro por tercera semana";
 
+let fresh: Awaited<ReturnType<typeof freshMentions>> | null = null;
+
 async function cleanUp() {
   await admin().from("mentions").delete().eq("id", MENTION);
+  await fresh?.cleanUp();
+  fresh = null;
 }
 
 test.describe("voces críticas", () => {
@@ -15,11 +18,12 @@ test.describe("voces críticas", () => {
     await cleanUp();
     const db = admin();
     // A negative mention by a verified outlet: the panel shows what it says, never who said it.
+    const { data: source } = await db.from("sources").select("id").eq("org_id", ORG).order("created_at").limit(1).single();
     const { data: author } = await db.from("authors").select("id, display_name").eq("org_id", ORG).eq("kind", "media").not("display_name", "is", null).limit(1).single();
     const { error } = await db.from("mentions").insert({
       id: MENTION,
       org_id: ORG,
-      source_id: SOURCE,
+      source_id: source!.id,
       external_id: "voces-e2e",
       text: TEXT,
       published_at: new Date(Date.now() - 3600_000).toISOString(),
@@ -30,6 +34,8 @@ test.describe("voces críticas", () => {
     expect(error).toBeNull();
     await db.from("classifications").insert({ org_id: ORG, mention_id: MENTION, sentiment: "negative", emotion: "enojo", topic: "agua potable", priority: "high", model: "e2e" });
     test.info().annotations.push({ type: "author", description: author!.display_name! });
+    // Two more complaints that repeat words, so the frequent terms have something to show.
+    fresh = await freshMentions("e2e-voces", [{ text: "@vecina_e2e otra vez sin agua en el Centro" }, { text: "Seguimos sin agua, nadie responde" }]);
   });
   test.afterEach(cleanUp);
 

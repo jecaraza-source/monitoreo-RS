@@ -65,3 +65,66 @@ export async function apiAs(email: string) {
   if (verifyError) throw new Error(`No se pudo iniciar sesión como ${email}: ${verifyError.message}`);
   return client;
 }
+
+export type FreshMention = {
+  text: string;
+  sentiment?: "positive" | "neutral" | "negative";
+  topic?: string;
+  /** In the first colonia of the catalog (map layers). */
+  located?: boolean;
+  /** Attributed to an unverified account (shown as «Ciudadano»). */
+  citizen?: boolean;
+  hoursAgo?: number;
+};
+
+/**
+ * Classified mentions published in the last hours, so a test does not depend on
+ * how old the environment's demo data is (a preview seeded weeks ago has
+ * nothing in "the last 30 days"). Refreshes the rollup the charts read.
+ */
+export async function freshMentions(tag: string, items: FreshMention[]) {
+  const db = admin();
+  const [{ data: source }, { data: place }, { data: citizen }] = await Promise.all([
+    db.from("sources").select("id").eq("org_id", ORG_A).order("created_at").limit(1).single(),
+    db.from("neighborhoods").select("id, name").eq("org_id", ORG_A).order("name").limit(1).single(),
+    db.from("authors").select("id").eq("org_id", ORG_A).not("pseudonymized_at", "is", null).limit(1).maybeSingle(),
+  ]);
+  if (!source) throw new Error("El municipio de prueba no tiene fuentes.");
+  const stamp = Date.now();
+  const rows = items.map((item, i) => ({
+    org_id: ORG_A,
+    source_id: source.id,
+    external_id: `${tag}-${stamp}-${i}`,
+    text: item.text,
+    published_at: new Date(stamp - (item.hoursAgo ?? 1) * 3600_000 - i * 60_000).toISOString(),
+    metrics: { likes: 3 },
+    status: "classified" as const,
+    author_id: item.citizen ? (citizen?.id ?? null) : null,
+  }));
+  const { data: inserted, error } = await db.from("mentions").insert(rows).select("id");
+  if (error || !inserted) throw new Error(`No se pudieron crear las menciones de prueba: ${error?.message}`);
+  const ids = inserted.map((m) => m.id);
+  const { error: classError } = await db.from("classifications").insert(
+    items.map((item, i) => ({
+      org_id: ORG_A,
+      mention_id: ids[i],
+      sentiment: item.sentiment ?? "negative",
+      topic: item.topic ?? "agua potable",
+      priority: "medium" as const,
+      neighborhood_id: item.located ? (place?.id ?? null) : null,
+      model: "e2e",
+    })),
+  );
+  if (classError) throw new Error(`No se pudieron clasificar las menciones de prueba: ${classError.message}`);
+  await db.rpc("refresh_mention_stats");
+  return {
+    ids,
+    neighborhood: place,
+    async cleanUp() {
+      await db.from("mentions").delete().in("id", ids);
+      await db.rpc("refresh_mention_stats");
+    },
+  };
+}
+
+const ORG_A = "00000000-0000-4000-a000-000000000001";
