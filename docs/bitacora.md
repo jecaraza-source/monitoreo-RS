@@ -3,6 +3,18 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Next.js 16.4.6 y dependencias (26 nov 2026, base `a68a07c`)
+
+- **Por qué:** el build de Next.js 16.4.3 se detenía con un aviso de seguridad, y `npm audit` reportaba 7
+  avisos moderados de Next (cachés de `use cache`, optimización de imágenes SVG, cookies en rutas Edge,
+  respuestas cruzadas al reenviar `fetch`), corregidos en 16.4.6.
+- **Cambio:** `next` y `eslint-config-next` 16.4.3 → 16.4.6. Además, `npm audit fix` (sin `--force`) actualizó
+  dependencias de herramientas de desarrollo (`hono` y su servidor, y `minimatch` vía eslint y shadcn). La
+  nueva versión de shadcn ya no trae su servidor MCP, así que el lockfile pierde 62 paquetes que la app no usa.
+  `npm audit`: 0 vulnerabilidades.
+- **Pruebas:** typecheck y lint limpios; 460 unitarias; pgTAP 1014/1014; build sin el aviso; e2e completa: 80 pasan, 11 omitidas.
+- **Activación:** deploy. Sin SQL.
+
 ## Voces críticas y búsquedas por tema (24 nov 2026, base `35d077f`)
 
 - **Contexto:** el titular pidió seguir perfiles de ciudadanos críticos para medir sentimiento. No se construyó:
