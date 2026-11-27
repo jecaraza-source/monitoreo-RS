@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { admin, login, toast, USERS } from "./helpers";
+import { acceptConfirm, admin, login, toast, USERS } from "./helpers";
 
 const ORG = "00000000-0000-4000-a000-000000000001";
 const NAME = "Apify e2e";
@@ -42,5 +42,14 @@ test.describe("fuentes no oficiales", () => {
     await item.getByRole("button", { name: "Probar" }).click();
     await expect(toast(page, /Conexión correcta: 1 elementos/)).toBeVisible();
     await expect(item.getByText(/Apify e2e: fuga de agua/)).toBeVisible();
+
+    // Deleting asks in the app's own dialog (not the browser's, which freezes the page).
+    await item.getByRole("button", { name: `Eliminar ${NAME}` }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Cancelar" }).click();
+    await expect(page.getByRole("alertdialog")).toHaveCount(0);
+    await expect(item).toBeVisible();
+    await item.getByRole("button", { name: `Eliminar ${NAME}` }).click();
+    await acceptConfirm(page, "Eliminar");
+    await expect(page.getByRole("heading", { name: NAME })).toHaveCount(0);
   });
 });

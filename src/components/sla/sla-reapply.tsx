@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/components/confirm-dialog";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -14,6 +15,7 @@ const dt = (iso: string | null) => (iso ? new Date(iso).toLocaleString("es-MX", 
 
 /** Preview and explicit, audited reapplication of the current SLA version to chosen open cases. */
 export function SlaReapply({ rows }: { rows: ReapplyRow[] }) {
+  const confirm = useConfirm();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -28,9 +30,9 @@ export function SlaReapply({ rows }: { rows: ReapplyRow[] }) {
     <form
       aria-label="Reaplicar SLA"
       className="flex flex-col gap-4"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        if (!window.confirm(`Se cambiarán los plazos de ${selected.size} caso(s). Queda en su historial y en la bitácora. ¿Continuar?`)) return;
+        if (!(await confirm(`Se cambiarán los plazos de ${selected.size} caso(s). Queda en su historial y en la bitácora. ¿Continuar?`, { confirmLabel: "Reaplicar" }))) return;
         startTransition(async () => {
           const result = await reapplySla({ caseIds: [...selected], reason, includeOverridden });
           if (!result.ok) return void toast.error(result.message);

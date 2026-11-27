@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/components/confirm-dialog";
 import { useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ type Official = { id: string; name: string; position: string; aliases: string[];
 const EMPTY = { name: "", position: "", aliases: "", isActive: true };
 
 export function OfficialsCatalog({ officials }: { officials: Official[] }) {
+  const confirm = useConfirm();
   const { pending, run } = useCatalogAction();
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState(EMPTY);
@@ -52,7 +54,7 @@ export function OfficialsCatalog({ officials }: { officials: Official[] }) {
                 variant="ghost"
                 aria-label={`Eliminar ${o.name}`}
                 disabled={pending}
-                onClick={() => confirm(`¿Eliminar a ${o.name} del catálogo?`) && run(() => deleteOfficial(o.id), reset)}
+                onClick={() => void confirm(`¿Eliminar a ${o.name} del catálogo?`, { confirmLabel: "Eliminar", destructive: true }).then((ok) => ok && run(() => deleteOfficial(o.id), reset))}
               >
                 <Trash2 aria-hidden />
               </Button>

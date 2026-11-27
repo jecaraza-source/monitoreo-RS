@@ -3,6 +3,20 @@
 Una entrada por etapa del prompt maestro, de la más reciente a la más antigua. El detalle de cada etapa vive en
 su propio documento de `docs/`.
 
+## Selectores completos y confirmaciones propias (27 nov 2026, base `8cb364f`)
+
+- **Selectores:** la lista de opciones medía lo mismo que el botón y recortaba el texto (en Radar Social, «Tipo de
+  reporte» con «Elige el tipo» cortaba «Amenaza a funcionarios o instalaciones»). Ahora la lista crece hasta su
+  opción más larga, sin salirse de la pantalla, y una opción que no cabe pasa a la línea siguiente
+  (`components/ui/select.tsx`). En el formulario de Radar Social los selectores ocupan su columna.
+- **Confirmaciones:** las 12 que usaban `window.confirm()` (borrar fuente, colonia, dependencia, funcionario,
+  regla, factura y borrador de reporte; quitar miembro o número de WhatsApp; aprobar o revisar un reporte;
+  reaplicar SLA) usan un diálogo propio (`components/confirm-dialog.tsx`). El nativo congelaba la página mientras
+  estaba abierto, y la barra de Vercel lo marcaba como interacción lenta (INP). Los dos `window.prompt()` de
+  motivos (retención y autores verificados) siguen nativos.
+- **Pruebas:** las e2e que aceptaban el diálogo del navegador ahora aceptan el de la app; Fuentes prueba cancelar y
+  confirmar el borrado. 460 unitarias; e2e completa: 80 pasan, 11 omitidas.
+
 ## Next.js 16.4.6 y dependencias (26 nov 2026, base `a68a07c`)
 
 - **Por qué:** el build de Next.js 16.4.3 se detenía con un aviso de seguridad, y `npm audit` reportaba 7

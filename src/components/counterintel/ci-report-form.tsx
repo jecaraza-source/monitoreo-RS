@@ -53,6 +53,7 @@ export function CiReportForm() {
           value={kind}
           onChange={(v) => setKind((v as CiKind | null) ?? null)}
           emptyLabel="Elige el tipo"
+          className="w-full"
           options={CI_KINDS.map((k) => ({ value: k, label: CI_KIND_LABELS[k] }))}
         />
       </div>
@@ -62,6 +63,7 @@ export function CiReportForm() {
           label="Gravedad"
           value={severity}
           onChange={(v) => setSeverity((v as CiSeverity | null) ?? "medium")}
+          className="w-full"
           options={CI_SEVERITIES.map((s) => ({ value: s, label: CI_SEVERITY_LABELS[s] }))}
         />
       </div>

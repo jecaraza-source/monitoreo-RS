@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { admin, login, toast, USERS } from "./helpers";
+import { admin, login, toast, USERS, acceptConfirm } from "./helpers";
 
 // Stage 9: conversation and attention KPIs with their definitions, the
 // department breakdown, and reports whose approved figures never change.
@@ -70,8 +70,8 @@ test.describe("indicadores y reportes", () => {
     await expect(main(page).getByRole("status").filter({ hasText: "verificados contra los datos" })).toBeVisible();
     await expect(main(page).getByText("Qué requiere decisión", { exact: true }).first()).toBeVisible();
 
-    page.once("dialog", (d) => d.accept());
     await main(page).getByRole("button", { name: "Aprobar" }).click();
+    await acceptConfirm(page, "Aprobar");
     await expect(toast(page, /Aprobado/)).toBeVisible({ timeout: 60_000 });
     const { data: approved } = await db.from("reports").select("facts, period_start, period_end, kpi_version, version").eq("id", firstId).single();
     expect(approved!.version).toBe(1);
@@ -97,8 +97,8 @@ test.describe("indicadores y reportes", () => {
 
       // A revision: version 2, linked, with figures computed now.
       await page.reload();
-      page.once("dialog", (d) => d.accept());
       await main(page).getByRole("button", { name: "Crear revisión" }).click();
+      await acceptConfirm(page, "Crear revisión");
       await page.waitForURL((url) => !url.pathname.endsWith(firstId), { timeout: 120_000 });
       revisionId = page.url().split("/").pop()!;
       await expect(main(page).getByText("Versión 2")).toBeVisible();
@@ -116,8 +116,8 @@ test.describe("indicadores y reportes", () => {
       await expect(main(page).getByText(/Qué cambió 1: falta la evidencia/)).toBeVisible();
       await main(page).getByRole("button", { name: "Guardar cambios" }).click();
       await expect(toast(page, /Antes de aprobar corrige/)).toBeVisible();
-      page.once("dialog", (d) => d.accept());
       await main(page).getByRole("button", { name: "Aprobar" }).click();
+      await acceptConfirm(page, "Aprobar");
       await expect(toast(page, /No se puede aprobar/)).toBeVisible();
       expect((await db.from("reports").select("status").eq("id", revisionId).single()).data!.status).toBe("draft");
     } finally {
@@ -164,8 +164,8 @@ test.describe("indicadores y reportes", () => {
       await login(page, USERS.comunicacion, `/reportes/${data!.id}`);
       await expect(main(page).getByRole("heading", { name: "Hallazgos" })).toBeVisible();
       await expect(main(page).getByText(/usa el formato anterior/)).toBeVisible();
-      page.once("dialog", (d) => d.accept());
       await main(page).getByRole("button", { name: "Aprobar" }).click();
+      await acceptConfirm(page, "Aprobar");
       await expect(toast(page, /Aprobado/)).toBeVisible({ timeout: 60_000 });
       await page.reload();
       const link = main(page).getByRole("link", { name: "Descargar PDF" });

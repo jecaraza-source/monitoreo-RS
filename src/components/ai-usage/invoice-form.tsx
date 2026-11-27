@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/components/confirm-dialog";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -55,6 +56,7 @@ export function InvoiceForm({ defaultMonth }: { defaultMonth: string }) {
 }
 
 export function DeleteInvoiceButton({ id }: { id: string }) {
+  const confirm = useConfirm();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   return (
@@ -62,15 +64,15 @@ export function DeleteInvoiceButton({ id }: { id: string }) {
       variant="ghost"
       size="sm"
       disabled={pending}
-      onClick={() =>
+      onClick={async () => {
+        if (!(await confirm("¿Borrar la factura de este mes?", { confirmLabel: "Borrar", destructive: true }))) return;
         startTransition(async () => {
-          if (!window.confirm("¿Borrar la factura de este mes?")) return;
           const result = await deleteAiInvoice({ id });
           if (!result.ok) return void toast.error(result.message);
           toast.success(result.message);
           router.refresh();
-        })
-      }
+        });
+      }}
     >
       Borrar
     </Button>

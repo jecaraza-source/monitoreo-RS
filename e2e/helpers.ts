@@ -128,3 +128,8 @@ export async function freshMentions(tag: string, items: FreshMention[]) {
 }
 
 const ORG_A = "00000000-0000-4000-a000-000000000001";
+
+/** Accepts the app's confirmation dialog (it replaced window.confirm). */
+export async function acceptConfirm(page: Page, button: string | RegExp) {
+  await page.getByRole("alertdialog").getByRole("button", { name: button }).click();
+}

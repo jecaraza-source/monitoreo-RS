@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/components/confirm-dialog";
 import { useState, useTransition } from "react";
 import { Pause, Pencil, Play, Plus, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -54,6 +55,7 @@ export function RulesPanel({
   recipients: WhatsAppRecipient[];
   canEdit: boolean;
 }) {
+  const confirm = useConfirm();
   const { pending, run } = useAction();
   const [editing, setEditing] = useState<AlertRule | "new" | null>(null);
   const departmentName = new Map(departments.map((d) => [d.id, d.name]));
@@ -120,7 +122,7 @@ export function RulesPanel({
                         variant="ghost"
                         aria-label={`Eliminar ${rule.name}`}
                         disabled={pending}
-                        onClick={() => confirm(`¿Eliminar «${rule.name}» y sus alertas?`) && run(() => deleteRule(rule.id))}
+                        onClick={() => void confirm(`¿Eliminar «${rule.name}» y sus alertas?`, { confirmLabel: "Eliminar", destructive: true }).then((ok) => ok && run(() => deleteRule(rule.id)))}
                       >
                         <Trash2 aria-hidden />
                       </Button>

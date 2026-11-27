@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { solidPng } from "./fixtures-png";
-import { admin, login, toast, USERS } from "./helpers";
+import { admin, login, toast, USERS, acceptConfirm } from "./helpers";
 
 const ORG = "00000000-0000-4000-a000-000000000001";
 
@@ -43,8 +43,8 @@ async function generateApproveAndDownload(page: import("@playwright/test").Page)
   await page.getByRole("button", { name: "Guardar cambios" }).click();
   await expect(toast(page, "Cambios guardados")).toBeVisible();
 
-  page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Aprobar" }).click();
+  await acceptConfirm(page, "Aprobar");
   await expect(toast(page, /Aprobado/)).toBeVisible({ timeout: 60_000 });
 
   await page.reload();

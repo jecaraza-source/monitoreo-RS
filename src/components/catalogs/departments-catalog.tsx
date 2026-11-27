@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/components/confirm-dialog";
 import { useState } from "react";
 import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { useCatalogAction } from "./use-catalog-action";
 type Department = { id: string; name: string; shortName: string | null };
 
 export function DepartmentsCatalog({ departments }: { departments: Department[] }) {
+  const confirm = useConfirm();
   const { pending, run } = useCatalogAction();
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState({ name: "", shortName: "" });
@@ -68,7 +70,7 @@ export function DepartmentsCatalog({ departments }: { departments: Department[] 
                   variant="ghost"
                   aria-label={`Eliminar ${d.name}`}
                   disabled={pending}
-                  onClick={() => confirm(`¿Eliminar ${d.name}?`) && run(() => deleteDepartment(d.id))}
+                  onClick={() => void confirm(`¿Eliminar ${d.name}?`, { confirmLabel: "Eliminar", destructive: true }).then((ok) => ok && run(() => deleteDepartment(d.id)))}
                 >
                   <Trash2 aria-hidden />
                 </Button>

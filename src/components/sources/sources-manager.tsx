@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/components/confirm-dialog";
 import { useState, useTransition } from "react";
 import { AlertTriangle, FlaskConical, Pause, Pencil, Play, Plus, RefreshCw, Rss, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -58,6 +59,7 @@ export function SourcesManager({
   /** Only admins connect or reconfigure unofficial sources. */
   canConnectUnofficial: boolean;
 }) {
+  const confirm = useConfirm();
   const [editing, setEditing] = useState<SourceView | "new" | null>(sources.length === 0 ? "new" : null);
   const [busy, setBusy] = useState<string | null>(null);
   const [tests, setTests] = useState<Record<string, TestResult | string>>({});
@@ -199,7 +201,7 @@ export function SourcesManager({
                       size="icon-sm"
                       aria-label={`Eliminar ${source.name}`}
                       disabled={busy !== null}
-                      onClick={() => confirm(`¿Eliminar ${source.name}?`) && act(source.id, "delete", () => deleteSource(source.id))}
+                      onClick={() => void confirm(`¿Eliminar ${source.name}?`, { confirmLabel: "Eliminar", destructive: true }).then((ok) => ok && act(source.id, "delete", () => deleteSource(source.id)))}
                     >
                       <Trash2 aria-hidden />
                     </Button>
