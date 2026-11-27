@@ -14,6 +14,10 @@ su propio documento de `docs/`.
   reaplicar SLA) usan un diálogo propio (`components/confirm-dialog.tsx`). El nativo congelaba la página mientras
   estaba abierto, y la barra de Vercel lo marcaba como interacción lenta (INP). Los dos `window.prompt()` de
   motivos (retención y autores verificados) siguen nativos.
+- **Sin desplazamiento lateral:** la columna principal (`SidebarInset`) medía el ancho de la ventana pero empezaba
+  después del menú, y se salía 256 px en Fuentes, Usuarios y Bandeja. Ahora puede encogerse (`min-w-0`) y lo ancho
+  (tablas, pestañas) se desplaza dentro de su propia franja. En Fuentes, «Probar» y «Ejecutar ahora» son sólo
+  íconos por debajo de 1280 px (con su nombre accesible y al pasar el cursor).
 - **Pruebas:** las e2e que aceptaban el diálogo del navegador ahora aceptan el de la app; Fuentes prueba cancelar y
   confirmar el borrado. 460 unitarias; e2e completa: 80 pasan, 11 omitidas.
 

@@ -165,17 +165,29 @@ export function SourcesManager({
                       </p>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    <Button variant="outline" size="sm" disabled={busy !== null || !available} onClick={() => test(source.id)}>
-                      <FlaskConical aria-hidden /> {busy === `${source.id}:test` ? "Probando…" : "Probar"}
+                  {/* Icons only below xl so the actions fit next to the name; the label stays as the accessible name and tooltip. */}
+                  <div className="flex shrink-0 flex-wrap gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      aria-label="Probar"
+                      title="Probar: lee la fuente sin guardar nada"
+                      disabled={busy !== null || !available}
+                      onClick={() => test(source.id)}
+                    >
+                      <FlaskConical aria-hidden className={cn(busy === `${source.id}:test` && "animate-pulse")} />
+                      <span className="hidden xl:inline">{busy === `${source.id}:test` ? "Probando…" : "Probar"}</span>
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
+                      aria-label="Ejecutar ahora"
+                      title="Ejecutar ahora: captura y guarda lo nuevo"
                       disabled={busy !== null || !source.isActive || !available}
                       onClick={() => act(source.id, "run", () => runSourceNow(source.id))}
                     >
-                      <RefreshCw aria-hidden className={cn(busy === `${source.id}:run` && "animate-spin")} /> Ejecutar ahora
+                      <RefreshCw aria-hidden className={cn(busy === `${source.id}:run` && "animate-spin")} />
+                      <span className="hidden xl:inline">Ejecutar ahora</span>
                     </Button>
                     <Button
                       variant="ghost"
