@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/components/confirm-dialog";
 import { useState, useTransition } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -14,11 +15,12 @@ type Member = { userId: string; email: string; role: Role; departmentId: string 
 
 /** Edit (role, department) and remove buttons of a row in the users table. */
 export function MemberActions({ member, departments, isSelf }: { member: Member; departments: { id: string; name: string }[]; isSelf: boolean }) {
+  const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  function remove() {
-    if (!confirm(`¿Quitar a ${member.email} del municipio? Perderá el acceso de inmediato.`)) return;
+  async function remove() {
+    if (!(await confirm(`¿Quitar a ${member.email} del municipio? Perderá el acceso de inmediato.`, { confirmLabel: "Quitar", destructive: true }))) return;
     startTransition(async () => {
       const result = await removeMember({ userId: member.userId });
       if (result.ok) toast.success(result.message);

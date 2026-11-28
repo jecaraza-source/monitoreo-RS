@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/components/confirm-dialog";
 import { useState } from "react";
 import { Send, Trash2 } from "lucide-react";
 import { OptionSelect } from "@/components/inbox/option-select";
@@ -50,6 +51,7 @@ export function ResponsiblesTable({ rows }: { rows: ResponsibleRow[] }) {
 }
 
 function Row({ row }: { row: ResponsibleRow }) {
+  const confirm = useConfirm();
   const { pending, run } = useWhatsAppAction();
   const [phone, setPhone] = useState(row.contact?.phone ?? "");
   const status = CONTACT_STATUS[row.contact?.status ?? "none"];
@@ -97,8 +99,9 @@ function Row({ row }: { row: ResponsibleRow }) {
               aria-label={`Quitar WhatsApp de ${row.departmentName}`}
               disabled={pending}
               onClick={() =>
-                confirm("¿Quitar este número? Dejará de recibir mensajes.") &&
-                run(() => removeContact({ userId: row.responsibleId }), () => setPhone(""))
+                void confirm("¿Quitar este número? Dejará de recibir mensajes.", { confirmLabel: "Quitar", destructive: true }).then(
+                  (ok) => ok && run(() => removeContact({ userId: row.responsibleId }), () => setPhone("")),
+                )
               }
             >
               <Trash2 aria-hidden />

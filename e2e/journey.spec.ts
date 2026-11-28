@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { solidPng } from "./fixtures-png";
-import { admin, login, toast, USERS, USERS_B } from "./helpers";
+import { admin, login, toast, USERS, USERS_B, acceptConfirm } from "./helpers";
 
 // Stage 12: one fictitious problem from end to end, with a real magic link and
 // the four roles (comunicación, dependencia, consulta, administración):
@@ -139,8 +139,8 @@ test.describe("recorrido completo", () => {
       await com.getByRole("button", { name: "Generar borrador" }).click();
       await com.waitForURL(/\/reportes\/[0-9a-f-]{36}$/, { timeout: 120_000 });
       reportIds.push(com.url().split("/").pop()!);
-      com.once("dialog", (d) => d.accept());
       await main(com).getByRole("button", { name: "Aprobar" }).click();
+      await acceptConfirm(com, "Aprobar");
       await expect(toast(com, /Aprobado/)).toBeVisible({ timeout: 60_000 });
       await com.reload();
       const link = main(com).getByRole("link", { name: "Descargar PDF" });

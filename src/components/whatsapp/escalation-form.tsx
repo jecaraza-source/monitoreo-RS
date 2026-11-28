@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/components/confirm-dialog";
 import { useState } from "react";
 import { Send, Trash2 } from "lucide-react";
 import { OptionSelect } from "@/components/inbox/option-select";
@@ -20,6 +21,7 @@ export function EscalationForm({
   candidates: { id: string; label: string }[];
   contact: { phone: string; status: ContactStatus } | null;
 }) {
+  const confirm = useConfirm();
   const { pending, run } = useWhatsAppAction();
   const [phone, setPhone] = useState(contact?.phone ?? "");
   const status = CONTACT_STATUS[contact?.status ?? "none"];
@@ -65,7 +67,7 @@ export function EscalationForm({
             variant="ghost"
             aria-label="Quitar WhatsApp de escalamiento"
             disabled={pending}
-            onClick={() => confirm("¿Quitar este número? Dejará de recibir mensajes.") && run(() => removeContact({ userId }), () => setPhone(""))}
+            onClick={() => void confirm("¿Quitar este número? Dejará de recibir mensajes.", { confirmLabel: "Quitar", destructive: true }).then((ok) => ok && run(() => removeContact({ userId }), () => setPhone("")))}
           >
             <Trash2 aria-hidden />
           </Button>

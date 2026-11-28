@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/components/confirm-dialog";
 import { useRef, useState } from "react";
 import { FileUp, MapPin, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ type Neighborhood = { id: string; name: string; hasShape: boolean; approx: boole
 const MAX_BYTES = 3.8 * 1024 * 1024; // under the 4 MB Server Action limit
 
 export function NeighborhoodsCatalog({ neighborhoods, municipality }: { neighborhoods: Neighborhood[]; municipality: string }) {
+  const confirm = useConfirm();
   const { pending, run } = useCatalogAction();
   const [newName, setNewName] = useState("");
   const [file, setFile] = useState<{ name: string; json: unknown } | null>(null);
@@ -133,7 +135,7 @@ export function NeighborhoodsCatalog({ neighborhoods, municipality }: { neighbor
               variant="ghost"
               aria-label={`Eliminar ${n.name}`}
               disabled={pending}
-              onClick={() => confirm(`¿Eliminar la colonia ${n.name}?`) && run(() => deleteNeighborhood(n.id))}
+              onClick={() => void confirm(`¿Eliminar la colonia ${n.name}?`, { confirmLabel: "Eliminar", destructive: true }).then((ok) => ok && run(() => deleteNeighborhood(n.id)))}
             >
               <Trash2 aria-hidden />
             </Button>
